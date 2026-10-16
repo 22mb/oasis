@@ -1,0 +1,7 @@
+$id: https://api.example.com/openapi/schemas/error
+$defs:
+  problem:
+    type: object
+    required: [title]
+    properties:
+      title: { type: string }

@@ -1,0 +1,13 @@
+# A Path Item in its own file; references resolve against this file.
+get:
+  operationId: listPets
+  parameters:
+    - $ref: "../components/parameters.yaml#/Limit"
+  responses:
+    "200":
+      description: Pets.
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: "../schemas/pet.yaml" }

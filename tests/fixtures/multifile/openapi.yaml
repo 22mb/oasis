@@ -1,0 +1,32 @@
+# Multi-file document. `$self` differs from the file location, so relative
+# references resolve against it and are mapped back onto local files.
+openapi: 3.2.0
+$self: https://api.example.com/openapi/root.yaml
+info:
+  title: Multi-file
+  version: "1"
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /pets:
+    $ref: paths/pets.yaml
+  /owners/{ownerId}:
+    get:
+      operationId: getOwner
+      parameters:
+        - $ref: "components/parameters.yaml#/OwnerId"
+      responses:
+        "200":
+          $ref: "components/responses.yaml#/Owner"
+        default:
+          description: Error.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Error" }
+components:
+  schemas:
+    Pet:
+      $ref: schemas/pet.yaml
+    # Identified by the `$id` of schemas/error.yaml, not by its file name.
+    Error:
+      $ref: "schemas/error#/$defs/problem"

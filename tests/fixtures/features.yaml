@@ -1,0 +1,156 @@
+# Edge cases: parameter serialization, servers, media type ranges, readOnly/writeOnly,
+# discriminators, recursive non-component $refs and YAML 1.2 scalars.
+openapi: 3.2.0
+info:
+  title: Features
+  version: "1"
+servers:
+  - url: https://api.example.com
+paths:
+  /items/{coords}:
+    parameters:
+      - name: coords
+        in: path
+        required: true
+        explode: true
+        schema:
+          type: object
+          properties:
+            x: { type: integer }
+            y: { type: integer }
+    get:
+      operationId: getItem
+      parameters:
+        - name: X-Meta
+          in: header
+          explode: true
+          schema:
+            type: object
+            additionalProperties: { type: string }
+        - name: session
+          in: cookie
+          schema: { type: string }
+        - name: list
+          in: cookie
+          style: cookie
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: raw
+          in: cookie
+          style: cookie
+          schema: { type: string }
+        - name: path
+          in: query
+          allowReserved: true
+          schema: { type: string }
+        - name: filter
+          in: query
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  a: { type: integer }
+      responses:
+        "200":
+          description: Anything.
+          content:
+            "*/*": {}
+        2XX:
+          description: Another success.
+        default:
+          description: Fallback.
+          content:
+            application/*: {}
+  /upload:
+    servers:
+      - url: https://upload.example.com
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json; charset=utf-8:
+            schema: { $ref: "#/components/schemas/Account" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+  /shapes:
+    get:
+      servers:
+        - url: https://shapes.example.com/{version}
+          variables:
+            version:
+              default: v2
+              enum: [v1, v2]
+      responses:
+        "200":
+          description: A shape.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Shape" }
+components:
+  schemas:
+    Account:
+      title: Account
+      description: A user account.
+      type: object
+      required: [id, name, password]
+      properties:
+        id: { type: integer, readOnly: true }
+        name: { type: string, default: anonymous }
+        password: { type: string, writeOnly: true }
+        owner: { $ref: "#/components/schemas/Owner" }
+    Owner:
+      type: object
+      required: [ownerId]
+      properties:
+        ownerId: { type: integer, readOnly: true }
+    Base:
+      type: object
+      properties:
+        id: { type: integer }
+        note: { type: string }
+    WithId:
+      allOf:
+        - $ref: "#/components/schemas/Base"
+      required: [id]
+    Circle:
+      type: object
+      required: [kind, r]
+      properties:
+        kind: { type: string }
+        r: { type: number }
+    Square:
+      type: object
+      required: [kind, side]
+      properties:
+        kind: { type: string }
+        side: { type: number }
+    Shape:
+      oneOf:
+        - $ref: "#/components/schemas/Circle"
+        - $ref: "#/components/schemas/Square"
+      discriminator:
+        propertyName: kind
+        mapping:
+          c: "#/components/schemas/Circle"
+          s: "#/components/schemas/Square"
+    Tree:
+      $defs:
+        node:
+          type: object
+          properties:
+            value: { type: integer }
+            left: { $ref: "#/components/schemas/Tree/$defs/node" }
+            right: { $ref: "#/components/schemas/Tree/$defs/node" }
+      $ref: "#/components/schemas/Tree/$defs/node"
+    Flag:
+      type: string
+      enum: [N, Y, yes, off, A]
+    Level:
+      type: [integer, "null"]
+      format: int32
+      enum: [1, 2, null]

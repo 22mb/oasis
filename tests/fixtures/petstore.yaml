@@ -1,0 +1,279 @@
+openapi: 3.2.0
+$self: https://example.com/openapi/petstore.yaml
+info:
+  title: Petstore
+  version: 1.0.0
+servers:
+  - url: https://{region}.example.com/v1
+    name: production
+    variables:
+      region:
+        default: api
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: List pets
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: tags
+          in: query
+          schema: { type: array, items: { type: string } }
+        - name: ids
+          in: query
+          style: form
+          explode: false
+          schema: { type: array, items: { type: integer } }
+        - name: filter
+          in: query
+          style: deepObject
+          schema:
+            type: object
+            properties:
+              kind: { $ref: "#/components/schemas/Kind" }
+              minAge: { type: integer }
+        - name: X-Request-Id
+          in: header
+          schema: { type: string }
+        - name: session
+          in: cookie
+          schema: { type: string }
+      responses:
+        "200":
+          description: A page of pets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Pet" }
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createPet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewPet" }
+          application/x-www-form-urlencoded:
+            schema: { $ref: "#/components/schemas/NewPet" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Pet" }
+        default:
+          $ref: "#/components/responses/Error"
+    query:
+      operationId: searchPets
+      summary: Search pets with a query body (HTTP QUERY method).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+      responses:
+        "200":
+          description: Matching pets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Pet" }
+  /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      operationId: getPet
+      responses:
+        "200":
+          description: The pet.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Pet" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deletePet
+      deprecated: true
+      responses:
+        "204":
+          description: Deleted.
+    additionalOperations:
+      LINK:
+        operationId: linkPet
+        parameters:
+          - name: Link
+            in: header
+            required: true
+            schema: { type: string }
+        responses:
+          "204":
+            description: Linked.
+  /pets/{petId}/photo:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      requestBody:
+        required: true
+        content:
+          image/png: {}
+      responses:
+        "204":
+          description: Uploaded.
+    get:
+      responses:
+        "200":
+          description: The photo.
+          content:
+            image/png: {}
+  /search:
+    get:
+      operationId: search
+      parameters:
+        - name: q
+          in: querystring
+          required: true
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                type: object
+                required: [term]
+                properties:
+                  term: { type: string }
+                  page: { type: integer }
+      responses:
+        "200":
+          description: Results.
+          content:
+            text/plain:
+              schema: { type: string }
+  /stream/jsonl:
+    get:
+      responses:
+        "200":
+          description: Pets as JSON Lines.
+          content:
+            application/jsonl:
+              itemSchema: { $ref: "#/components/schemas/Pet" }
+  /stream/seq:
+    get:
+      responses:
+        "200":
+          description: Pets as a JSON text sequence.
+          content:
+            application/json-seq:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Pet" }
+  /stream/sse:
+    get:
+      responses:
+        "200":
+          description: Server-sent events.
+          content:
+            text/event-stream:
+              itemSchema:
+                type: object
+                required: [data]
+                properties:
+                  event: { type: string }
+                  data:
+                    type: string
+                    contentMediaType: application/json
+                  id: { type: string }
+                  retry: { type: integer, minimum: 0 }
+  /stream/events:
+    get:
+      responses:
+        "200":
+          description: Untyped server-sent events.
+          content:
+            text/event-stream: {}
+components:
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of items.
+      schema: { type: integer, minimum: 1 }
+  mediaTypes:
+    Problem:
+      schema: { $ref: "#/components/schemas/Error" }
+  responses:
+    Error:
+      description: Error.
+      content:
+        application/problem+json:
+          $ref: "#/components/mediaTypes/Problem"
+    NotFound:
+      description: Not found.
+      content:
+        application/problem+json:
+          $ref: "#/components/mediaTypes/Problem"
+  schemas:
+    Kind:
+      type: string
+      enum: [cat, dog]
+    NewPet:
+      type: object
+      required: [name, kind]
+      properties:
+        name:
+          type: string
+          description: The pet's name.
+        kind: { $ref: "#/components/schemas/Kind" }
+        tag: { type: [string, "null"] }
+    Pet:
+      allOf:
+        - $ref: "#/components/schemas/NewPet"
+        - type: object
+          required: [id]
+          properties:
+            id: { type: integer, format: int64 }
+            owner: { $ref: "#/components/schemas/Owner" }
+    Owner:
+      oneOf:
+        - type: object
+          required: [type, name]
+          properties:
+            type: { const: person }
+            name: { type: string }
+        - type: object
+          required: [type, id]
+          properties:
+            type: { const: shelter }
+            id: { type: integer }
+      discriminator:
+        propertyName: type
+    Error:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        detail: { type: string }
+      additionalProperties: true
+    Labels:
+      type: object
+      additionalProperties: { type: string }
+    Point:
+      type: array
+      prefixItems: [{ type: number }, { type: number }]
+      items: false
+    Category:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        children:
+          type: array
+          items: { $ref: "#/components/schemas/Category" }

@@ -1,0 +1,9 @@
+description: An owner, referencing pets back.
+type: object
+required: [id]
+properties:
+  id: { type: integer }
+  pets:
+    type: array
+    items: { $ref: "pet.yaml" }
+  partner: { $ref: "#" }

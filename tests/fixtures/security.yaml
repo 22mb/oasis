@@ -1,0 +1,83 @@
+# Security requirements: defaults, overrides, anonymous access, scopes,
+# alternatives (OR) and combined schemes (AND).
+openapi: 3.2.0
+info:
+  title: Security
+  version: "1"
+servers:
+  - url: https://api.example.com
+security:
+  - bearer: []
+paths:
+  /login:
+    post:
+      operationId: login
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user: { type: string }
+      responses:
+        "204": { description: Logged in. }
+  /pets:
+    get:
+      operationId: listPets
+      security:
+        - {}
+        - bearer: []
+      responses:
+        "200":
+          description: Pets, personalized when authenticated.
+          content:
+            application/json:
+              schema: { type: array, items: { type: string } }
+  /me:
+    get:
+      responses:
+        "204": { description: Inherits the top-level requirement. }
+  /admin/users:
+    delete:
+      operationId: deleteUsers
+      security:
+        - oauth: [admin, write]
+      responses:
+        "204": { description: Deleted. }
+  /webhooks:
+    post:
+      operationId: webhook
+      security:
+        - apiKey: []
+      responses:
+        "204": { description: Accepted. }
+  /reports:
+    get:
+      operationId: reports
+      security:
+        - queryKey: []
+        - basic: []
+      responses:
+        "204": { description: Either credential works. }
+  /both:
+    get:
+      operationId: both
+      security:
+        - apiKey: []
+          session: []
+      responses:
+        "204": { description: Needs both. }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+    basic: { type: http, scheme: Basic }
+    apiKey: { type: apiKey, in: header, name: X-API-Key }
+    queryKey: { type: apiKey, in: query, name: api_key }
+    session: { type: apiKey, in: cookie, name: sid }
+    oauth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/token
+          scopes: { admin: Administer, write: Write }

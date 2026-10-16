@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsc && node --test e2e.test.ts features.test.ts security.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.9",
+    "typescript": "7.0.2"
+  }
+}

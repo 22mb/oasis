@@ -1,0 +1,11 @@
+Owner:
+  description: An owner.
+  content:
+    application/json:
+      schema: { $ref: "../schemas/owner.yaml" }
+# Loads schemas/error.yaml by path, which registers its `$id`.
+Problem:
+  description: A problem.
+  content:
+    application/problem+json:
+      schema: { $ref: "../schemas/error.yaml" }

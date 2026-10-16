@@ -1,0 +1,9 @@
+OwnerId:
+  name: ownerId
+  in: path
+  required: true
+  schema: { type: integer }
+Limit:
+  name: limit
+  in: query
+  schema: { $ref: "../schemas/common.yaml#limit" }

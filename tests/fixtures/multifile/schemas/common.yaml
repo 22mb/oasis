@@ -1,0 +1,4 @@
+Limit:
+  $anchor: limit
+  type: integer
+  minimum: 1
