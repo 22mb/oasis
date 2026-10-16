@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install stable --profile minimal -c clippy,rustfmt
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  typescript:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Oldest supported and current TypeScript.
+        typescript: ["5.0.4", "7.0.2"]
+    defaults:
+      run:
+        working-directory: tests/ts
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm install --no-save typescript@${{ matrix.typescript }}
+        if: matrix.typescript != '7.0.2'
+      # TypeScript 5.0 predates some strictness flags in tsconfig.json.
+      - run: npx tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext --moduleResolution bundler --allowImportingTsExtensions --lib es2022,dom --types node types.check.ts features.check.ts security.check.ts ../golden/multifile.ts
+        if: matrix.typescript != '7.0.2'
+      - run: npm test
+        if: matrix.typescript == '7.0.2'
