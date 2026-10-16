@@ -20,6 +20,6 @@
     "LICENSE-APACHE"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   }
 }

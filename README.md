@@ -29,6 +29,9 @@ if (res.ok) {
 npm install --save-dev oasis-gen
 ```
 
+Node.js 24 or later is supported, both for the CLI and for the generated
+client (which also runs in browsers, Deno and Bun).
+
 The package ships prebuilt binaries for macOS (arm64, x64), Linux (arm64, x64;
 static, so glibc and musl both work) and Windows (arm64, x64); npm installs
 only the one for your platform. Archives are also attached to each GitHub

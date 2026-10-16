@@ -122,5 +122,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh extension install github/gh-actions-lock --pin v0.2.0
+          gh extension install github/gh-actions-lock --pin d5dca22a06ff8590d50b41612038996800cfb336 # v0.2.0
           gh actions-lock --verify

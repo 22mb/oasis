@@ -114,8 +114,9 @@ jobs:
           fi
       - name: Publish to npm
         env:
-          # Only for the first publish of each package; afterwards configure trusted
-          # publishing on npmjs.com and delete this secret.
+          # Only for the first publish of each package. Afterwards, configure trusted
+          # publishing for every package on npmjs.com, then remove this `env` entry
+          # (npm then authenticates with OIDC) and delete the NPM_TOKEN secret.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           version="${GITHUB_REF_NAME#v}"
