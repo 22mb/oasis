@@ -4,7 +4,8 @@
 
 Please report vulnerabilities privately through GitHub: open the repository's
 **Security** tab and choose **Report a vulnerability**. Do not open a public
-issue. You can expect an acknowledgement within a week.
+issue. This project is maintained on a best-effort basis, so a response may
+take some time.
 
 Only the latest release is supported; fixes are released as a new version.
 
