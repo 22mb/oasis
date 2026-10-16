@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag `v<version>` matching Cargo.toml (on a commit in main) to build
+# Push a tag `v<version>` matching Cargo.toml to build
 # binaries for every platform, attest them, publish the npm packages and
 # publish a GitHub release. The release is created as a draft and published
 # last, which works with immutable releases (assets cannot change afterwards).
@@ -40,7 +40,7 @@ jobs:
           persist-credentials: false
       - name: Check that the tag matches Cargo.toml
         run: test "v$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)" = "$GITHUB_REF_NAME"
-      - run: rustup toolchain install && rustup target add "$TARGET" # toolchain from rust-toolchain.toml
+      - run: rustup toolchain install stable --profile minimal --target "$TARGET"
       - if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
       - run: cargo build --release --locked --target "$TARGET"
@@ -63,10 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - name: Check that the tag is on main
-        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24

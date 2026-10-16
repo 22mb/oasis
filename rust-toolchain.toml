@@ -1,5 +1,0 @@
-# Pinned for reproducible release builds; bump deliberately.
-[toolchain]
-channel = "1.99.1"
-profile = "minimal"
-components = ["clippy", "rustfmt"]

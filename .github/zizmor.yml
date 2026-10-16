@@ -1,9 +1,0 @@
-rules:
-  unpinned-uses:
-    config:
-      policies:
-        # Actions are pinned to commits (and repository IDs) by
-        # .github/workflows/actions.lock, which GitHub enforces at run time and
-        # CI verifies with `gh actions-lock --verify`. Workflows keep full
-        # version tags, which `gh actions-lock` requires.
-        "*": ref-pin
