@@ -2,10 +2,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "tsc && node --test e2e.test.ts features.test.ts security.test.ts"
+    "test": "node node_modules/typescript/bin/tsc && node --test e2e.test.ts features.test.ts security.test.ts",
+    "check:ts5.0": "node node_modules/typescript-5.0/bin/tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext --moduleResolution bundler --allowImportingTsExtensions --lib es2022,dom --types node types.check.ts features.check.ts security.check.ts ../golden/multifile.ts"
   },
   "devDependencies": {
     "@types/node": "25.9.9",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "typescript-5.0": "npm:typescript@5.0.4"
   }
 }

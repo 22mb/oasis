@@ -1,0 +1,25 @@
+# Updates wait 7 days after a release (`cooldown`), so a compromised version
+# is more likely to be caught and yanked before it is proposed here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: npm
+    directory: /tests/ts
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
