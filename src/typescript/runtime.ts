@@ -1,0 +1,471 @@
+// ---------------------------------------------------------------------------
+// Runtime (embedded by oasis; identical in every generated file)
+// ---------------------------------------------------------------------------
+
+export interface ClientOptions {
+  /**
+   * Prepended to every path, replacing every server in the document. Defaults to
+   * the first top-level server, or the operation's own server when it declares one.
+   */
+  baseUrl?: string;
+  /** Sent with every request; a function is called per request. */
+  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+  /** Wraps every request, outermost first. See {@link Middleware}. */
+  middleware?: Middleware[];
+  /** Custom fetch implementation, called with the final `Request`. */
+  fetch?: (request: Request) => Promise<Response>;
+}
+
+/** Standard fetch options accepted by every operation, besides its parameters and body. */
+export type RequestOptions = Omit<RequestInit, "method" | "body"> & {
+  /** Runs inside the client's middleware, for this call only. */
+  middleware?: Middleware[];
+};
+
+export type ApiResponse<Responses> = {
+  [S in keyof Responses & string]: {
+    status: S extends `${infer N extends number}` ? N : number;
+    // `default` also covers undeclared success codes.
+    ok: S extends "default" ? boolean : S extends `2${string}` ? true : false;
+    data: Responses[S];
+    response: Response;
+  };
+}[keyof Responses & string];
+
+/**
+ * One alternative of an operation's security: every scheme in it applies together,
+ * with the listed scopes. `{}` allows anonymous access.
+ */
+export type SecurityRequirement = { [K in SecuritySchemeName]?: string[] };
+
+/** What the document says about the operation being called. */
+export type OperationInfo = {
+  method: string;
+  /** Path template, e.g. `/pets/{petId}`. */
+  path: string;
+  operationId?: string;
+  /** Alternatives, in document order; empty when no security applies. */
+  security: SecurityRequirement[];
+};
+
+export type MiddlewareContext = { operation: OperationInfo };
+
+/**
+ * Wraps a request: change it, call `next` (zero, one or more times; use
+ * `request.clone()` to send a body twice), and return a response.
+ *
+ * ```ts
+ * const timing: Middleware = async (request, next) => {
+ *   const start = performance.now();
+ *   try {
+ *     return await next(request);
+ *   } finally {
+ *     console.log(request.method, request.url, performance.now() - start);
+ *   }
+ * };
+ * ```
+ */
+export type Middleware = (
+  request: Request,
+  next: (request: Request) => Promise<Response>,
+  context: MiddlewareContext,
+) => Promise<Response>;
+
+type Operation = { request: object; responses: object };
+type Methods<P> = { [K in keyof P]: keyof P[K] }[keyof P] & string;
+type PathsWith<P, M> = { [K in keyof P]: M extends keyof P[K] ? K : never }[keyof P] & string;
+type OperationAt<P, K extends keyof P, M> = P[K][M & keyof P[K]] extends infer O extends Operation
+  ? O
+  : never;
+type Args<O extends Operation> = {} extends O["request"] & RequestOptions
+  ? [init?: O["request"] & RequestOptions]
+  : [init: O["request"] & RequestOptions];
+
+export type Client<P> = {
+  [M in Methods<P>]: <K extends PathsWith<P, M>>(
+    path: K,
+    ...args: Args<OperationAt<P, K, M>>
+  ) => Promise<ApiResponse<OperationAt<P, K, M>["responses"]>>;
+} & {
+  /** A new client with `middleware` added inside this client's; this client is unchanged. */
+  with(...middleware: Middleware[]): Client<P>;
+};
+
+/**
+ * Serialization of a parameter where it differs from the default for its location:
+ * `form` with `explode: true` for query and cookie, `simple` without explode for path and header.
+ */
+type ParamStyle = { style?: "deepObject" | "cookie" | "json"; explode?: boolean; reserved?: true };
+
+type SecuritySchemeSpec =
+  | { type: "apiKey"; in: "query" | "header" | "cookie"; name: string }
+  | { type: "http"; scheme: string }
+  | { type: "oauth2" | "openIdConnect" | "mutualTLS" };
+
+/** Data from the document that the runtime needs; per-operation tables are keyed by `METHOD path`. */
+type Spec = {
+  baseUrl: string;
+  servers: Record<string, string>;
+  styles: Record<string, Record<string, ParamStyle>>;
+  security: SecurityRequirement[];
+  securitySchemes: Record<string, SecuritySchemeSpec>;
+  operations: Record<string, { operationId?: string; security?: SecurityRequirement[] }>;
+};
+
+type Init = RequestOptions & {
+  path?: Record<string, unknown>;
+  query?: Record<string, unknown>;
+  header?: Record<string, unknown>;
+  cookie?: Record<string, unknown>;
+  querystring?: string | Record<string, unknown>;
+  contentType?: string;
+  body?: unknown;
+};
+
+function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
+  const send = async (method: string, path: string, init: Init = {}) => {
+    const { path: pathParams, query, header, cookie, querystring, contentType, body, middleware, ...rest } = init;
+    const op = `${method} ${path}`;
+    const styles = spec.styles[op] ?? {};
+    const style = (location: string, name: string) => styles[`${location}:${name}`] ?? {};
+
+    const base = options.baseUrl ?? spec.servers[op] ?? spec.baseUrl;
+    let url = base.replace(/\/+$/, "") +
+      path.replace(/\{([^}]+)\}/g, (_, name: string) =>
+        simple(pathParams?.[name], style("path", name).explode ?? false, encodeURIComponent));
+    const search = querystring !== undefined
+      ? typeof querystring === "string"
+        ? querystring.replace(/^\?/, "")
+        : formEncode(querystring)
+      : present(query).flatMap(([name, value]) => queryPairs(name, value, style("query", name))).join("&");
+    if (search) url += `?${search}`;
+
+    const headers = new Headers(
+      typeof options.headers === "function" ? await options.headers() : options.headers,
+    );
+    for (const [name, value] of present(header)) {
+      headers.set(name, simple(value, style("header", name).explode ?? false, String));
+    }
+    const cookies = present(cookie).flatMap(([name, value]) => {
+      const s = style("cookie", name);
+      // `cookie` style sends values as-is; `form` percent-encodes them.
+      const enc = s.style === "cookie" ? String : encodeURIComponent;
+      return form(name, value, s.explode ?? true, enc);
+    });
+    if (cookies.length) {
+      headers.set("cookie", [headers.get("cookie"), ...cookies].filter(Boolean).join("; "));
+    }
+    new Headers(rest.headers).forEach((value, name) => headers.set(name, value));
+
+    const encoded = encodeBody(body, contentType, headers);
+    const request = new Request(url, {
+      ...rest,
+      method,
+      headers,
+      body: encoded,
+      // Required by Node to send a stream.
+      ...(encoded instanceof ReadableStream ? { duplex: "half" } : {}),
+    } as RequestInit);
+    const info = spec.operations[op];
+    const context: MiddlewareContext = {
+      operation: {
+        method,
+        path,
+        ...(info?.operationId ? { operationId: info.operationId } : {}),
+        security: info?.security ?? spec.security,
+      },
+    };
+    const chain = [...(options.middleware ?? []), ...(middleware ?? [])];
+    const dispatch = (i: number) => (req: Request): Promise<Response> => {
+      const mw = chain[i];
+      return mw ? mw(req, dispatch(i + 1), context) : (options.fetch ?? fetch)(req);
+    };
+    const response = await dispatch(0)(request);
+    return {
+      status: response.status,
+      ok: response.ok,
+      data: await decodeBody(response, method),
+      response,
+    };
+  };
+  return new Proxy({}, {
+    get: (_, method) => {
+      if (method === "with") {
+        return (...middleware: Middleware[]) =>
+          makeClient<P>({ ...options, middleware: [...(options.middleware ?? []), ...middleware] }, spec);
+      }
+      return typeof method === "string" && method !== "then"
+        ? (path: string, init?: Init) => send(method, path, init)
+        : undefined;
+    },
+  }) as Client<P>;
+}
+
+/** Entries whose value is neither `undefined` nor `null`. */
+function present(values: object | undefined): [string, unknown][] {
+  return Object.entries(values ?? {}).filter(([, v]) => v !== undefined && v !== null);
+}
+
+type Encode = (s: string) => string;
+
+/** RFC 6570 reserved expansion: reserved characters and %XX triples pass through. */
+function encodeReserved(s: string): string {
+  return s.replace(
+    /%[0-9A-Fa-f]{2}|[^A-Za-z0-9\-._~:/?@!$'()*,;=]/gu,
+    (c) => (c.length === 3 && c[0] === "%" ? c : encodeURIComponent(c)),
+  );
+}
+
+/** `simple` style: `a,b` for arrays; `k,v` or, exploded, `k=v` for objects. */
+function simple(value: unknown, explode: boolean, enc: Encode): string {
+  if (Array.isArray(value)) return value.map((v) => enc(String(v))).join(",");
+  if (value !== null && typeof value === "object") {
+    return present(value)
+      .map(([k, v]) => `${enc(k)}${explode ? "=" : ","}${enc(String(v))}`)
+      .join(",");
+  }
+  return value === undefined ? "" : enc(String(value));
+}
+
+/** `form` style pairs; also used for cookies, which only differ in the delimiter. */
+function form(name: string, value: unknown, explode: boolean, enc: Encode): string[] {
+  if (Array.isArray(value)) {
+    return explode
+      ? value.map((v) => `${enc(name)}=${enc(String(v))}`)
+      : [`${enc(name)}=${value.map((v) => enc(String(v))).join(",")}`];
+  }
+  if (typeof value === "object" && value !== null) {
+    return explode
+      ? present(value).map(([k, v]) => `${enc(k)}=${enc(String(v))}`)
+      : [`${enc(name)}=${simple(value, false, enc)}`];
+  }
+  return [`${enc(name)}=${enc(String(value))}`];
+}
+
+function queryPairs(name: string, value: unknown, s: ParamStyle): string[] {
+  const enc = s.reserved ? encodeReserved : encodeURIComponent;
+  if (s.style === "json") return [`${enc(name)}=${enc(JSON.stringify(value))}`];
+  if (s.style === "deepObject" && typeof value === "object" && value !== null) {
+    return present(value).flatMap(([k, v]) =>
+      (Array.isArray(v) ? v : [v]).map((item) => `${encodeURIComponent(`${name}[${k}]`)}=${enc(String(item))}`)
+    );
+  }
+  return form(name, value, s.explode ?? true, enc);
+}
+
+function formEncode(value: Record<string, unknown>): string {
+  const params = new URLSearchParams();
+  for (const [name, v] of Object.entries(value)) {
+    for (const item of Array.isArray(v) ? v : [v]) {
+      if (item !== undefined && item !== null) params.append(name, String(item));
+    }
+  }
+  return params.toString();
+}
+
+type Kind = "json" | "form" | "multipart" | "text" | "sse" | "jsonl" | "json-seq" | "binary";
+
+function mediaKind(mediaType: string): Kind {
+  const mt = (mediaType.split(";")[0] ?? "").trim().toLowerCase();
+  if (mt === "application/json" || mt.endsWith("+json")) return "json";
+  if (mt === "application/x-www-form-urlencoded") return "form";
+  if (mt === "text/event-stream") return "sse";
+  if (mt === "application/jsonl" || mt === "application/x-ndjson") return "jsonl";
+  if (mt === "application/json-seq" || mt.endsWith("+json-seq")) return "json-seq";
+  if (mt.startsWith("multipart/")) return "multipart";
+  if (mt.startsWith("text/")) return "text";
+  return "binary";
+}
+
+function isRawBody(body: unknown): body is BodyInit {
+  return typeof body === "string" || body instanceof Blob || body instanceof FormData ||
+    body instanceof URLSearchParams || body instanceof ArrayBuffer ||
+    ArrayBuffer.isView(body) || body instanceof ReadableStream;
+}
+
+function encodeBody(body: unknown, contentType: string | undefined, headers: Headers): BodyInit | null {
+  if (body === undefined) return null;
+  const kind = contentType ? mediaKind(contentType) : isRawBody(body) ? "binary" : "json";
+  if (kind === "json") {
+    headers.set("content-type", contentType ?? "application/json");
+    return JSON.stringify(body);
+  }
+  if (kind === "form" && !isRawBody(body)) {
+    headers.set("content-type", contentType!);
+    return formEncode(body as Record<string, unknown>);
+  }
+  // multipart: let fetch set the boundary.
+  if (contentType && kind !== "multipart") headers.set("content-type", contentType);
+  return body as BodyInit;
+}
+
+async function decodeBody(response: Response, method: string): Promise<unknown> {
+  if (method === "HEAD" || [204, 205, 304].includes(response.status)) return undefined;
+  const contentType = response.headers.get("content-type");
+  if (!contentType) return (await response.text()) || undefined;
+  switch (mediaKind(contentType)) {
+    case "json": {
+      const text = await response.text();
+      return text ? JSON.parse(text) : undefined;
+    }
+    case "jsonl":
+      return mapItems(split(response, "\n"), (line) => line.trim() ? JSON.parse(line) : undefined);
+    case "json-seq":
+      return mapItems(split(response, "\x1e"), (rec) => rec.trim() ? JSON.parse(rec) : undefined);
+    case "sse":
+      return events(response);
+    case "text":
+    case "form":
+      return response.text();
+    default:
+      return response.blob();
+  }
+}
+
+async function* split(response: Response, separator: string): AsyncGenerator<string> {
+  if (!response.body) return;
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let done = false;
+  let buffer = "";
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += chunk.value;
+      let i: number;
+      while ((i = buffer.indexOf(separator)) >= 0) {
+        yield buffer.slice(0, i);
+        buffer = buffer.slice(i + separator.length);
+      }
+    }
+    done = true;
+    if (buffer) yield buffer;
+  } finally {
+    // Stop the download when the consumer breaks out early.
+    if (!done) await reader.cancel().catch(() => {});
+  }
+}
+
+async function* mapItems<T>(items: AsyncIterable<string>, parse: (item: string) => T | undefined): AsyncGenerator<T> {
+  for await (const item of items) {
+    const value = parse(item);
+    if (value !== undefined) yield value;
+  }
+}
+
+export type ServerSentEvent = { data: string; event?: string; id?: string; retry?: number };
+
+async function* events(response: Response): AsyncGenerator<ServerSentEvent> {
+  let event: Partial<ServerSentEvent> = {};
+  let data: string[] = [];
+  for await (let line of split(response, "\n")) {
+    if (line.endsWith("\r")) line = line.slice(0, -1);
+    if (line === "") {
+      if (data.length) yield { ...event, data: data.join("\n") };
+      event = {};
+      data = [];
+      continue;
+    }
+    if (line.startsWith(":")) continue;
+    const colon = line.indexOf(":");
+    const field = colon < 0 ? line : line.slice(0, colon);
+    let value = colon < 0 ? "" : line.slice(colon + 1);
+    if (value.startsWith(" ")) value = value.slice(1);
+    if (field === "data") data.push(value);
+    else if (field === "event" || field === "id") event[field] = value;
+    else if (field === "retry" && /^\d+$/.test(value)) event.retry = Number(value);
+  }
+}
+
+/** A credential, or a function that returns one (`undefined` or `""` when unavailable). */
+export type Credential =
+  | string
+  | ((scopes: string[], context: MiddlewareContext) => string | undefined | Promise<string | undefined>);
+
+/**
+ * Middleware that authenticates each request as the document's `security` says:
+ * it picks the first alternative whose credentials are all available (anonymous
+ * access last; with none, the request goes out unauthenticated) and places each
+ * credential where its security scheme expects it.
+ *
+ * - `http` bearer, `oauth2`, `openIdConnect`: `Authorization: Bearer <credential>`
+ * - `http` basic: the credential is `user:password`, sent base64-encoded
+ * - other `http` schemes: `Authorization: <scheme> <credential>`
+ * - `apiKey`: the credential as the named header, query parameter or cookie
+ * - `mutualTLS`: nothing to add; configure TLS on the fetch implementation
+ *
+ * ```ts
+ * createClient({ middleware: [auth({ bearer: (scopes) => getToken(scopes) })] });
+ * ```
+ */
+export function auth(credentials: { [K in SecuritySchemeName]?: Credential }): Middleware {
+  return async (request, next, context) => {
+    // Try authenticated alternatives first; anonymous access (`{}`) is the fallback.
+    const alternatives = [...context.operation.security].sort(
+      (a, b) => Number(Object.keys(a).length === 0) - Number(Object.keys(b).length === 0),
+    );
+    for (const requirement of alternatives) {
+      const resolved = await satisfy(requirement, credentials, context);
+      if (resolved) {
+        for (const [scheme, value] of resolved) request = authenticate(request, scheme, value);
+        break;
+      }
+    }
+    return next(request);
+  };
+}
+
+/** The credential for every scheme of a requirement, or `undefined` if one is missing. */
+async function satisfy(
+  requirement: SecurityRequirement,
+  credentials: { [K in SecuritySchemeName]?: Credential },
+  context: MiddlewareContext,
+): Promise<[SecuritySchemeSpec, string][] | undefined> {
+  const out: [SecuritySchemeSpec, string][] = [];
+  for (const [name, scopes] of Object.entries(requirement) as [SecuritySchemeName, string[]][]) {
+    const scheme = spec.securitySchemes[name];
+    if (!scheme) return undefined;
+    if (scheme.type === "mutualTLS") continue;
+    // An assertion, not an annotation: with no schemes, `credentials[name]` is `never`.
+    const credential = credentials[name] as Credential | undefined;
+    const value = typeof credential === "function" ? await credential(scopes, context) : credential;
+    if (value === undefined || value === "") return undefined;
+    out.push([scheme, value]);
+  }
+  return out;
+}
+
+function authenticate(request: Request, scheme: SecuritySchemeSpec, value: string): Request {
+  switch (scheme.type) {
+    case "apiKey":
+      if (scheme.in === "query") {
+        const url = new URL(request.url);
+        url.searchParams.set(scheme.name, value);
+        return new Request(url, request);
+      }
+      if (scheme.in === "cookie") {
+        const cookie = `${scheme.name}=${value}`;
+        const existing = request.headers.get("cookie");
+        request.headers.set("cookie", existing ? `${existing}; ${cookie}` : cookie);
+      } else {
+        request.headers.set(scheme.name, value);
+      }
+      return request;
+    case "http": {
+      const name = scheme.scheme.toLowerCase();
+      if (name === "basic") {
+        const bytes = new TextEncoder().encode(value);
+        request.headers.set("authorization", `Basic ${btoa(String.fromCharCode(...bytes))}`);
+      } else {
+        request.headers.set("authorization", `${name === "bearer" ? "Bearer" : scheme.scheme} ${value}`);
+      }
+      return request;
+    }
+    case "oauth2":
+    case "openIdConnect":
+      request.headers.set("authorization", `Bearer ${value}`);
+      return request;
+    default:
+      return request;
+  }
+}
