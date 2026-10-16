@@ -1,0 +1,25 @@
+{
+  "name": "oasis-gen",
+  "version": "0.0.0",
+  "description": "Minimal API client generator for OpenAPI 3.2",
+  "license": "MIT OR Apache-2.0",
+  "keywords": [
+    "openapi",
+    "openapi-3.2",
+    "codegen",
+    "typescript",
+    "fetch",
+    "client"
+  ],
+  "bin": {
+    "oasis-gen": "bin/oasis-gen.js"
+  },
+  "files": [
+    "bin",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

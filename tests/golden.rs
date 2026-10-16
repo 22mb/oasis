@@ -17,7 +17,7 @@ fn typescript_golden() {
         } else {
             path
         };
-        let actual = oasis::generate_file(&spec, oasis::Lang::TypeScript)
+        let actual = oasis_gen::generate_file(&spec, oasis_gen::Lang::TypeScript)
             .unwrap_or_else(|e| panic!("{}: {e}", spec.display()));
         let golden = root.join("golden").join(name).with_extension("ts");
         if update {

@@ -4,7 +4,7 @@ use std::process::ExitCode;
 const USAGE: &str = "\
 Generate an API client from an OpenAPI 3.2 document.
 
-Usage: oasis <SPEC> [-o <FILE>] [--lang <LANG>]
+Usage: oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
 
 Arguments:
   <SPEC>             OpenAPI document (JSON or YAML), or `-` for stdin
@@ -29,7 +29,7 @@ fn main() -> ExitCode {
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut spec = None;
     let mut output = None;
-    let mut lang = oasis::Lang::TypeScript;
+    let mut lang = oasis_gen::Lang::TypeScript;
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -39,13 +39,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 return Ok(());
             }
             "-V" | "--version" => {
-                println!("oasis {}", env!("CARGO_PKG_VERSION"));
+                println!("oasis-gen {}", env!("CARGO_PKG_VERSION"));
                 return Ok(());
             }
             "-o" | "--output" => output = Some(args.next().ok_or("missing value for --output")?),
             "-l" | "--lang" => {
                 let name = args.next().ok_or("missing value for --lang")?;
-                lang = oasis::Lang::from_name(&name)
+                lang = oasis_gen::Lang::from_name(&name)
                     .ok_or(format!("unsupported language `{name}`"))?;
             }
             s if s.starts_with('-') && s != "-" => {
@@ -60,9 +60,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let code = if spec == "-" {
         let mut source = String::new();
         std::io::stdin().read_to_string(&mut source)?;
-        oasis::generate(&source, lang)?
+        oasis_gen::generate(&source, lang)?
     } else {
-        oasis::generate_file(std::path::Path::new(&spec), lang)?
+        oasis_gen::generate_file(std::path::Path::new(&spec), lang)?
     };
     match output {
         Some(path) => {

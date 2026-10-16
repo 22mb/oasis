@@ -1,13 +1,13 @@
-# oasis
+# oasis-gen
 
 A minimal API client generator for **OpenAPI 3.2**.
 
-oasis reads an OpenAPI 3.2 document and writes a single, dependency-free
+oasis-gen reads an OpenAPI 3.2 document and writes a single, dependency-free
 TypeScript file: types for every operation plus a small `fetch`-based runtime.
 There is no runtime package to install and nothing to configure.
 
 ```sh
-oasis openapi.yaml -o src/api.ts
+npx oasis-gen openapi.yaml -o src/api.ts
 ```
 
 ```ts
@@ -26,13 +26,22 @@ if (res.ok) {
 ## Install
 
 ```sh
+npm install --save-dev oasis-gen
+```
+
+The package ships prebuilt binaries for macOS (arm64, x64), Linux (arm64, x64;
+static, so glibc and musl both work) and Windows (arm64, x64); npm installs
+only the one for your platform. Archives are also attached to each GitHub
+release. To build from source instead:
+
+```sh
 cargo install --git https://github.com/22mb/oasis
 ```
 
 ## Usage
 
 ```
-oasis <SPEC> [-o <FILE>] [--lang <LANG>]
+oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
 ```
 
 `SPEC` is a JSON or YAML file, or `-` for stdin. `$ref`s to other local files
@@ -178,7 +187,7 @@ Node's type stripping. It type-checks with TypeScript 5.0 and later.
 
 ## OpenAPI 3.2 support
 
-oasis accepts `openapi: 3.2.x` documents only.
+oasis-gen accepts `openapi: 3.2.x` documents only.
 
 - `query` operations (the HTTP `QUERY` method) and `additionalOperations` with custom methods such as `LINK`
 - `in: querystring` parameters

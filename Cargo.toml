@@ -1,5 +1,5 @@
 [package]
-name = "oasis"
+name = "oasis-gen"
 version = "0.1.0"
 edition = "2024"
 description = "Minimal API client generator for OpenAPI 3.2"
@@ -7,9 +7,14 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/22mb/oasis"
 keywords = ["openapi", "codegen", "typescript", "client"]
 categories = ["command-line-utilities", "development-tools"]
-exclude = ["tests/ts/node_modules"]
+exclude = ["tests/ts/node_modules", "npm"]
 
 [dependencies]
 serde-saphyr = "2.0.0"
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
 url = "2.5.8"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

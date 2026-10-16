@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Runtime (embedded by oasis; identical in every generated file)
+// Runtime (embedded by oasis-gen; identical in every generated file)
 // ---------------------------------------------------------------------------
 
 export interface ClientOptions {

@@ -1,4 +1,4 @@
-//! oasis: generate API clients from OpenAPI 3.2 documents.
+//! oasis-gen: generate API clients from OpenAPI 3.2 documents.
 //!
 //! The pipeline is [`Documents`] (JSON/YAML files and the `$ref`s between
 //! them) -> [`parse`] (language-neutral [`ir::Api`]) -> an emitter for the
