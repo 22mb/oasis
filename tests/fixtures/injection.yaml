@@ -1,0 +1,59 @@
+# Document text that tries to escape from comments and string literals in the
+# generated file. A payload that runs records its number in
+# `globalThis.__oasis_pwned`; tests/ts/injection.test.ts checks that none did.
+openapi: 3.2.0
+info:
+  title: &text "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"
+  version: *text
+servers:
+  - url: "https://api.example.com/{v}"
+    variables:
+      v: { default: *text }
+paths:
+  "/items/*/\u2028\"'`\\":
+    get:
+      operationId: "*/ } } (globalThis.__oasis_pwned ??= []).push(7); interface _ { _: { /*"
+      summary: *text
+      description: *text
+      security:
+        - "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`": [*text]
+      parameters:
+        - name: *text
+          in: query
+          description: *text
+          schema: { type: string, default: *text }
+      requestBody:
+        content:
+          "text/x*/\u2028\"'`\\":
+            schema: { type: string }
+      responses:
+        "200":
+          description: *text
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Pet" }
+components:
+  schemas:
+    Pet:
+      title: *text
+      description: *text
+      oneOf:
+        - { $ref: "#/components/schemas/Cat" }
+      discriminator:
+        propertyName: *text
+        mapping:
+          "\" + ((globalThis.__oasis_pwned ??= []).push(9)) + \"\u2028`${0}`": "#/components/schemas/Cat"
+    Cat:
+      type: object
+      required: [*text]
+      properties:
+        "\" + ((globalThis.__oasis_pwned ??= []).push(10)) + \"\u2028`${0}`":
+          description: *text
+          default: *text
+          enum: [*text]
+        *text : { const: *text }
+  securitySchemes:
+    "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`":
+      type: apiKey
+      in: header
+      name: *text

@@ -1,6 +1,7 @@
 //! TypeScript emitter: one self-contained file with types and a fetch-based runtime.
 
 use crate::ir::*;
+use serde_json::Value;
 use std::collections::HashSet;
 use std::fmt::Write;
 
@@ -415,8 +416,8 @@ impl<'a> Emitter<'a> {
             Schema::Boolean => "boolean".into(),
             Schema::Integer { .. } | Schema::Number { .. } => "number".into(),
             Schema::String { .. } => "string".into(),
-            Schema::Const { value, .. } => value.to_string(),
-            Schema::Enum { values, .. } => union(values.iter().map(|v| v.to_string()).collect()),
+            Schema::Const { value, .. } => literal(value),
+            Schema::Enum { values, .. } => union(values.iter().map(literal).collect()),
             Schema::Array {
                 prefix_items,
                 items,
@@ -642,11 +643,11 @@ fn jsdoc(meta: &Meta, extra: &[String], indent: usize) -> String {
         .into_iter()
         .flatten()
     {
-        lines.extend(text.trim_end().lines().map(|l| l.replace("*/", "*\\/")));
+        lines.extend(text.trim_end().lines().map(str::to_string));
     }
     lines.extend(extra.iter().cloned());
     if let Some(d) = &meta.default {
-        lines.push(format!("@default {}", d.to_string().replace("*/", "*\\/")));
+        lines.push(format!("@default {d}"));
     }
     if meta.deprecated {
         lines.push("@deprecated".into());
@@ -654,6 +655,8 @@ fn jsdoc(meta: &Meta, extra: &[String], indent: usize) -> String {
     if lines.is_empty() {
         return String::new();
     }
+    // Every line may contain document text; `*/` would end the comment.
+    let lines: Vec<String> = lines.iter().map(|l| l.replace("*/", "*\\/")).collect();
     let p = pad(indent);
     if lines.len() == 1 {
         return format!("{p}/** {} */\n", lines[0]);
@@ -680,7 +683,16 @@ fn key(name: &str) -> String {
 }
 
 fn quote(s: &str) -> String {
-    serde_json::to_string(s).unwrap()
+    literal(&Value::from(s))
+}
+
+/// A JSON value as a TypeScript literal. U+2028 and U+2029 are escaped too:
+/// JSON allows them raw, but they end a `//` comment and TypeScript before
+/// 5.3 rejects them in string literals.
+fn literal(v: &Value) -> String {
+    v.to_string()
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
 }
 
 fn opt(optional: bool) -> &'static str {
