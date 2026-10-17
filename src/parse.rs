@@ -4,7 +4,7 @@ use crate::Error;
 use crate::documents::{Documents, Target};
 use crate::ir::*;
 use serde_json::{Map, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::rc::Rc;
 use url::Url;
 
@@ -77,11 +77,10 @@ impl<'a> Node<'a> {
 struct Parser<'a> {
     docs: &'a Documents,
     root: Node<'a>,
-    /// Schemas hoisted from non-component `$ref` targets, with their index by location.
-    hoisted: Vec<NamedSchema>,
-    hoisted_index: HashMap<Target, usize>,
-    /// The `$ref` target of each entry in `hoisted`, converted in that order.
-    pending: Vec<Node<'a>>,
+    /// Non-component `$ref` targets already queued for hoisting.
+    hoisted: HashSet<Target>,
+    /// Key and target of each hoisted schema, converted in this order.
+    pending: Vec<(String, Node<'a>)>,
     operation_ids: HashSet<String>,
     security_schemes: Vec<SecurityScheme>,
 }
@@ -94,8 +93,7 @@ impl<'a> Parser<'a> {
                 v: docs.root(),
                 base: docs.root_base(),
             },
-            hoisted: Vec::new(),
-            hoisted_index: HashMap::new(),
+            hoisted: HashSet::new(),
             pending: Vec::new(),
             operation_ids: HashSet::new(),
             security_schemes: Vec::new(),
@@ -167,14 +165,18 @@ impl<'a> Parser<'a> {
 
         // Converting a target can hoist more, which this loop then reaches.
         let mut i = 0;
-        while let Some(node) = self.pending.get(i).cloned() {
+        while let Some((key, node)) = self.pending.get(i).cloned() {
             let schema = self
-                .schema(node, 0)
-                .map_err(|e| e.context(self.hoisted[i].key.clone()))?;
-            self.hoisted[i].schema = schema;
+                .schema(node.clone(), 0)
+                .map_err(|e| e.context(key.clone()))?;
+            schemas.push(NamedSchema {
+                key,
+                hoisted: true,
+                meta: meta(node.v),
+                schema,
+            });
             i += 1;
         }
-        schemas.append(&mut self.hoisted);
         Ok(Api {
             title: text("title"),
             version: text("version"),
@@ -531,16 +533,9 @@ impl<'a> Parser<'a> {
         }
 
         let key = self.docs.display(&loc);
-        if !self.hoisted_index.contains_key(&loc) {
-            // Register first so that later references, cycles included, resolve to this key.
-            self.hoisted_index.insert(loc, self.hoisted.len());
-            self.pending.push(target.clone());
-            self.hoisted.push(NamedSchema {
-                key: key.clone(),
-                hoisted: true,
-                meta: meta(target.v),
-                schema: Schema::Any,
-            });
+        // Queue each target once; later references, cycles included, reuse the key.
+        if self.hoisted.insert(loc) {
+            self.pending.push((key.clone(), target));
         }
         Ok(key)
     }
