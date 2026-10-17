@@ -187,7 +187,8 @@ properties also gets a request variant in `components["requestSchemas"]`, where
 requiredness); in responses, required `writeOnly` properties are optional.
 
 The output uses only erasable TypeScript syntax, so it also runs directly under
-Node's type stripping. It type-checks with TypeScript 5.0 and later.
+Node's type stripping. It type-checks with TypeScript 5.0 and later, and does
+not need the `dom` lib.
 
 ## OpenAPI 3.2 support
 

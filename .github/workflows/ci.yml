@@ -47,6 +47,8 @@ jobs:
       # Current TypeScript, then the oldest supported one (both locked in package-lock.json).
       - run: npm test
       - run: npm run check:ts5.0
+      # Without the dom lib, as Node-only tsconfigs are set up.
+      - run: npm run check:no-dom
 
   npm-package:
     name: npm package

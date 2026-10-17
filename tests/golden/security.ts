@@ -93,6 +93,12 @@ export type SecuritySchemeName = "bearer" | "basic" | "apiKey" | "queryKey" | "s
 // Runtime (embedded by oasis-gen; identical in every generated file)
 // ---------------------------------------------------------------------------
 
+// `@types/node` declares `RequestInit` globally but not lib.dom's `HeadersInit`
+// and `BodyInit`, so derive them from it: the file then type-checks without the
+// dom lib.
+type HeadersInit = NonNullable<RequestInit["headers"]>;
+type BodyInit = NonNullable<RequestInit["body"]>;
+
 export interface ClientOptions {
   /**
    * Prepended to every path, replacing every server in the document. Defaults to
