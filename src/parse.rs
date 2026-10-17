@@ -69,6 +69,12 @@ impl<'a> Node<'a> {
             .map(|(k, v)| (k, self.at(v)))
     }
 
+    /// [`Node::entries`] without `x-` specification extensions, for objects
+    /// whose other keys are patterned (Paths, Responses).
+    fn fields(&self) -> impl Iterator<Item = (&'a String, Node<'a>)> + '_ {
+        self.entries().filter(|(k, _)| !k.starts_with("x-"))
+    }
+
     fn items(&self) -> impl Iterator<Item = Node<'a>> + '_ {
         self.v.as_array().into_iter().flatten().map(|v| self.at(v))
     }
@@ -147,10 +153,7 @@ impl<'a> Parser<'a> {
 
         let mut paths = Vec::new();
         if let Some(map) = root.get("paths") {
-            for (path, item) in map.entries() {
-                if path.starts_with("x-") {
-                    continue;
-                }
+            for (path, item) in map.fields() {
                 if !path.starts_with('/') {
                     return Err(Error::new(format!(
                         "paths.{path}: path must start with `/`"
@@ -389,7 +392,7 @@ impl<'a> Parser<'a> {
 
         let mut responses = Vec::new();
         if let Some(map) = op.get("responses") {
-            for (key, r) in map.entries().filter(|(k, _)| !k.starts_with("x-")) {
+            for (key, r) in map.fields() {
                 let r = self.deref(r)?;
                 responses.push(Response {
                     status: status(key)?,
