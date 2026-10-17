@@ -46,17 +46,17 @@ export interface components {
       tags?: components["refs"]["schemas/pet.yaml#/$defs/Tags"];
       owner?: components["refs"]["schemas/owner.yaml#"];
     };
-    "schemas/pet.yaml#/$defs/Tags": string[];
+    "schemas/error.yaml#/$defs/problem": {
+      title: string;
+    };
+    "schemas/common.yaml#/Limit": number;
     /** An owner, referencing pets back. */
     "schemas/owner.yaml#": {
       id: number;
       pets?: components["refs"]["schemas/pet.yaml#"][];
       partner?: components["refs"]["schemas/owner.yaml#"];
     };
-    "schemas/error.yaml#/$defs/problem": {
-      title: string;
-    };
-    "schemas/common.yaml#/Limit": number;
+    "schemas/pet.yaml#/$defs/Tags": string[];
   };
   requestRefs: {};
 }

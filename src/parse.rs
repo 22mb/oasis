@@ -20,7 +20,8 @@ const NORMALIZED_METHODS: [&str; 6] = ["delete", "get", "head", "options", "post
 const IGNORED_HEADERS: [&str; 3] = ["accept", "content-type", "authorization"];
 
 /// Limit for literal schema nesting and `$ref` chains of non-schema objects.
-/// Schema `$ref` cycles are handled by hoisting, not by this limit.
+/// Schema `$ref` targets are converted from a queue, so neither their cycles
+/// nor their chains count toward this limit.
 const MAX_DEPTH: usize = 64;
 
 pub fn parse(docs: &Documents) -> Result<Api, Error> {
@@ -79,6 +80,8 @@ struct Parser<'a> {
     /// Schemas hoisted from non-component `$ref` targets, with their index by location.
     hoisted: Vec<NamedSchema>,
     hoisted_index: HashMap<Target, usize>,
+    /// The `$ref` target of each entry in `hoisted`, converted in that order.
+    pending: Vec<Node<'a>>,
     operation_ids: HashSet<String>,
     security_schemes: Vec<SecurityScheme>,
 }
@@ -93,6 +96,7 @@ impl<'a> Parser<'a> {
             },
             hoisted: Vec::new(),
             hoisted_index: HashMap::new(),
+            pending: Vec::new(),
             operation_ids: HashSet::new(),
             security_schemes: Vec::new(),
         }
@@ -153,6 +157,15 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // Converting a target can hoist more, which this loop then reaches.
+        let mut i = 0;
+        while let Some(node) = self.pending.get(i).cloned() {
+            let schema = self
+                .schema(node, 0)
+                .map_err(|e| e.context(self.hoisted[i].key.clone()))?;
+            self.hoisted[i].schema = schema;
+            i += 1;
+        }
         schemas.append(&mut self.hoisted);
         Ok(Api {
             title: text("title"),
@@ -484,6 +497,8 @@ impl<'a> Parser<'a> {
 
     /// Resolves a schema `$ref` to its key in [`Api::schemas`], hoisting
     /// targets other than the entry document's `components.schemas` once.
+    /// Hoisted targets are converted later, so a long `$ref` chain does not
+    /// recurse.
     fn schema_ref(&mut self, from: &Node<'a>, reference: &str) -> Result<String, Error> {
         let (loc, target) = self.lookup(from, reference)?;
         if loc.doc == 0
@@ -495,16 +510,15 @@ impl<'a> Parser<'a> {
 
         let key = self.docs.display(&loc);
         if !self.hoisted_index.contains_key(&loc) {
-            // Register before converting so that cycles resolve to this key.
-            self.hoisted_index.insert(loc.clone(), self.hoisted.len());
+            // Register first so that later references, cycles included, resolve to this key.
+            self.hoisted_index.insert(loc, self.hoisted.len());
+            self.pending.push(target.clone());
             self.hoisted.push(NamedSchema {
                 key: key.clone(),
                 hoisted: true,
                 meta: meta(target.v),
                 schema: Schema::Any,
             });
-            let schema = self.schema(target, 0).map_err(|e| e.context(key.clone()))?;
-            self.hoisted[self.hoisted_index[&loc]].schema = schema;
         }
         Ok(key)
     }
@@ -989,6 +1003,25 @@ mod tests {
         assert_eq!(api.schemas.len(), 2);
         assert_eq!(api.schemas[1].key, key);
         assert!(api.schemas[1].hoisted);
+    }
+
+    #[test]
+    fn long_non_component_ref_chain_does_not_recurse() {
+        const N: usize = 5000;
+        let defs: serde_json::Map<String, Value> = (0..N)
+            .map(|i| {
+                let next = json!({"$ref": format!("#/components/schemas/S/$defs/d{}", i + 1)});
+                (format!("d{i}"), next)
+            })
+            .chain([(format!("d{N}"), json!({"type": "string"}))])
+            .collect();
+        let api = api(
+            json!({}),
+            json!({"S": {"$ref": "#/components/schemas/S/$defs/d0", "$defs": defs}}),
+        )
+        .unwrap();
+        assert_eq!(api.schemas.len(), N + 2);
+        assert_eq!(api.schemas[N + 1].schema, string());
     }
 
     #[test]
