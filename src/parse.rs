@@ -150,6 +150,14 @@ impl<'a> Parser<'a> {
         let mut paths = Vec::new();
         if let Some(map) = root.get("paths") {
             for (path, item) in map.entries() {
+                if path.starts_with("x-") {
+                    continue;
+                }
+                if !path.starts_with('/') {
+                    return Err(Error::new(format!(
+                        "paths.{path}: path must start with `/`"
+                    )));
+                }
                 let item = self
                     .path_item(path, item)
                     .map_err(|e| e.context(format!("paths.{path}")))?;
@@ -365,7 +373,7 @@ impl<'a> Parser<'a> {
 
         let mut responses = Vec::new();
         if let Some(map) = op.get("responses") {
-            for (key, r) in map.entries() {
+            for (key, r) in map.entries().filter(|(k, _)| !k.starts_with("x-")) {
                 let r = self.deref(r)?;
                 responses.push(Response {
                     status: status(key)?,
@@ -1183,6 +1191,23 @@ mod tests {
     fn rejects_unknown_security_schemes() {
         let err = parse_value(json!({"openapi": "3.2.0", "security": [{"nope": []}]})).unwrap_err();
         assert!(err.to_string().contains("unknown security scheme"), "{err}");
+    }
+
+    #[test]
+    fn skips_extensions_in_paths_and_responses() {
+        let paths = json!({
+            "x-note": {"get": {"responses": {}}},
+            "/a": {"get": {"responses": {"200": {"description": "ok"}, "x-codegen": {"a": 1}}}}
+        });
+        let api = api(paths, json!({})).unwrap();
+        assert_eq!(api.paths.len(), 1);
+        assert_eq!(api.paths[0].operations[0].responses.len(), 1);
+    }
+
+    #[test]
+    fn rejects_paths_without_leading_slash() {
+        let err = api(json!({"pets": {}}), json!({})).unwrap_err();
+        assert!(err.to_string().contains("must start with `/`"), "{err}");
     }
 
     #[test]
