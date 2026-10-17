@@ -16,7 +16,7 @@ paths:
       summary: *text
       description: *text
       security:
-        - "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`": [*text]
+        - &scheme "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`": [*text]
       parameters:
         - name: *text
           in: query
@@ -53,7 +53,7 @@ components:
           enum: [*text]
         *text : { const: *text }
   securitySchemes:
-    "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`":
+    *scheme :
       type: apiKey
       in: header
       name: *text
