@@ -83,32 +83,56 @@ impl Documents {
         docs.add(root, retrieval);
         // Documents are appended while loading, so iterate by index.
         let mut i = 0;
-        while i < docs.docs.len() {
-            let doc = &docs.docs[i];
-            let mut found = Found::default();
-            walk(&doc.value, &doc.base, &mut Vec::new(), &mut found);
-            for (pointer, base) in found.ids {
-                docs.resources.insert(
-                    base.to_string(),
-                    Resource {
-                        doc: i,
-                        pointer: pointer.clone(),
-                    },
-                );
-                docs.docs[i].ids.push((pointer, base));
+        loop {
+            while i < docs.docs.len() {
+                docs.scan(i);
+                i += 1;
             }
-            for (resource, anchor, pointer) in found.anchors {
-                docs.anchors.insert((resource, anchor), pointer);
-            }
-            for target in found.refs {
-                let key = target.to_string();
-                if !docs.resources.contains_key(&key) && !docs.failures.contains_key(&key) {
-                    docs.fetch(&target);
+            // A later document's `$self` can map a URI that failed earlier, and
+            // OAS 3.2 §4.1.2.1 forbids giving up before every document is parsed:
+            // retry the failures until no document is added.
+            let loaded = docs.docs.len();
+            let mut failed: Vec<String> = docs.failures.keys().cloned().collect();
+            failed.sort();
+            for key in failed {
+                if let Ok(url) = Url::parse(&key)
+                    && !docs.resources.contains_key(&key)
+                {
+                    docs.failures.remove(&key);
+                    docs.fetch(&url);
                 }
             }
-            i += 1;
+            if docs.docs.len() == loaded {
+                return Ok(docs);
+            }
         }
-        Ok(docs)
+    }
+
+    /// Registers the `$id`s and `$anchor`s of document `i` and loads the
+    /// documents it references.
+    fn scan(&mut self, i: usize) {
+        let doc = &self.docs[i];
+        let mut found = Found::default();
+        walk(&doc.value, &doc.base, &mut Vec::new(), &mut found);
+        for (pointer, base) in found.ids {
+            self.resources.insert(
+                base.to_string(),
+                Resource {
+                    doc: i,
+                    pointer: pointer.clone(),
+                },
+            );
+            self.docs[i].ids.push((pointer, base));
+        }
+        for (resource, anchor, pointer) in found.anchors {
+            self.anchors.insert((resource, anchor), pointer);
+        }
+        for target in found.refs {
+            let key = target.to_string();
+            if !self.resources.contains_key(&key) && !self.failures.contains_key(&key) {
+                self.fetch(&target);
+            }
+        }
     }
 
     fn add(&mut self, value: Value, retrieval: Url) -> usize {
@@ -425,6 +449,30 @@ mod tests {
         let (loc, inner) = docs.resolve(&base, "schemas/a#/$defs/b").unwrap();
         assert_eq!(loc.pointer, "/components/schemas/A/$defs/b");
         assert_eq!(inner.as_str(), "https://example.com/api/schemas/a");
+    }
+
+    #[test]
+    fn resolves_uris_mapped_by_a_later_documents_self() {
+        // `lib/index.yaml` maps `https://api.example.com/schemas/` onto `lib/`, but
+        // only once it is loaded; the result must not depend on reference order.
+        let dir = std::env::temp_dir().join(format!("oasis-gen-h7-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("lib")).unwrap();
+        std::fs::write(
+            dir.join("lib/index.yaml"),
+            "$self: https://api.example.com/schemas/index.yaml\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("lib/pet.yaml"), "type: object\n").unwrap();
+        let pet = "https://api.example.com/schemas/pet.yaml";
+        for refs in [[pet, "lib/index.yaml"], ["lib/index.yaml", pet]] {
+            let entry = dir.join("openapi.yaml");
+            let doc = json!({"a": {"$ref": refs[0]}, "b": {"$ref": refs[1]}});
+            std::fs::write(&entry, doc.to_string()).unwrap();
+            let docs = Documents::from_file(&entry).unwrap();
+            let result = docs.resolve(&docs.root_base(), pet);
+            assert!(result.is_ok(), "{refs:?}: {}", result.err().unwrap());
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
