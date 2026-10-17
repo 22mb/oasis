@@ -187,9 +187,20 @@ impl<'a> Parser<'a> {
     }
 
     /// A `security` list of Security Requirement Objects.
+    /// A malformed list is an error rather than read as fewer requirements,
+    /// since `[]` and `{}` would then mean no or anonymous access.
     fn security(&mut self, list: &Node<'a>) -> Result<Vec<SecurityRequirement>, Error> {
+        if !list.v.is_array() {
+            return Err(Error::new("must be an array of security requirements"));
+        }
         let mut out = Vec::new();
         for item in list.items() {
+            if !item.v.is_object() {
+                return Err(Error::new(format!(
+                    "security requirement {} must map scheme names to scopes, e.g. `- bearer: []`",
+                    item.v
+                )));
+            }
             let mut schemes = Vec::new();
             for (name, scopes) in item.entries() {
                 let key = self.security_scheme_key(&item, name)?;
@@ -198,9 +209,12 @@ impl<'a> Parser<'a> {
                     .as_array()
                     .ok_or_else(|| Error::new(format!("scopes of `{name}` must be an array")))?
                     .iter()
-                    .filter_map(Value::as_str)
-                    .map(String::from)
-                    .collect();
+                    .map(|s| {
+                        s.as_str().map(String::from).ok_or_else(|| {
+                            Error::new(format!("scopes of `{name}` must be strings"))
+                        })
+                    })
+                    .collect::<Result<_, _>>()?;
                 schemes.push((key, scopes));
             }
             out.push(SecurityRequirement { schemes });
@@ -1191,6 +1205,27 @@ mod tests {
     fn rejects_unknown_security_schemes() {
         let err = parse_value(json!({"openapi": "3.2.0", "security": [{"nope": []}]})).unwrap_err();
         assert!(err.to_string().contains("unknown security scheme"), "{err}");
+    }
+
+    #[test]
+    fn rejects_malformed_security() {
+        let schemes = json!({"bearer": {"type": "http", "scheme": "bearer"}});
+        for security in [
+            json!(["bearer"]),
+            json!({"bearer": []}),
+            json!([{"bearer": [1]}]),
+        ] {
+            let err = parse_value(json!({
+                "openapi": "3.2.0",
+                "security": security,
+                "components": {"securitySchemes": schemes}
+            }))
+            .unwrap_err();
+            assert!(
+                err.to_string().starts_with("security: "),
+                "{security}: {err}"
+            );
+        }
     }
 
     #[test]
