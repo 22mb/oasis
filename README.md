@@ -77,7 +77,8 @@ Every call resolves to `{ ok, status, data, response }`; `ok` and `status`
 narrow `data` to the matching response type. `ok` is typed from the declared
 status: `2XX` keys are successes, `default` may be either, and everything else
 is an error response. Non-2xx responses are returned, not thrown. Network
-errors throw as usual.
+errors throw as usual. A path parameter that would leave a path segment empty,
+`.` or `..` is rejected with a `TypeError` before anything is sent.
 
 Response bodies are decoded from the response `Content-Type`:
 

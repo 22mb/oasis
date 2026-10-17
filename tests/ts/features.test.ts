@@ -38,6 +38,18 @@ test("serializes exploded, reserved, JSON and cookie parameters", async () => {
   assert.deepEqual(res.data, { x: 1 }); // `*/*` decoded by the actual Content-Type
 });
 
+test("rejects path parameters that would change the path", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  for (const dir of ["..", ".", ""]) {
+    await assert.rejects(api.GET("/files/{dir}/{name}", { path: { dir, name: "a" } }), TypeError);
+  }
+  assert.equal(sent.length, 0);
+
+  // Encoded dots and longer runs are ordinary names.
+  await api.GET("/files/{dir}/{name}", { path: { dir: "...", name: "%2E%2E" } });
+  assert.equal(sent[0]!.url, "https://api.example.com/files/.../%252E%252E");
+});
+
 test("uses path- and operation-level servers", async () => {
   const { api, sent } = recording(json({ id: 1, name: "a" }));
   await api.POST("/upload", { body: { name: "a", password: "p" } });

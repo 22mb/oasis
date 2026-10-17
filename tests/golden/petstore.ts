@@ -369,9 +369,16 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     const style = (location: string, name: string) => styles[`${location}:${name}`] ?? {};
 
     const base = options.baseUrl ?? spec.servers[op] ?? spec.baseUrl;
-    let url = base.replace(/\/+$/, "") +
-      path.replace(/\{([^}]+)\}/g, (_, name: string) =>
+    let url = base.replace(/\/+$/, "") + path.split("/").map((segment) => {
+      if (!segment.includes("{")) return segment;
+      const value = segment.replace(/\{([^}]+)\}/g, (_, name: string) =>
         simple(pathParams?.[name], style("path", name).explode ?? false, encodeURIComponent));
+      // URL parsing would drop or climb out of these, sending the request elsewhere.
+      if (/^(?:\.|%2e){0,2}$/i.test(value)) {
+        throw new TypeError(`${op}: path segment "${segment}" must not be empty, "." or ".."`);
+      }
+      return value;
+    }).join("/");
     const search = querystring !== undefined
       ? typeof querystring === "string"
         ? querystring.replace(/^\?/, "")

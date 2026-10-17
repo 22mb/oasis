@@ -62,6 +62,14 @@ paths:
           description: Fallback.
           content:
             application/*: {}
+  /files/{dir}/{name}:
+    get:
+      parameters:
+        - { name: dir, in: path, required: true, schema: { type: string } }
+        - { name: name, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Found.
   /upload:
     servers:
       - url: https://upload.example.com
