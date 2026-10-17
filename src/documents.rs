@@ -83,6 +83,7 @@ impl Documents {
         docs.add(root, retrieval);
         // Documents are appended while loading, so iterate by index.
         let mut i = 0;
+        let mut mapped = 0;
         loop {
             while i < docs.docs.len() {
                 docs.scan(i);
@@ -90,8 +91,12 @@ impl Documents {
             }
             // A later document's `$self` can map a URI that failed earlier, and
             // OAS 3.2 §4.1.2.1 forbids giving up before every document is parsed:
-            // retry the failures until no document is added.
-            let loaded = docs.docs.len();
+            // retry the failures whenever another `$self` has been loaded.
+            let mapping = docs.docs.iter().filter(|d| *d.base != d.retrieval).count();
+            if mapping == mapped {
+                return Ok(docs);
+            }
+            mapped = mapping;
             let mut failed: Vec<String> = docs.failures.keys().cloned().collect();
             failed.sort();
             for key in failed {
@@ -101,9 +106,6 @@ impl Documents {
                     docs.failures.remove(&key);
                     docs.fetch(&url);
                 }
-            }
-            if docs.docs.len() == loaded {
-                return Ok(docs);
             }
         }
     }
@@ -455,7 +457,8 @@ mod tests {
     fn resolves_uris_mapped_by_a_later_documents_self() {
         // `lib/index.yaml` maps `https://api.example.com/schemas/` onto `lib/`, but
         // only once it is loaded; the result must not depend on reference order.
-        let dir = std::env::temp_dir().join(format!("oasis-gen-h7-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("oasis-gen-later-self-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir); // left behind by a failed run
         std::fs::create_dir_all(dir.join("lib")).unwrap();
         std::fs::write(
             dir.join("lib/index.yaml"),
