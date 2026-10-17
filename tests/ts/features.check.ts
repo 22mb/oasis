@@ -1,5 +1,15 @@
 // Type-level tests for tests/fixtures/features.yaml: compiled by `tsc`, never run.
-import { createClient, type ApiResponse, type schemas } from "../golden/features.ts";
+import { createClient, type ApiResponse, type components, type schemas } from "../golden/features.ts";
+import type { Equal, Expect } from "./equal.ts";
+
+// readOnly and writeOnly give requests and responses different shapes.
+export type Exact = [
+  Expect<Equal<schemas["Account"], { id: number; name: string; password?: string; owner?: schemas["Owner"] }>>,
+  Expect<Equal<
+    components["requestSchemas"]["Account"],
+    { id?: number; name: string; password: string; owner?: components["requestSchemas"]["Owner"] }
+  >>,
+];
 
 const api = createClient();
 

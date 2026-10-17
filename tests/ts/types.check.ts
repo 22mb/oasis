@@ -1,7 +1,42 @@
 // Type-level tests for the generated client: compiled by `tsc`, never run.
-import { createClient, type schemas } from "../golden/petstore.ts";
+import { createClient, type RequestOptions, type schemas } from "../golden/petstore.ts";
+import type { Equal, Expect } from "./equal.ts";
 
 const api = createClient();
+
+// Exact shapes, so that a type widening (e.g. to `unknown`) or a required input
+// becoming optional fails here.
+type Result<S, O, D> = { status: S; ok: O; data: D; response: Response };
+export type Exact = [
+  Expect<Equal<schemas["NewPet"], { name: string; kind: "cat" | "dog"; tag?: string | null }>>,
+  Expect<Equal<schemas["Pet"], schemas["NewPet"] & { id: number; owner?: schemas["Owner"] }>>,
+  Expect<Equal<schemas["Owner"], { type: "person"; name: string } | { type: "shelter"; id: number }>>,
+  Expect<Equal<schemas["Error"], { title: string; detail?: string; [key: string]: unknown }>>,
+  Expect<Equal<schemas["Point"], [number, number]>>,
+  Expect<Equal<Parameters<typeof api.GET<"/pets/{petId}">>, [path: "/pets/{petId}", init: { path: { petId: number } } & RequestOptions]>>,
+  Expect<Equal<Parameters<typeof api.DELETE<"/pets/{petId}">>, [path: "/pets/{petId}", init: { path: { petId: number } } & RequestOptions]>>,
+  Expect<Equal<
+    Parameters<typeof api.POST<"/pets">>,
+    [path: "/pets", init: (
+      | { contentType?: "application/json"; body: schemas["NewPet"] }
+      | { contentType: "application/x-www-form-urlencoded"; body: schemas["NewPet"] }
+    ) & RequestOptions]
+  >>,
+  Expect<Equal<
+    Awaited<ReturnType<typeof api.GET<"/pets/{petId}">>>,
+    Result<200, true, schemas["Pet"]> | Result<404, false, schemas["Error"]>
+  >>,
+  Expect<Equal<
+    Awaited<ReturnType<typeof api.GET<"/pets">>>,
+    Result<200, true, schemas["Pet"][]> | Result<number, boolean, schemas["Error"]>
+  >>,
+  Expect<Equal<Awaited<ReturnType<typeof api.DELETE<"/pets/{petId}">>>, Result<204, true, undefined>>>,
+  // No required inputs: init is optional.
+  Expect<Equal<Parameters<typeof api.QUERY<"/pets">>, [
+    path: "/pets",
+    init?: { contentType?: "application/json"; body?: { name?: string } } & RequestOptions,
+  ]>>,
+];
 
 export async function checks() {
   // Path parameters are required and typed.
