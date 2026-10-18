@@ -54,11 +54,11 @@ export interface paths {
     POST: {
       request: {
         contentType?: "application/json; charset=utf-8";
-        body: components["requestSchemas"]["Account"];
+        body: $Account$Request;
       };
       responses: {
         /** Created. */
-        "201": components["schemas"]["Account"];
+        "201": $Account;
       };
     };
   };
@@ -67,7 +67,7 @@ export interface paths {
       request: {};
       responses: {
         /** A shape. */
-        "200": components["schemas"]["Shape"];
+        "200": $Shape;
       };
     };
   };
@@ -75,67 +75,101 @@ export interface paths {
 
 export interface components {
   schemas: {
-    /**
-     * Account
-     * A user account.
-     */
-    Account: {
-      id: number;
-      /** @default "anonymous" */
-      name: string;
-      password?: string;
-      owner?: components["schemas"]["Owner"];
-    };
-    Owner: {
-      ownerId: number;
-    };
-    Base: {
-      id?: number;
-      note?: string;
-    };
-    WithId: {
-      id: {} | null;
-    } & components["schemas"]["Base"];
-    Circle: {
-      kind: string;
-      r: number;
-    };
-    Square: {
-      kind: string;
-      side: number;
-    };
-    Shape: (components["schemas"]["Circle"] & { kind: "c" | "Circle" }) | (components["schemas"]["Square"] & { kind: "s" | "Square" });
-    Tree: components["refs"]["#/components/schemas/Tree/$defs/node"];
-    Flag: "N" | "Y" | "yes" | "off" | "A";
-    Level: 1 | 2 | null;
+    Account: $Account;
+    Owner: $Owner;
+    Base: $Base;
+    WithId: $WithId;
+    Circle: $Circle;
+    Square: $Square;
+    Shape: $Shape;
+    Tree: $Tree;
+    Flag: $Flag;
+    Level: $Level;
+    Json: $Json;
+    Animal: $Animal;
+    Dog: $Dog;
+    Cat: $Cat;
   };
   requestSchemas: {
-    /**
-     * Account
-     * A user account.
-     */
-    Account: {
-      id?: number;
-      /** @default "anonymous" */
-      name: string;
-      password: string;
-      owner?: components["requestSchemas"]["Owner"];
-    };
-    Owner: {
-      ownerId?: number;
-    };
+    Account: $Account$Request;
+    Owner: $Owner$Request;
   };
   refs: {
-    "#/components/schemas/Tree/$defs/node": {
-      value?: number;
-      left?: components["refs"]["#/components/schemas/Tree/$defs/node"];
-      right?: components["refs"]["#/components/schemas/Tree/$defs/node"];
-    };
+    "#/components/schemas/Tree/$defs/node": $components_schemas_Tree_defs_node;
   };
   requestRefs: {};
 }
 
 export type schemas = components["schemas"];
+
+// One type alias per schema, `$` plus its name; `$<name>$Request` is the request
+// shape where readOnly or writeOnly properties make it differ.
+/**
+ * Account
+ * A user account.
+ */
+type $Account = {
+  id: number;
+  /** @default "anonymous" */
+  name: string;
+  password?: string;
+  owner?: $Owner;
+};
+/**
+ * Account
+ * A user account.
+ */
+type $Account$Request = {
+  id?: number;
+  /** @default "anonymous" */
+  name: string;
+  password: string;
+  owner?: $Owner$Request;
+};
+type $Owner = {
+  ownerId: number;
+};
+type $Owner$Request = {
+  ownerId?: number;
+};
+type $Base = {
+  id?: number;
+  note?: string;
+};
+type $WithId = {
+  id: {} | null;
+} & $Base;
+type $Circle = {
+  kind: string;
+  r: number;
+};
+type $Square = {
+  kind: string;
+  side: number;
+};
+type $Shape = ($Circle & { kind: "c" | "Circle" }) | ($Square & { kind: "s" | "Square" });
+type $Tree = $components_schemas_Tree_defs_node;
+type $Flag = "N" | "Y" | "yes" | "off" | "A";
+type $Level = 1 | 2 | null;
+type $Json = string | number | boolean | null | $Json[] | { [key: string]: $Json };
+type $Animal = {
+  kind: string;
+} & (($Dog & { kind: "Dog" }) | ($Cat & { kind: "Cat" }));
+type $Dog = {
+  kind: string;
+} & {
+  bark?: boolean;
+};
+type $Cat = {
+  kind: string;
+} & {
+  lives?: number;
+};
+type $components_schemas_Tree_defs_node = {
+  value?: number;
+  left?: $components_schemas_Tree_defs_node;
+  right?: $components_schemas_Tree_defs_node;
+};
 
 /** Security schemes declared in the document. */
 export type SecuritySchemeName = never;

@@ -6,12 +6,12 @@ export interface paths {
     GET: {
       request: {
         query?: {
-          limit?: components["refs"]["schemas/common.yaml#/Limit"];
+          limit?: $schemas_common_yaml_Limit;
         };
       };
       responses: {
         /** Pets. */
-        "200": components["refs"]["schemas/pet.yaml#"][];
+        "200": $schemas_pet_yaml[];
       };
     };
   };
@@ -25,9 +25,9 @@ export interface paths {
       };
       responses: {
         /** An owner. */
-        "200": components["refs"]["schemas/owner.yaml#"];
+        "200": $schemas_owner_yaml;
         /** Error. */
-        "default": components["schemas"]["Error"];
+        "default": $Error;
       };
     };
   };
@@ -35,33 +35,43 @@ export interface paths {
 
 export interface components {
   schemas: {
-    Pet: components["refs"]["schemas/pet.yaml#"];
-    Error: components["refs"]["schemas/error.yaml#/$defs/problem"];
+    Pet: $Pet;
+    Error: $Error;
   };
   requestSchemas: {};
   refs: {
-    "schemas/pet.yaml#": {
-      id: number;
-      name: string;
-      tags?: components["refs"]["schemas/pet.yaml#/$defs/Tags"];
-      owner?: components["refs"]["schemas/owner.yaml#"];
-    };
-    "schemas/error.yaml#/$defs/problem": {
-      title: string;
-    };
-    "schemas/common.yaml#/Limit": number;
-    /** An owner, referencing pets back. */
-    "schemas/owner.yaml#": {
-      id: number;
-      pets?: components["refs"]["schemas/pet.yaml#"][];
-      partner?: components["refs"]["schemas/owner.yaml#"];
-    };
-    "schemas/pet.yaml#/$defs/Tags": string[];
+    "schemas/pet.yaml#": $schemas_pet_yaml;
+    "schemas/error.yaml#/$defs/problem": $schemas_error_yaml_defs_problem;
+    "schemas/common.yaml#/Limit": $schemas_common_yaml_Limit;
+    "schemas/owner.yaml#": $schemas_owner_yaml;
+    "schemas/pet.yaml#/$defs/Tags": $schemas_pet_yaml_defs_Tags;
   };
   requestRefs: {};
 }
 
 export type schemas = components["schemas"];
+
+// One type alias per schema, `$` plus its name; `$<name>$Request` is the request
+// shape where readOnly or writeOnly properties make it differ.
+type $Pet = $schemas_pet_yaml;
+type $Error = $schemas_error_yaml_defs_problem;
+type $schemas_pet_yaml = {
+  id: number;
+  name: string;
+  tags?: $schemas_pet_yaml_defs_Tags;
+  owner?: $schemas_owner_yaml;
+};
+type $schemas_error_yaml_defs_problem = {
+  title: string;
+};
+type $schemas_common_yaml_Limit = number;
+/** An owner, referencing pets back. */
+type $schemas_owner_yaml = {
+  id: number;
+  pets?: $schemas_pet_yaml[];
+  partner?: $schemas_owner_yaml;
+};
+type $schemas_pet_yaml_defs_Tags = string[];
 
 /** Security schemes declared in the document. */
 export type SecuritySchemeName = never;

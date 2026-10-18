@@ -18,7 +18,7 @@ export interface paths {
       };
       responses: {
         /** *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); // */
-        "200": components["schemas"]["Pet"];
+        "200": $Pet;
       };
     };
   };
@@ -26,19 +26,8 @@ export interface paths {
 
 export interface components {
   schemas: {
-    /**
-     * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
-     * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
-     */
-    Pet: (components["schemas"]["Cat"] & { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": "\" + ((globalThis.__oasis_pwned ??= []).push(9)) + \"\u2028`${0}`" | "Cat" });
-    Cat: {
-      /**
-       * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
-       * @default "*\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\  (globalThis.__oasis_pwned ??= []).push(6); //"
-       */
-      "\" + ((globalThis.__oasis_pwned ??= []).push(10)) + \"\u2028`${0}`"?: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //";
-      "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //";
-    };
+    Pet: $Pet;
+    Cat: $Cat;
   };
   requestSchemas: {};
   refs: {};
@@ -46,6 +35,22 @@ export interface components {
 }
 
 export type schemas = components["schemas"];
+
+// One type alias per schema, `$` plus its name; `$<name>$Request` is the request
+// shape where readOnly or writeOnly properties make it differ.
+/**
+ * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
+ * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
+ */
+type $Pet = ($Cat & { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": "\" + ((globalThis.__oasis_pwned ??= []).push(9)) + \"\u2028`${0}`" | "Cat" });
+type $Cat = {
+  /**
+   * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
+   * @default "*\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\  (globalThis.__oasis_pwned ??= []).push(6); //"
+   */
+  "\" + ((globalThis.__oasis_pwned ??= []).push(10)) + \"\u2028`${0}`"?: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //";
+  "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //";
+};
 
 /** Security schemes declared in the document. */
 export type SecuritySchemeName = "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`";

@@ -1,5 +1,6 @@
 # Edge cases: parameter serialization, servers, media type ranges, readOnly/writeOnly,
-# discriminators, recursive non-component $refs and YAML 1.2 scalars.
+# discriminators, recursion (non-component $refs, arrays at the top of a schema, subtypes
+# listed by their parent) and YAML 1.2 scalars.
 openapi: 3.2.0
 info:
   title: Features
@@ -162,3 +163,36 @@ components:
       type: [integer, "null"]
       format: int32
       enum: [1, 2, null]
+    Json:
+      oneOf:
+        - type: string
+        - type: number
+        - type: boolean
+        - type: "null"
+        - type: array
+          items: { $ref: "#/components/schemas/Json" }
+        - type: object
+          additionalProperties: { $ref: "#/components/schemas/Json" }
+    # A parent listing its subtypes, which extend it: the shape springdoc emits.
+    Animal:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string }
+      discriminator:
+        propertyName: kind
+      oneOf:
+        - $ref: "#/components/schemas/Dog"
+        - $ref: "#/components/schemas/Cat"
+    Dog:
+      allOf:
+        - $ref: "#/components/schemas/Animal"
+        - type: object
+          properties:
+            bark: { type: boolean }
+    Cat:
+      allOf:
+        - $ref: "#/components/schemas/Animal"
+        - type: object
+          properties:
+            lives: { type: integer }

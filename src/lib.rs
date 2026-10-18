@@ -41,9 +41,9 @@ pub fn generate(source: &str, lang: Lang) -> Result<String, Error> {
 }
 
 fn emit(api: &ir::Api, lang: Lang) -> Result<String, Error> {
-    Ok(match lang {
+    match lang {
         Lang::TypeScript => typescript::emit(api),
-    })
+    }
 }
 
 /// Parses JSON or YAML text into a JSON value.

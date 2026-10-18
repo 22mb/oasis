@@ -14,7 +14,7 @@ export interface paths {
           tags?: string[];
           ids?: number[];
           filter?: {
-            kind?: components["schemas"]["Kind"];
+            kind?: $Kind;
             minAge?: number;
           };
         };
@@ -27,25 +27,25 @@ export interface paths {
       };
       responses: {
         /** A page of pets. */
-        "200": components["schemas"]["Pet"][];
+        "200": $Pet[];
         /** Error. */
-        "default": components["schemas"]["Error"];
+        "default": $Error;
       };
     };
     /** operationId: createPet */
     POST: {
       request: {
         contentType?: "application/json";
-        body: components["schemas"]["NewPet"];
+        body: $NewPet;
       } | {
         contentType: "application/x-www-form-urlencoded";
-        body: components["schemas"]["NewPet"];
+        body: $NewPet;
       };
       responses: {
         /** Created. */
-        "201": components["schemas"]["Pet"];
+        "201": $Pet;
         /** Error. */
-        "default": components["schemas"]["Error"];
+        "default": $Error;
       };
     };
     /**
@@ -72,7 +72,7 @@ export interface paths {
       };
       responses: {
         /** Matching pets. */
-        "200": components["schemas"]["Pet"][];
+        "200": $Pet[];
       };
     };
   };
@@ -86,9 +86,9 @@ export interface paths {
       };
       responses: {
         /** The pet. */
-        "200": components["schemas"]["Pet"];
+        "200": $Pet;
         /** Not found. */
-        "404": components["schemas"]["Error"];
+        "404": $Error;
       };
     };
     /**
@@ -182,7 +182,7 @@ export interface paths {
       request: {};
       responses: {
         /** Pets as JSON Lines. */
-        "200": AsyncIterable<components["schemas"]["Pet"]>;
+        "200": AsyncIterable<$Pet>;
       };
     };
   };
@@ -191,7 +191,7 @@ export interface paths {
       request: {};
       responses: {
         /** Pets as a JSON text sequence. */
-        "200": AsyncIterable<components["schemas"]["Pet"]>;
+        "200": AsyncIterable<$Pet>;
       };
     };
   };
@@ -222,35 +222,14 @@ export interface paths {
 
 export interface components {
   schemas: {
-    Kind: "cat" | "dog";
-    NewPet: {
-      /** The pet's name. */
-      name: string;
-      kind: components["schemas"]["Kind"];
-      tag?: string | null;
-    };
-    Pet: components["schemas"]["NewPet"] & {
-      id: number;
-      owner?: components["schemas"]["Owner"];
-    };
-    Owner: {
-      type: "person";
-      name: string;
-    } | {
-      type: "shelter";
-      id: number;
-    };
-    Error: {
-      title: string;
-      detail?: string;
-      [key: string]: unknown;
-    };
-    Labels: { [key: string]: string };
-    Point: [number, number];
-    Category: {
-      name: string;
-      children?: components["schemas"]["Category"][];
-    };
+    Kind: $Kind;
+    NewPet: $NewPet;
+    Pet: $Pet;
+    Owner: $Owner;
+    Error: $Error;
+    Labels: $Labels;
+    Point: $Point;
+    Category: $Category;
   };
   requestSchemas: {};
   refs: {};
@@ -258,6 +237,38 @@ export interface components {
 }
 
 export type schemas = components["schemas"];
+
+// One type alias per schema, `$` plus its name; `$<name>$Request` is the request
+// shape where readOnly or writeOnly properties make it differ.
+type $Kind = "cat" | "dog";
+type $NewPet = {
+  /** The pet's name. */
+  name: string;
+  kind: $Kind;
+  tag?: string | null;
+};
+type $Pet = $NewPet & {
+  id: number;
+  owner?: $Owner;
+};
+type $Owner = {
+  type: "person";
+  name: string;
+} | {
+  type: "shelter";
+  id: number;
+};
+type $Error = {
+  title: string;
+  detail?: string;
+  [key: string]: unknown;
+};
+type $Labels = { [key: string]: string };
+type $Point = [number, number];
+type $Category = {
+  name: string;
+  children?: $Category[];
+};
 
 /** Security schemes declared in the document. */
 export type SecuritySchemeName = never;

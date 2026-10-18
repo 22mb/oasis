@@ -186,6 +186,10 @@ properties also gets a request variant in `components["requestSchemas"]`, where
 `readOnly` properties are optional (and `writeOnly` ones keep their
 requiredness); in responses, required `writeOnly` properties are optional.
 
+Each schema becomes a type alias named after it, `$Pet` (and `$Pet$Request`
+for the request variant); that is the name hovers and error messages show.
+`schemas` and `components` map the document's names onto these aliases.
+
 The output uses only erasable TypeScript syntax, so it also runs directly under
 Node's type stripping. It type-checks with TypeScript 5.0 and later, and does
 not need the `dom` lib.
@@ -199,8 +203,9 @@ oasis-gen accepts `openapi: 3.2.x` documents only.
 - `itemSchema` and sequential media types (JSON Lines, NDJSON, JSON text sequences, server-sent events), streamed as async iterables
 - `components.mediaTypes` and `$ref` to them
 - Multi-file documents: `$ref`s to other local files (whole documents or fragments), resolved against `$self` when present, with `$id` and `$anchor` in schemas. A `$self` URI such as `https://api.example.com/openapi/root.yaml` is mapped onto the file's own directory, so `schemas/pet.yaml` next to it is found locally. Schemas from other files appear in `components["refs"]` under keys like `schemas/pet.yaml#`
-- JSON Schema 2020-12 schemas: `type` arrays (`["string", "null"]`), `const`, `enum`, `allOf`/`oneOf`/`anyOf`, `prefixItems`, `additionalProperties`, `$ref` with sibling keywords, `readOnly`/`writeOnly`, recursive schemas (including `$ref`s into `$defs` and other non-component locations). Properties listed only in `required` are typed as `{} | null` (any value but `undefined`)
+- JSON Schema 2020-12 schemas: `type` arrays (`["string", "null"]`), `const`, `enum`, `allOf`/`oneOf`/`anyOf`, `prefixItems`, `additionalProperties`, `$ref` with sibling keywords, `readOnly`/`writeOnly`, recursive schemas (through properties, arrays and `additionalProperties`, including `$ref`s into `$defs` and other non-component locations). Properties listed only in `required` are typed as `{} | null` (any value but `undefined`)
 - `discriminator` on `oneOf`/`anyOf`, with explicit and implicit mappings, so unions narrow on the discriminating property
+- A schema that lists its subtypes in `oneOf` while each subtype extends it with `allOf` (or a bare `$ref`), as springdoc emits for Jackson subtypes: the parent is the union of its subtypes, and each subtype gets the parent's own properties instead of a reference back, which TypeScript could not resolve. Any other cycle through `$ref`, `allOf`, `oneOf` or `anyOf` alone, with no object or array in between, is rejected
 - Parameter styles: `form` and `deepObject` for query (with `allowReserved`), `simple` for path and header, `form` (percent-encoded) and `cookie` (sent as-is) for cookie, all with `explode`. Exploded cookie values are joined with `; ` for both styles, since the spec rules out `&` for cookies; and `content`-based parameters
 - `servers` at the top level, on path items and on operations, with variable defaults
 

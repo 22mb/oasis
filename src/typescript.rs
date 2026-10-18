@@ -1,13 +1,14 @@
 //! TypeScript emitter: one self-contained file with types and a fetch-based runtime.
 
+use crate::Error;
 use crate::ir::*;
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 const RUNTIME: &str = include_str!("typescript/runtime.ts");
 
-pub fn emit(api: &Api) -> String {
+pub fn emit(api: &Api) -> Result<String, Error> {
     Emitter::new(api).emit()
 }
 
@@ -21,19 +22,33 @@ enum View {
 
 struct Emitter<'a> {
     api: &'a Api,
-    hoisted: HashSet<&'a str>,
+    /// Every schema by key.
+    schemas: HashMap<&'a str, &'a NamedSchema>,
+    /// The type alias of each schema; its request variant adds `$Request`.
+    names: HashMap<&'a str, String>,
     /// Schemas whose request view differs from their response view.
     request_variants: HashSet<&'a str>,
 }
 
 impl<'a> Emitter<'a> {
     fn new(api: &'a Api) -> Emitter<'a> {
-        let hoisted = api
-            .schemas
-            .iter()
-            .filter(|s| s.hoisted)
-            .map(|s| s.key.as_str())
-            .collect();
+        let schemas = api.schemas.iter().map(|s| (s.key.as_str(), s)).collect();
+
+        // `$` cannot come from a key, so `$Pet$Request` never collides with a
+        // schema named `Pet$Request`; names that do collide are numbered.
+        let mut names = HashMap::new();
+        let mut taken = HashSet::new();
+        for s in &api.schemas {
+            let base = format!("${}", identifier(&s.key));
+            let mut name = base.clone();
+            for n in 2.. {
+                if taken.insert(name.clone()) {
+                    break;
+                }
+                name = format!("{base}_{n}");
+            }
+            names.insert(s.key.as_str(), name);
+        }
 
         // A schema needs a request variant if it has a required readOnly or
         // writeOnly property, or references a schema that does.
@@ -71,12 +86,13 @@ impl<'a> Emitter<'a> {
 
         Emitter {
             api,
-            hoisted,
+            schemas,
+            names,
             request_variants,
         }
     }
 
-    fn emit(&self) -> String {
+    fn emit(&self) -> Result<String, Error> {
         let api = self.api;
         let mut out = String::new();
         let source = [api.title.as_str(), api.version.as_str()]
@@ -110,6 +126,7 @@ impl<'a> Emitter<'a> {
         self.schema_group(&mut out, "requestRefs", true, View::Request);
         out.push_str("}\n\n");
         out.push_str("export type schemas = components[\"schemas\"];\n\n");
+        self.definitions(&mut out)?;
         let names: Vec<String> = api.security_schemes.iter().map(|s| quote(&s.key)).collect();
         writeln!(
             out,
@@ -126,7 +143,7 @@ impl<'a> Emitter<'a> {
                return makeClient<paths>(options, spec);\n\
              }\n",
         );
-        out
+        Ok(out)
     }
 
     /// One `components` member: component or hoisted schemas, in one view.
@@ -144,10 +161,51 @@ impl<'a> Emitter<'a> {
         }
         writeln!(out, "  {name}: {{").unwrap();
         for s in schemas {
-            out.push_str(&jsdoc(&s.meta, &[], 2));
-            writeln!(out, "    {}: {};", key(&s.key), self.ty(&s.schema, 2, view)).unwrap();
+            writeln!(
+                out,
+                "    {}: {};",
+                key(&s.key),
+                self.reference(&s.key, view)
+            )
+            .unwrap();
         }
         out.push_str("  };\n");
+    }
+
+    /// One type alias per schema, and one for its request view where that differs.
+    fn definitions(&self, out: &mut String) -> Result<(), Error> {
+        if self.api.schemas.is_empty() {
+            return Ok(());
+        }
+        out.push_str(
+            "// One type alias per schema, `$` plus its name; `$<name>$Request` is the request\n\
+             // shape where readOnly or writeOnly properties make it differ.\n",
+        );
+        let mut edges = Vec::new();
+        for s in &self.api.schemas {
+            let key = s.key.as_str();
+            let doc = jsdoc(&s.meta, &[], 0);
+            out.push_str(&doc);
+            let name = self.reference(key, View::Response);
+            writeln!(
+                out,
+                "type {name} = {};",
+                self.define(s, View::Response, &mut edges)
+            )
+            .unwrap();
+            if self.request_variants.contains(key) {
+                out.push_str(&doc);
+                let name = self.reference(key, View::Request);
+                writeln!(
+                    out,
+                    "type {name} = {};",
+                    self.define(s, View::Request, &mut Vec::new())
+                )
+                .unwrap();
+            }
+        }
+        out.push('\n');
+        check_cycles(self.api, &edges)
     }
 
     /// Runtime data: default base URL, per-operation servers and non-default parameter styles.
@@ -395,15 +453,14 @@ impl<'a> Emitter<'a> {
             .unwrap_or_else(|| "unknown".to_string())
     }
 
+    /// The alias of schema `k` in `view`.
     fn reference(&self, k: &str, view: View) -> String {
-        let request = view == View::Request && self.request_variants.contains(k);
-        let group = match (self.hoisted.contains(k), request) {
-            (false, false) => "schemas",
-            (false, true) => "requestSchemas",
-            (true, false) => "refs",
-            (true, true) => "requestRefs",
-        };
-        format!("components[\"{group}\"][{}]", quote(k))
+        let name = &self.names[k];
+        if view == View::Request && self.request_variants.contains(k) {
+            format!("{name}$Request")
+        } else {
+            name.clone()
+        }
     }
 
     /// TypeScript type for a schema. `indent` is the nesting level of the line it starts on.
@@ -495,7 +552,7 @@ impl<'a> Emitter<'a> {
             } => union(
                 variants
                     .iter()
-                    .map(|v| self.variant(v, discriminator.as_ref(), indent, view))
+                    .map(|v| self.tag(self.ty(v, indent, view), v, discriminator.as_ref()))
                     .collect(),
             ),
             Schema::Intersection(parts) => parts
@@ -506,10 +563,9 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// A union variant; referenced variants are tagged with their
-    /// discriminating values so that the union narrows on them.
-    fn variant(&self, v: &Schema, d: Option<&Discriminator>, indent: usize, view: View) -> String {
-        let t = self.ty(v, indent, view);
+    /// A union variant `v` rendered as `t`, tagged with its discriminating
+    /// values when it is a reference, so that the union narrows on them.
+    fn tag(&self, t: String, v: &Schema, d: Option<&Discriminator>) -> String {
         let (Some(d), Schema::Ref(k)) = (d, v) else {
             return t;
         };
@@ -528,6 +584,209 @@ impl<'a> Emitter<'a> {
             values.join(" | ")
         )
     }
+
+    /// The type of a named schema, for its alias.
+    ///
+    /// TypeScript resolves the top of an alias eagerly: a cycle through `$ref`,
+    /// `allOf`, `oneOf` and `anyOf` alone is an error (TS2456), while one
+    /// through an object or array is fine. A parent that lists its subtypes in
+    /// `oneOf` while each subtype extends it with `allOf` (as springdoc emits)
+    /// is such a cycle. It is cut on the subtype's side: there, the reference
+    /// to the parent becomes the parent's own part, its type without the
+    /// listing. References left in eager positions go to `edges`, for
+    /// [`check_cycles`].
+    fn define(
+        &self,
+        s: &'a NamedSchema,
+        view: View,
+        edges: &mut Vec<(&'a str, &'a str)>,
+    ) -> String {
+        let mut d = Defining {
+            key: &s.key,
+            expanding: Vec::new(),
+            edges: Vec::new(),
+        };
+        let parts = self.eager(&s.schema, view, &mut d, true, false);
+        edges.append(&mut d.edges);
+        join(parts)
+    }
+
+    /// The intersection members of `s` at the top of the alias of `d.key`.
+    /// `member` says `s` is an `allOf` member (or the whole alias), where a
+    /// reference to a parent listing `d.key` is replaced by the parent's own
+    /// part; `inlined` says that is what is being rendered, so the listing
+    /// itself is dropped.
+    fn eager(
+        &self,
+        s: &'a Schema,
+        view: View,
+        d: &mut Defining<'a>,
+        member: bool,
+        inlined: bool,
+    ) -> Vec<Part> {
+        match s {
+            Schema::Ref(k) if member && self.enumerates(k, d.key) => {
+                if d.expanding.contains(&k.as_str()) {
+                    return Vec::new();
+                }
+                d.expanding.push(k);
+                let parts = self.eager(&self.schemas[k.as_str()].schema, view, d, true, true);
+                d.expanding.pop();
+                parts
+            }
+            Schema::Ref(k) => {
+                d.edges.push((d.key, k));
+                vec![Part {
+                    text: self.reference(k, view),
+                    compound: false,
+                }]
+            }
+            Schema::Union {
+                variants,
+                discriminator,
+                ..
+            } => {
+                if inlined && variants.iter().any(|v| self.reaches(v, d.key, true)) {
+                    return Vec::new();
+                }
+                let types = variants
+                    .iter()
+                    .map(|v| {
+                        let t = join(self.eager(v, view, d, false, inlined));
+                        self.tag(t, v, discriminator.as_ref())
+                    })
+                    .collect();
+                vec![Part {
+                    text: union(types),
+                    compound: variants.len() > 1,
+                }]
+            }
+            Schema::Intersection(parts) => parts
+                .iter()
+                .flat_map(|p| self.eager(p, view, d, true, inlined))
+                .collect(),
+            _ => vec![Part {
+                text: self.ty(s, 0, view),
+                compound: matches!(s, Schema::Enum { values, .. } if values.len() > 1),
+            }],
+        }
+    }
+
+    /// Whether schema `p` lists `c` among its subtypes: `c` is reachable from
+    /// it through `$ref`, `allOf`, `oneOf` and `anyOf` alone, crossing at least
+    /// one `oneOf` or `anyOf`.
+    fn enumerates(&self, p: &str, c: &str) -> bool {
+        self.reaches(&self.schemas[p].schema, c, false)
+    }
+
+    /// Whether `c` is reachable from `s` through `$ref`, `allOf`, `oneOf` and
+    /// `anyOf` alone, crossing a `oneOf` or `anyOf` (`crossed` says one was
+    /// crossed already).
+    fn reaches(&self, s: &'a Schema, c: &str, crossed: bool) -> bool {
+        let mut stack = vec![(s, crossed)];
+        let mut seen = HashSet::new();
+        while let Some((s, crossed)) = stack.pop() {
+            match s {
+                Schema::Ref(k) if k.as_str() == c => {
+                    if crossed {
+                        return true;
+                    }
+                }
+                Schema::Ref(k) => {
+                    if seen.insert((k.as_str(), crossed)) {
+                        stack.push((&self.schemas[k.as_str()].schema, crossed));
+                    }
+                }
+                Schema::Union { variants, .. } => {
+                    stack.extend(variants.iter().map(|v| (v, true)));
+                }
+                Schema::Intersection(parts) => {
+                    stack.extend(parts.iter().map(|p| (p, crossed)));
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+}
+
+/// State while rendering one schema's alias (see [`Emitter::define`]).
+struct Defining<'a> {
+    /// The schema being defined.
+    key: &'a str,
+    /// Parents whose own part is being rendered in place of a reference.
+    expanding: Vec<&'a str>,
+    /// References left in eager positions, as (from, to).
+    edges: Vec<(&'a str, &'a str)>,
+}
+
+/// An intersection member of an alias.
+struct Part {
+    text: String,
+    /// Needs parentheses next to `&`.
+    compound: bool,
+}
+
+/// Intersection members as one type; none means no constraint.
+fn join(mut parts: Vec<Part>) -> String {
+    match parts.len() {
+        0 => "unknown".into(),
+        1 => parts.pop().unwrap().text,
+        _ => parts
+            .iter()
+            .map(|p| {
+                if p.compound {
+                    format!("({})", p.text)
+                } else {
+                    p.text.clone()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" & "),
+    }
+}
+
+/// Rejects a cycle among the references TypeScript resolves eagerly (see
+/// [`Emitter::define`]), which would make every alias on it `any` (TS2456).
+fn check_cycles(api: &Api, edges: &[(&str, &str)]) -> Result<(), Error> {
+    let mut targets: HashMap<&str, Vec<&str>> = HashMap::new();
+    for (from, to) in edges {
+        targets.entry(from).or_default().push(to);
+    }
+    // Depth-first search for a back edge, in document order.
+    let mut state: HashMap<&str, u8> = HashMap::new(); // 1: on the path, 2: done
+    for start in api.schemas.iter().map(|s| s.key.as_str()) {
+        if state.contains_key(start) {
+            continue;
+        }
+        state.insert(start, 1);
+        let mut path = vec![(start, 0)];
+        while let Some(&(node, next)) = path.last() {
+            let Some(&to) = targets.get(node).and_then(|ts| ts.get(next)) else {
+                state.insert(node, 2);
+                path.pop();
+                continue;
+            };
+            path.last_mut().unwrap().1 += 1;
+            match state.get(to) {
+                None => {
+                    state.insert(to, 1);
+                    path.push((to, 0));
+                }
+                Some(1) => {
+                    let from = path.iter().position(|(n, _)| *n == to).unwrap();
+                    let cycle: Vec<&str> =
+                        path[from..].iter().map(|(n, _)| *n).chain([to]).collect();
+                    return Err(Error::new(format!(
+                        "{}: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone",
+                        cycle.join(" -> ")
+                    )));
+                }
+                Some(_) => {}
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Visits a schema tree without following references.
@@ -673,6 +932,23 @@ fn jsdoc(meta: &Meta, extra: &[String], indent: usize) -> String {
     out
 }
 
+/// `key` as part of a TypeScript identifier: runs of other characters become
+/// `_`, so `schemas/pet.yaml#` gives `schemas_pet_yaml`.
+fn identifier(key: &str) -> String {
+    let mut out = String::new();
+    for c in key.chars() {
+        if c.is_ascii_alphanumeric() || c == '_' {
+            out.push(c);
+        } else if !out.ends_with('_') {
+            out.push('_');
+        }
+    }
+    match out.trim_matches('_') {
+        "" => "_".into(),
+        s => s.into(),
+    }
+}
+
 fn key(name: &str) -> String {
     let mut chars = name.chars();
     let ident = chars
@@ -701,4 +977,83 @@ fn opt(optional: bool) -> &'static str {
 
 fn pad(level: usize) -> String {
     "  ".repeat(level)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn generate(schemas: Value) -> Result<String, Error> {
+        let doc = json!({"openapi": "3.2.0", "paths": {}, "components": {"schemas": schemas}});
+        emit(&crate::parse(&crate::Documents::from_value(doc)?)?)
+    }
+
+    fn r(name: &str) -> Value {
+        json!({"$ref": format!("#/components/schemas/{name}")})
+    }
+
+    #[test]
+    fn subtypes_get_the_parents_own_part() {
+        // The shape springdoc emits: parents list their subtypes, which extend them.
+        let out = generate(json!({
+            "Animal": {
+                "type": "object", "required": ["kind"], "properties": {"kind": {"type": "string"}},
+                "discriminator": {"propertyName": "kind"}, "oneOf": [r("Dog"), r("Cat")]
+            },
+            "Dog": {"allOf": [r("Animal")], "oneOf": [r("Puppy"), r("Adult")]},
+            "Cat": {"allOf": [r("Animal"), {"properties": {"lives": {"type": "integer"}}}]},
+            "Puppy": {"allOf": [r("Dog"), {"properties": {"age": {"type": "integer"}}}]},
+            "Adult": {"allOf": [r("Dog")]},
+        }))
+        .unwrap();
+        let has = |s: &str| assert!(out.contains(s), "missing {s:?} in\n{out}");
+        has(
+            "type $Animal = {\n  kind: string;\n} & (($Dog & { kind: \"Dog\" }) | ($Cat & { kind: \"Cat\" }));\n",
+        );
+        has("type $Dog = {\n  kind: string;\n} & ($Puppy | $Adult);\n");
+        has("type $Cat = {\n  kind: string;\n} & {\n  lives?: number;\n};\n");
+        // Two levels down, Puppy gets Animal's part through Dog's, without either listing.
+        has("type $Puppy = {\n  kind: string;\n} & {\n  age?: number;\n};\n");
+        has("type $Adult = {\n  kind: string;\n};\n");
+    }
+
+    #[test]
+    fn rejects_cycles_without_an_object_or_array_in_between() {
+        let err = generate(json!({"A": r("B"), "B": r("A")})).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "A -> B -> A: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone"
+        );
+        let err = generate(json!({
+            "A": {"anyOf": [r("B"), {"type": "string"}]},
+            "B": {"anyOf": [r("A"), {"type": "number"}]},
+        }))
+        .unwrap_err();
+        assert!(err.to_string().starts_with("A -> B -> A:"), "{err}");
+        // Through an array, the cycle is fine.
+        let json = json!({"oneOf": [{"type": "string"}, {"type": "array", "items": r("Json")}]});
+        assert!(
+            generate(json!({"Json": json}))
+                .unwrap()
+                .contains("type $Json = string | $Json[];\n")
+        );
+    }
+
+    #[test]
+    fn alias_names_are_identifiers_and_unique() {
+        let out = generate(json!({
+            "Pet.Owner": {"type": "string"},
+            "Pet_Owner": {"type": "string"},
+            "Pet$Request": {"type": "string"},
+            "Pet": {"required": ["id"], "properties": {"id": {"type": "integer", "readOnly": true}}},
+        }))
+        .unwrap();
+        let has = |s: &str| assert!(out.contains(s), "missing {s:?} in\n{out}");
+        has(
+            "    \"Pet.Owner\": $Pet_Owner;\n    Pet_Owner: $Pet_Owner_2;\n    Pet$Request: $Pet_Request;\n    Pet: $Pet;\n",
+        );
+        has("  requestSchemas: {\n    Pet: $Pet$Request;\n");
+        has("type $Pet$Request = {\n  id?: number;\n};\n");
+    }
 }

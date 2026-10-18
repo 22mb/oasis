@@ -9,6 +9,12 @@ export type Exact = [
     components["requestSchemas"]["Account"],
     { id?: number; name: string; password: string; owner?: components["requestSchemas"]["Owner"] }
   >>,
+  // Recursion through an array or index signature at the top of a schema.
+  Expect<Equal<schemas["Json"], string | number | boolean | null | schemas["Json"][] | { [key: string]: schemas["Json"] }>>,
+  // A parent listing its subtypes in `oneOf` while they extend it with `allOf`: the parent
+  // is the union, and each subtype gets the parent's own part instead of a reference back.
+  Expect<Equal<schemas["Animal"], { kind: string } & ((schemas["Dog"] & { kind: "Dog" }) | (schemas["Cat"] & { kind: "Cat" }))>>,
+  Expect<Equal<schemas["Dog"], { kind: string } & { bark?: boolean }>>,
   // YAML 1.2: `yes`, `off`, `N` stay strings; `null` in a typed enum stays `null`.
   Expect<Equal<schemas["Flag"], "N" | "Y" | "yes" | "off" | "A">>,
   Expect<Equal<schemas["Level"], 1 | 2 | null>>,
@@ -43,6 +49,13 @@ export async function checks() {
   // Recursive schemas behind non-component $refs.
   const tree = {} as schemas["Tree"];
   tree.left?.right?.value satisfies number | undefined;
+
+  // Subtypes narrow on the discriminator and stand on their own.
+  const animal = {} as schemas["Animal"];
+  if (animal.kind === "Dog") animal.bark satisfies boolean | undefined;
+  const dog: schemas["Dog"] = { kind: "Dog", bark: true };
+  const json: schemas["Json"] = [1, "a", { nested: [null, true] }];
+  void dog, json;
 
   // Media type ranges decode to `unknown`.
   const item = await api.GET("/items/{coords}", { path: { coords: { x: 1 } } });
