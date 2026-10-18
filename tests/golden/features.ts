@@ -49,6 +49,18 @@ export interface paths {
         "204": undefined;
       };
     };
+    DELETE: {
+      request: {
+        path: {
+          dir: string;
+          name: string;
+        };
+      };
+      responses: {
+        /** Deleted. The declared body is never sent, so it is not typed. */
+        "204": undefined;
+      };
+    };
   };
   "/upload": {
     POST: {
@@ -89,6 +101,12 @@ export interface components {
     Animal: $Animal;
     Dog: $Dog;
     Cat: $Cat;
+    Tags: $Tags;
+    Tagged: $Tagged;
+    Car: $Car;
+    Bike: $Bike;
+    OtherVehicle: $OtherVehicle;
+    Vehicle: $Vehicle;
   };
   requestSchemas: {
     Account: $Account$Request;
@@ -165,6 +183,20 @@ type $Cat = {
 } & {
   lives?: number;
 };
+type $Tags = ("a" | "b")[];
+type $Tagged = $Base & ($Circle | $Square);
+type $Car = {
+  kind: string;
+  doors: number;
+};
+type $Bike = {
+  kind: string;
+  gears: number;
+};
+type $OtherVehicle = {
+  kind: string;
+};
+type $Vehicle = ($Car & { kind: "car" | "Car" }) | ($Bike & { kind: "Bike" }) | ($OtherVehicle & { kind: string });
 type $components_schemas_Tree_defs_node = {
   value?: number;
   left?: $components_schemas_Tree_defs_node;
@@ -497,6 +529,32 @@ function encodeBody(body: unknown, contentType: string | undefined, headers: Hea
   return body as BodyInit;
 }
 
+/**
+ * A response body that is not what its `Content-Type` says (an HTML error page
+ * served as `application/json`, say). `response` is the response, its body
+ * consumed; `text` is the body, or the offending item of a sequential media type.
+ */
+export class DecodeError extends Error {
+  response: Response;
+  text: string;
+  constructor(response: Response, text: string, cause: unknown) {
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    super(`${response.status} response body is not valid ${response.headers.get("content-type")}: ${reason}`, { cause });
+    this.name = "DecodeError";
+    this.response = response;
+    this.text = text;
+  }
+}
+
+/** `JSON.parse`, with a failure reported as a {@link DecodeError}. */
+function parseJson(response: Response, text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (cause) {
+    throw new DecodeError(response, text, cause);
+  }
+}
+
 async function decodeBody(response: Response, method: string): Promise<unknown> {
   if (method === "HEAD" || [204, 205, 304].includes(response.status)) return undefined;
   const contentType = response.headers.get("content-type");
@@ -504,12 +562,12 @@ async function decodeBody(response: Response, method: string): Promise<unknown> 
   switch (mediaKind(contentType)) {
     case "json": {
       const text = await response.text();
-      return text ? JSON.parse(text) : undefined;
+      return text ? parseJson(response, text) : undefined;
     }
     case "jsonl":
-      return mapItems(split(response, "\n"), (line) => line.trim() ? JSON.parse(line) : undefined);
+      return mapItems(split(response, "\n"), (line) => line.trim() ? parseJson(response, line) : undefined);
     case "json-seq":
-      return mapItems(split(response, "\x1e"), (rec) => rec.trim() ? JSON.parse(rec) : undefined);
+      return mapItems(split(response, "\x1e"), (rec) => rec.trim() ? parseJson(response, rec) : undefined);
     case "sse":
       return events(response);
     case "text":
@@ -551,16 +609,21 @@ async function* mapItems<T>(items: AsyncIterable<string>, parse: (item: string) 
   }
 }
 
+/**
+ * One event. `id` and `retry` are the last ones the stream set, possibly in an
+ * earlier block: the last event ID and the reconnection time.
+ */
 export type ServerSentEvent = { data: string; event?: string; id?: string; retry?: number };
 
 async function* events(response: Response): AsyncGenerator<ServerSentEvent> {
-  let event: Partial<ServerSentEvent> = {};
+  const state: { id?: string; retry?: number } = {};
+  let event: string | undefined;
   let data: string[] = [];
   for await (let line of split(response, "\n")) {
     if (line.endsWith("\r")) line = line.slice(0, -1);
     if (line === "") {
-      if (data.length) yield { ...event, data: data.join("\n") };
-      event = {};
+      if (data.length) yield { ...state, ...(event === undefined ? {} : { event }), data: data.join("\n") };
+      event = undefined;
       data = [];
       continue;
     }
@@ -570,8 +633,9 @@ async function* events(response: Response): AsyncGenerator<ServerSentEvent> {
     let value = colon < 0 ? "" : line.slice(colon + 1);
     if (value.startsWith(" ")) value = value.slice(1);
     if (field === "data") data.push(value);
-    else if (field === "event" || field === "id") event[field] = value;
-    else if (field === "retry" && /^\d+$/.test(value)) event.retry = Number(value);
+    else if (field === "event") event = value;
+    else if (field === "id") state.id = value;
+    else if (field === "retry" && /^\d+$/.test(value)) state.retry = Number(value);
   }
 }
 
@@ -696,7 +760,7 @@ function setCookie(headers: Headers, name: string, value: string): void {
 
 const spec: Spec = {
   baseUrl: "https://api.example.com",
-  methods: ["GET", "POST"],
+  methods: ["GET", "DELETE", "POST"],
   servers: {
     "POST /upload": "https://upload.example.com",
     "GET /shapes": "https://shapes.example.com/v2",

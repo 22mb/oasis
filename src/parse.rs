@@ -664,10 +664,12 @@ impl<'a> Parser<'a> {
             }
         }
         let default_mapping = d.str("defaultMapping").map(&mut target).transpose()?;
-        // Values not in `mapping` are assumed to be component names.
+        // Values not in `mapping` are assumed to be component names. The default
+        // target takes the unlisted values instead of its own name.
         for v in variants {
             if let Schema::Ref(name) = v
                 && !name.contains('#')
+                && default_mapping.as_deref() != Some(name.as_str())
                 && !mapping.iter().any(|(value, _)| value == name)
             {
                 mapping.push((name.clone(), name.clone()));
@@ -1259,6 +1261,31 @@ mod tests {
                 ("B".into(), "B".into())
             ]
         );
+    }
+
+    #[test]
+    fn default_mapping_target_gets_no_implicit_value() {
+        let api = api(
+            json!({}),
+            json!({
+                "A": {"type": "object"},
+                "B": {"type": "object"},
+                "U": {
+                    "oneOf": [{"$ref": "#/components/schemas/A"}, {"$ref": "#/components/schemas/B"}],
+                    "discriminator": {"propertyName": "t", "defaultMapping": "B"}
+                }
+            }),
+        )
+        .unwrap();
+        let Schema::Union {
+            discriminator: Some(d),
+            ..
+        } = &api.schemas[2].schema
+        else {
+            panic!()
+        };
+        assert_eq!(d.mapping, vec![("A".into(), "A".into())]);
+        assert_eq!(d.default_mapping.as_deref(), Some("B"));
     }
 
     #[test]

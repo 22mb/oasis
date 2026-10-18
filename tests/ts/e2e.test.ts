@@ -49,8 +49,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return stream("application/json-seq", ['\x1e{"id":1}\n\x1e{"id"', ':2}\n']);
     case "GET /v1/stream/sse":
       return stream("text/event-stream", [
-        ": comment\r\nevent: greet\r\ndata: hello\r\ndata: wor",
-        "ld\r\nid: 7\r\n\r\ndata: {\"n\":1}\n\nretry: 10\n\n",
+        "retry: 10\n\n: comment\r\nevent: greet\r\ndata: hello\r\ndata: wor",
+        "ld\r\nid: 7\r\n\r\ndata: {\"n\":1}\n\nid: 8\n\ndata: x\n\n",
         "data: trailing-without-blank-line",
       ]);
     default:
@@ -168,9 +168,12 @@ test("streams server-sent events", async () => {
   const res = await api.GET("/stream/sse");
   const events = [];
   for await (const e of res.data) events.push(e);
+  // `retry` and `id` persist: the second event has no `id` line of its own, and the
+  // `id: 8` block dispatches nothing but applies to the event after it.
   assert.deepEqual(events, [
-    { event: "greet", id: "7", data: "hello\nworld" },
-    { data: '{"n":1}' },
+    { retry: 10, event: "greet", id: "7", data: "hello\nworld" },
+    { retry: 10, id: "7", data: '{"n":1}' },
+    { retry: 10, id: "8", data: "x" },
   ]);
 });
 

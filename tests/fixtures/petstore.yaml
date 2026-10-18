@@ -88,7 +88,12 @@ paths:
       summary: The list's headers without its body.
       responses:
         "200":
-          description: The headers of the list.
+          description: The headers of the list; the declared body is never sent.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Pet" }
   /pets/{petId}:
     parameters:
       - name: petId

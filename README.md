@@ -78,8 +78,11 @@ Every call resolves to `{ ok, status, data, response }`; `ok` and `status`
 narrow `data` to the matching response type. `ok` is typed from the declared
 status: `2XX` keys are successes, `default` may be either, and everything else
 is an error response. Non-2xx responses are returned, not thrown. Network
-errors throw as usual. A path parameter that would leave a path segment empty,
-`.` or `..` is rejected with a `TypeError` before anything is sent.
+errors throw as usual. A body that is not what its `Content-Type` says (an
+HTML error page served as `application/json`, say) throws a `DecodeError`,
+which carries the `response` (body consumed) and the offending `text`. A path
+parameter that would leave a path segment empty, `.` or `..` is rejected with
+a `TypeError` before anything is sent.
 
 The client has one property per HTTP method in the document, plus `with`.
 Any other property, including a lowercase method name, is what a plain object
@@ -144,7 +147,9 @@ await api.GET("/pets", { middleware: [cache] });     // runs inside the client's
 ```
 
 Returning a `Response` without calling `next` skips the network (caching,
-mocks). Network errors surface as exceptions from `next`. The third argument
+mocks). Errors from `fetch` itself surface as exceptions from `next`; the body
+is read after the chain, so errors while reading it, `DecodeError` included,
+do not pass through `next`. The third argument
 describes the operation from the document: `method`, `path` (the template),
 `operationId` and its `security` requirements. Response bodies are decoded
 after the middleware, so a middleware may also adjust the response.
@@ -228,6 +233,7 @@ The 3.2 features oasis-gen supports:
 Not supported yet:
 
 - Swagger 2.0 documents (`swagger: "2.0"`)
+- `$dynamicRef` (read as `unknown`)
 - Remote `$ref`s (`https://...` URIs that do not map onto a local file) and URLs as input
 - `additionalOperations` entries for `delete`, `get`, `head`, `options`, `post` or `put` in any case are rejected, since fetch sends them uppercased and they would collide with the fixed fields
 - Parameter styles `label`, `matrix`, `spaceDelimited` and `pipeDelimited` (rejected with an error)

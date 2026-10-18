@@ -18,6 +18,17 @@ export type Exact = [
   // YAML 1.2: `yes`, `off`, `N` stay strings; `null` in a typed enum stays `null`.
   Expect<Equal<schemas["Flag"], "N" | "Y" | "yes" | "off" | "A">>,
   Expect<Equal<schemas["Level"], 1 | 2 | null>>,
+  // A union of one variant keeps its parentheses next to `[]` and `&`.
+  Expect<Equal<schemas["Tags"], ("a" | "b")[]>>,
+  Expect<Equal<schemas["Tagged"], schemas["Base"] & (schemas["Circle"] | schemas["Square"])>>,
+  // `defaultMapping`: the default variant takes every value the mapping does not list.
+  // Explicitly mapped schemas keep their implicit name as a value too.
+  Expect<Equal<
+    schemas["Vehicle"],
+    | (schemas["Car"] & { kind: "car" | "Car" })
+    | (schemas["Bike"] & { kind: "Bike" })
+    | (schemas["OtherVehicle"] & { kind: string })
+  >>,
 ];
 
 const api = createClient();

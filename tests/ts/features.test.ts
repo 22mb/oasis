@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createClient } from "../golden/features.ts";
+import { DecodeError, createClient } from "../golden/features.ts";
 
 type Sent = { url: string; headers: Headers };
 
@@ -69,6 +69,27 @@ test("baseUrl replaces every server", async () => {
   await api.POST("/upload", { body: { name: "a", password: "p" } });
   await api.GET("/shapes");
   assert.deepEqual(sent.map((s) => s.url), ["http://localhost:4010/upload", "http://localhost:4010/shapes"]);
+});
+
+test("a body that is not what its Content-Type says throws a DecodeError", async () => {
+  const html = () => new Response("<html>502</html>", { status: 502, headers: { "content-type": "application/json" } });
+  await assert.rejects(
+    recording(html).api.GET("/shapes"),
+    (e: unknown) =>
+      e instanceof DecodeError && e.response.status === 502 && e.text === "<html>502</html>" &&
+      e.cause instanceof SyntaxError,
+  );
+  // Sequential media types report the offending item while iterating.
+  const lines = () => new Response('{"a":1}\nnot json\n', { headers: { "content-type": "application/jsonl" } });
+  const res = await recording(lines).api.GET("/items/{coords}", { path: { coords: { x: 1 } } });
+  const items: unknown[] = [];
+  await assert.rejects(
+    (async () => {
+      for await (const item of res.data as AsyncIterable<unknown>) items.push(item);
+    })(),
+    (e: unknown) => e instanceof DecodeError && e.text === "not json",
+  );
+  assert.deepEqual(items, [{ a: 1 }]);
 });
 
 test("only the document's methods are client properties", async () => {

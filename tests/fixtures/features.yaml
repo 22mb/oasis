@@ -64,13 +64,20 @@ paths:
           content:
             application/*: {}
   /files/{dir}/{name}:
+    parameters:
+      - { name: dir, in: path, required: true, schema: { type: string } }
+      - { name: name, in: path, required: true, schema: { type: string } }
     get:
-      parameters:
-        - { name: dir, in: path, required: true, schema: { type: string } }
-        - { name: name, in: path, required: true, schema: { type: string } }
       responses:
         "204":
           description: Found.
+    delete:
+      responses:
+        "204":
+          description: Deleted. The declared body is never sent, so it is not typed.
+          content:
+            application/json:
+              schema: { type: object }
   /upload:
     servers:
       - url: https://upload.example.com
@@ -196,3 +203,46 @@ components:
         - type: object
           properties:
             lives: { type: integer }
+    # A union of one variant renders as the variant, and still needs parentheses
+    # next to `[]` and `&`.
+    Tags:
+      type: array
+      items:
+        oneOf:
+          - type: string
+            enum: [a, b]
+    Tagged:
+      allOf:
+        - $ref: "#/components/schemas/Base"
+        - oneOf:
+            - anyOf:
+                - $ref: "#/components/schemas/Circle"
+                - $ref: "#/components/schemas/Square"
+    # `defaultMapping`: the default variant takes every value the mapping does not list.
+    Car:
+      type: object
+      required: [kind, doors]
+      properties:
+        kind: { type: string }
+        doors: { type: integer }
+    Bike:
+      type: object
+      required: [kind, gears]
+      properties:
+        kind: { type: string }
+        gears: { type: integer }
+    OtherVehicle:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string }
+    Vehicle:
+      oneOf:
+        - $ref: "#/components/schemas/Car"
+        - $ref: "#/components/schemas/Bike"
+        - $ref: "#/components/schemas/OtherVehicle"
+      discriminator:
+        propertyName: kind
+        mapping:
+          car: "#/components/schemas/Car"
+        defaultMapping: OtherVehicle

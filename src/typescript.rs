@@ -314,7 +314,9 @@ impl<'a> Emitter<'a> {
             out.push_str("        default: unknown;\n");
         }
         for r in &op.responses {
-            let data = if r.content.is_empty() {
+            // Never carries a body on the wire, whatever the document declares.
+            let bodiless = op.method == "HEAD" || matches!(r.status, Status::Code(204 | 205 | 304));
+            let data = if bodiless || r.content.is_empty() {
                 "undefined".to_string()
             } else {
                 union(r.content.iter().map(|c| self.response_data(c)).collect())
@@ -578,6 +580,11 @@ impl<'a> Emitter<'a> {
         let (Some(d), Schema::Ref(k)) = (d, v) else {
             return t;
         };
+        let property = key(&d.property_name);
+        // The default variant takes every value the mapping does not list.
+        if d.default_mapping.as_deref() == Some(k.as_str()) {
+            return format!("({t} & {{ {property}: string }})");
+        }
         let values: Vec<String> = d
             .mapping
             .iter()
@@ -587,11 +594,7 @@ impl<'a> Emitter<'a> {
         if values.is_empty() {
             return t;
         }
-        format!(
-            "({t} & {{ {}: {} }})",
-            key(&d.property_name),
-            values.join(" | ")
-        )
+        format!("({t} & {{ {property}: {} }})", values.join(" | "))
     }
 
     /// The type of a named schema, for its alias.
@@ -667,7 +670,7 @@ impl<'a> Emitter<'a> {
                     .collect();
                 vec![Part {
                     text: union(types),
-                    compound: variants.len() > 1,
+                    compound: compound(s),
                 }]
             }
             Schema::Intersection(parts) => parts
@@ -676,7 +679,7 @@ impl<'a> Emitter<'a> {
                 .collect(),
             _ => vec![Part {
                 text: self.ty(s, 0, view),
-                compound: matches!(s, Schema::Enum { values, .. } if values.len() > 1),
+                compound: compound(s),
             }],
         }
     }
@@ -885,11 +888,18 @@ fn param_style(p: &Param) -> Option<String> {
 
 /// Parenthesizes compound types where they are used as an operand.
 fn wrap(s: &Schema, t: String) -> String {
+    if compound(s) { format!("({t})") } else { t }
+}
+
+/// Whether the type of `s` is a union or intersection at its top level, which
+/// needs parentheses next to `&` or `[]`. A union of one variant renders as
+/// that variant, so it is compound when the variant is.
+fn compound(s: &Schema) -> bool {
     match s {
-        Schema::Union { variants, .. } if variants.len() > 1 => format!("({t})"),
-        Schema::Enum { values, .. } if values.len() > 1 => format!("({t})"),
-        Schema::Intersection(_) => format!("({t})"),
-        _ => t,
+        Schema::Union { variants, .. } => variants.len() > 1 || variants.iter().any(compound),
+        Schema::Enum { values, .. } => values.len() > 1,
+        Schema::Intersection(_) => true,
+        _ => false,
     }
 }
 
