@@ -948,6 +948,12 @@ mod tests {
         json!({"/s": {"get": {"parameters": params, "responses": {}}}})
     }
 
+    /// Asserts that `doc` is rejected with a message containing `needle`.
+    fn rejects(doc: Value, needle: &str) {
+        let err = parse_value(doc).unwrap_err().to_string();
+        assert!(err.contains(needle), "expected {needle:?} in {err:?}");
+    }
+
     #[test]
     fn rejects_other_versions() {
         let err = parse_value(json!({"openapi": "3.1.0"})).unwrap_err();
@@ -1100,7 +1106,8 @@ mod tests {
         assert_eq!(status("4XX").unwrap(), Status::Range(4));
         assert_eq!(status("default").unwrap(), Status::Default);
         for bad in ["2xx", "6XX", "20", "abc"] {
-            assert!(status(bad).is_err(), "{bad}");
+            let err = status(bad).unwrap_err().to_string();
+            assert!(err.contains("invalid response key"), "{bad}: {err}");
         }
     }
 
@@ -1136,13 +1143,151 @@ mod tests {
     #[test]
     fn rejects_invalid_params() {
         let cases = [
-            json!([{"name": "q", "in": "querystring", "content": {"application/x-www-form-urlencoded": {}}}, {"name": "x", "in": "query"}]),
-            json!([{"name": "x", "in": "query", "schema": {}, "content": {"text/plain": {}}}]),
-            json!([{"name": "x", "in": "query", "style": "pipeDelimited"}]),
+            (
+                json!([{"name": "q", "in": "querystring", "content": {"application/x-www-form-urlencoded": {}}}, {"name": "x", "in": "query"}]),
+                "cannot be combined with `in: query`",
+            ),
+            (
+                json!([{"name": "x", "in": "query", "schema": {}, "content": {"text/plain": {}}}]),
+                "both `schema` and `content`",
+            ),
+            (
+                json!([{"name": "x", "in": "query", "style": "pipeDelimited"}]),
+                "style `pipeDelimited` for query parameters is not supported",
+            ),
+            (
+                json!([{"name": "a", "in": "querystring", "content": {"text/plain": {}}}, {"name": "b", "in": "querystring", "content": {"text/plain": {}}}]),
+                "more than one `in: querystring`",
+            ),
+            (
+                json!([{"name": "id", "in": "path"}]),
+                "must be `required: true`",
+            ),
+            (json!([{"in": "query"}]), "missing `name`"),
+            (json!([{"name": "x", "in": "body"}]), "invalid `in`"),
+            (
+                json!([{"name": "q", "in": "querystring", "schema": {}}]),
+                "must use `content`",
+            ),
+            (
+                json!([{"name": "x", "in": "query", "content": {"a/b": {}, "c/d": {}}}]),
+                "exactly one media type",
+            ),
         ];
-        for params in cases {
-            assert!(api(get(params.clone()), json!({})).is_err(), "{params}");
+        for (params, needle) in cases {
+            rejects(json!({"openapi": "3.2.0", "paths": get(params)}), needle);
         }
+    }
+
+    #[test]
+    fn rejects_malformed_documents() {
+        let with_schema =
+            |s: Value| json!({"openapi": "3.2.0", "components": {"schemas": {"S": s}}});
+        let with_scheme =
+            |s: Value| json!({"openapi": "3.2.0", "components": {"securitySchemes": {"k": s}}});
+        let mut deep = json!({"type": "string"});
+        for _ in 0..=MAX_DEPTH {
+            deep = json!({"type": "array", "items": deep});
+        }
+        let cases = [
+            (json!({"paths": {}}), "missing `openapi`"),
+            (
+                json!({
+                    "openapi": "3.2.0",
+                    "security": [{"k": "read"}],
+                    "components": {"securitySchemes": {"k": {"type": "apiKey", "in": "header", "name": "K"}}}
+                }),
+                "scopes of `k` must be an array",
+            ),
+            (
+                json!({"openapi": "3.2.0", "paths": {"/a": {"$ref": "#/paths/~1b"}, "/b": {"$ref": "#/paths/~1a"}}}),
+                "too deep or cyclic",
+            ),
+            (
+                json!({"openapi": "3.2.0", "paths": {"/p/{id}": {"get": {"responses": {}}}}}),
+                "path parameter `id` is not defined",
+            ),
+            (with_schema(deep), "nesting too deep"),
+            (with_schema(json!(1)), "must be an object or boolean"),
+            (with_schema(json!({"$id": "http://"})), "invalid `$id`"),
+            (
+                with_schema(json!({"oneOf": [{"type": "string"}], "discriminator": {}})),
+                "requires `propertyName`",
+            ),
+            (
+                with_schema(
+                    json!({"oneOf": [{"type": "string"}], "discriminator": {"propertyName": "t", "mapping": {"a": 1}}}),
+                ),
+                "mapping values must be strings",
+            ),
+            (
+                with_schema(json!({"type": 1})),
+                "`type` must be a string or array",
+            ),
+            (with_schema(json!({"type": "str"})), "unknown type `str`"),
+            (
+                json!({"openapi": "3.2.0", "servers": [{}]}),
+                "server requires `url`",
+            ),
+            (
+                json!({"openapi": "3.2.0", "servers": [{"url": "http://{h}", "variables": {"h": {}}}]}),
+                "server variable `h` requires `default`",
+            ),
+            (
+                with_scheme(json!({"type": "apiKey", "in": "header"})),
+                "requires `name`",
+            ),
+            (
+                with_scheme(json!({"type": "apiKey", "in": "body", "name": "K"})),
+                "invalid apiKey `in`",
+            ),
+            (with_scheme(json!({"type": "http"})), "requires `scheme`"),
+            (
+                with_scheme(json!({"type": "openIdConnect"})),
+                "requires `openIdConnectUrl`",
+            ),
+            (
+                with_scheme(json!({"type": "basic"})),
+                "invalid security scheme type",
+            ),
+        ];
+        for (doc, needle) in cases {
+            rejects(doc, needle);
+        }
+    }
+
+    #[test]
+    fn drops_ignored_headers_and_overrides_path_level_params() {
+        let paths = json!({"/s": {
+            "parameters": [
+                {"name": "a", "in": "query", "schema": {"type": "string"}},
+                {"name": "Authorization", "in": "header"}
+            ],
+            "get": {
+                "parameters": [
+                    {"name": "a", "in": "query", "schema": {"type": "integer"}},
+                    {"name": "Content-Type", "in": "header"},
+                    {"name": "X-Id", "in": "header"}
+                ],
+                "responses": {}
+            }
+        }});
+        let api = api(paths, json!({})).unwrap();
+        let params: Vec<(&str, &Schema)> = api.paths[0].operations[0]
+            .params
+            .iter()
+            .map(|p| match &p.value {
+                ParamValue::Schema { schema, .. } => (p.name.as_str(), schema),
+                _ => panic!(),
+            })
+            .collect();
+        assert_eq!(
+            params,
+            vec![
+                ("a", &Schema::Integer { format: None }),
+                ("X-Id", &Schema::Any)
+            ]
+        );
     }
 
     #[test]
@@ -1247,7 +1392,10 @@ mod tests {
     fn additional_operations_cannot_shadow_fixed_methods() {
         for method in ["POST", "post", "PATCH"] {
             let paths = json!({"/s": {"additionalOperations": {method: {"responses": {}}}}});
-            assert!(api(paths, json!({})).is_err(), "{method}");
+            rejects(
+                json!({"openapi": "3.2.0", "paths": paths}),
+                "additionalOperations must not define",
+            );
         }
         let paths = json!({"/s": {"additionalOperations": {"LINK": {"responses": {}}}}});
         assert!(api(paths, json!({})).is_ok());

@@ -110,6 +110,15 @@ mod tests {
     }
 
     #[test]
+    fn loads_json_and_reports_invalid_input() {
+        assert_eq!(load(" {\"a\": [1]}").unwrap()["a"], serde_json::json!([1]));
+        let err = load("{\"a\": ").unwrap_err().to_string();
+        assert!(err.starts_with("invalid JSON: "), "{err}");
+        let err = load("a: [\n").unwrap_err().to_string();
+        assert!(err.starts_with("invalid YAML: "), "{err}");
+    }
+
+    #[test]
     fn large_yaml_documents_load() {
         // More nodes than serde-saphyr's default budget of 250,000.
         let source = format!("items:\n{}", "  - 1\n".repeat(300_000));

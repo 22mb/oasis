@@ -83,6 +83,12 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Pet" }
+    head:
+      operationId: countPets
+      summary: The list's headers without its body.
+      responses:
+        "200":
+          description: The headers of the list.
   /pets/{petId}:
     parameters:
       - name: petId
@@ -127,6 +133,21 @@ paths:
         required: true
         content:
           image/png: {}
+      responses:
+        "204":
+          description: Uploaded.
+    post:
+      operationId: uploadPhotoForm
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, contentMediaType: image/png }
+                caption: { type: string }
       responses:
         "204":
           description: Uploaded.

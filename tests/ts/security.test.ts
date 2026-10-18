@@ -109,6 +109,8 @@ test("auth follows the document's security requirements", async () => {
         apiKey: "k3y",
         session: "s1",
         basic: "user:päss",
+        digest: "d1g3st",
+        oidc: "0idc",
       }),
     ],
   });
@@ -141,6 +143,30 @@ test("auth follows the document's security requirements", async () => {
   await api.GET("/both"); // both schemes together
   assert.equal(header(7, "x-api-key"), "k3y");
   assert.equal(header(7, "cookie"), "sid=s1");
+
+  await api.GET("/digest"); // other http schemes: `<scheme> <credential>`
+  assert.match(String(header(8, "authorization")), /^digest d1g3st$/i);
+
+  await api.GET("/oidc");
+  assert.equal(header(9, "authorization"), "Bearer 0idc");
+
+  await api.GET("/mtls"); // satisfied by the TLS configuration: nothing to add
+  assert.equal(header(10, "authorization"), null);
+
+  // With no satisfiable alternative, the request goes out unauthenticated.
+  token = undefined;
+  await api.GET("/me");
+  assert.equal(header(11, "authorization"), null);
+  token = ""; // an empty credential counts as unavailable
+  await api.GET("/me");
+  assert.equal(header(12, "authorization"), null);
+});
+
+test("auth awaits credential functions", async () => {
+  const s = server(noContent);
+  const api = createClient({ fetch: s.fetch, middleware: [auth({ bearer: async () => "t" })] });
+  await api.GET("/me");
+  assert.equal(s.requests[0]!.headers.get("authorization"), "Bearer t");
 });
 
 test("auth places query API keys in the URL", async () => {

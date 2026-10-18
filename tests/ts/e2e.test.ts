@@ -31,11 +31,16 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         ? json(201, { id: 2, ...JSON.parse(last.body.toString()) })
         : json(201, { id: 3 });
     case "QUERY /v1/pets": return json(200, [tama]);
+    case "HEAD /v1/pets": return res.writeHead(200, { "content-type": "application/json", "x-total": "1" }).end();
     case "GET /v1/pets/1": return json(200, tama);
     case "GET /v1/pets/2": return json(404, { title: "Not Found" }, "application/problem+json");
     case "DELETE /v1/pets/1":
     case "LINK /v1/pets/1":
     case "PUT /v1/pets/1/photo": return res.writeHead(204).end();
+    case "POST /v1/pets/1/photo":
+      return req.headers["content-type"]?.startsWith("multipart/form-data; boundary=")
+        ? res.writeHead(204).end()
+        : json(415, { title: "expected multipart/form-data" });
     case "GET /v1/pets/1/photo": return res.writeHead(200, { "content-type": "image/png" }).end(Buffer.from([0x89, 0x50]));
     case "GET /v1/search": return res.writeHead(200, { "content-type": "text/plain" }).end("ok");
     case "GET /v1/stream/jsonl":
@@ -122,6 +127,31 @@ test("handles binary bodies", async () => {
   assert.deepEqual([...new Uint8Array(await photo.data.arrayBuffer())], [0x89, 0x50]);
 });
 
+test("sends multipart bodies with the boundary set by fetch", async () => {
+  const form = new FormData();
+  form.append("caption", "Tama");
+  form.append("file", new Blob([new Uint8Array([0x89, 0x50])], { type: "image/png" }), "tama.png");
+  const sentAsMultipart = () => {
+    assert.match(last.headers["content-type"]!, /^multipart\/form-data; boundary=/);
+    assert.match(last.body.toString(), /name="caption"\r\n\r\nTama\r\n/);
+    assert.match(last.body.toString(), /name="file"; filename="tama.png"\r\ncontent-type: image\/png/i);
+  };
+  const implied = await api.POST("/pets/{petId}/photo", { path: { petId: 1 }, body: form });
+  assert.equal(implied.status, 204);
+  sentAsMultipart();
+  await api.POST("/pets/{petId}/photo", { path: { petId: 1 }, contentType: "multipart/form-data", body: form });
+  sentAsMultipart();
+});
+
+test("HEAD responses have no body", async () => {
+  const res = await api.HEAD("/pets");
+  assert.equal(last.method, "HEAD");
+  assert.equal(res.status, 200);
+  assert.equal(res.ok, true);
+  assert.equal(res.data, undefined);
+  assert.equal(res.response.headers.get("x-total"), "1");
+});
+
 test("streams JSON Lines and JSON text sequences", async () => {
   const lines = await api.GET("/stream/jsonl");
   const items = [];
@@ -145,9 +175,36 @@ test("streams server-sent events", async () => {
 });
 
 test("stops reading when the consumer breaks early", async () => {
-  const res = await api.GET("/stream/jsonl");
+  // A body that never ends on its own: only `cancel()` stops the download.
+  let cancelled = 0;
+  const endless = () =>
+    new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new TextEncoder().encode('{"id":1,"name":"a"}\n'));
+      },
+      cancel() {
+        cancelled++;
+      },
+    });
+  const local = createClient({
+    baseUrl: "http://localhost/",
+    fetch: async () => new Response(endless(), { headers: { "content-type": "application/jsonl" } }),
+  });
+
+  const res = await local.GET("/stream/jsonl");
   for await (const item of res.data) {
     assert.deepEqual(item, { id: 1, name: "a" });
     break;
   }
+  assert.equal(cancelled, 1);
+
+  // Throwing inside the loop cancels too.
+  const failing = await local.GET("/stream/jsonl");
+  await assert.rejects(
+    (async () => {
+      for await (const item of failing.data) throw new Error(`stop at ${item.id}`);
+    })(),
+    { message: "stop at 1" },
+  );
+  assert.equal(cancelled, 2);
 });

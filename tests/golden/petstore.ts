@@ -49,6 +49,17 @@ export interface paths {
       };
     };
     /**
+     * The list's headers without its body.
+     * operationId: countPets
+     */
+    HEAD: {
+      request: {};
+      responses: {
+        /** The headers of the list. */
+        "200": undefined;
+      };
+    };
+    /**
      * Search pets with a query body (HTTP QUERY method).
      * operationId: searchPets
      */
@@ -130,6 +141,20 @@ export interface paths {
         };
         contentType: "image/png";
         body: BodyInit;
+      };
+      responses: {
+        /** Uploaded. */
+        "204": undefined;
+      };
+    };
+    /** operationId: uploadPhotoForm */
+    POST: {
+      request: {
+        path: {
+          petId: number;
+        };
+        contentType?: "multipart/form-data";
+        body: FormData;
       };
       responses: {
         /** Uploaded. */
@@ -733,10 +758,12 @@ const spec: Spec = {
   operations: {
     "GET /pets": { operationId: "listPets" },
     "POST /pets": { operationId: "createPet" },
+    "HEAD /pets": { operationId: "countPets" },
     "QUERY /pets": { operationId: "searchPets" },
     "GET /pets/{petId}": { operationId: "getPet" },
     "DELETE /pets/{petId}": { operationId: "deletePet" },
     "LINK /pets/{petId}": { operationId: "linkPet" },
+    "POST /pets/{petId}/photo": { operationId: "uploadPhotoForm" },
     "GET /search": { operationId: "search" },
   },
 };

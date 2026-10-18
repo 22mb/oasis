@@ -70,3 +70,48 @@ test("baseUrl replaces every server", async () => {
   await api.GET("/shapes");
   assert.deepEqual(sent.map((s) => s.url), ["http://localhost:4010/upload", "http://localhost:4010/shapes"]);
 });
+
+test("sends static and per-call headers, and is not a thenable", async () => {
+  const sent: Headers[] = [];
+  const api = createClient({
+    headers: { "x-api-key": "k" },
+    fetch: async (request: Request) => {
+      sent.push(request.headers);
+      return new Response(null, { status: 204 });
+    },
+  });
+  await api.GET("/shapes", { headers: { "x-trace": "1" } });
+  assert.equal(sent[0]!.get("x-api-key"), "k");
+  assert.equal(sent[0]!.get("x-trace"), "1");
+  // Returning the client from an async function must not look up a `then` method.
+  assert.equal(Reflect.get(api, "then"), undefined);
+  assert.equal(await Promise.resolve(api), api);
+});
+
+test("decodes bodies by status and Content-Type", async () => {
+  // `*/*` is typed `unknown`, so every decoding applies.
+  const item = (response: () => Response) =>
+    recording(response).api.GET("/items/{coords}", { path: { coords: { x: 1 } } });
+  const cases: [string, () => Response, unknown][] = [
+    ["205", () => new Response(null, { status: 205 }), undefined],
+    ["304", () => new Response(null, { status: 304 }), undefined],
+    ["empty JSON", () => new Response("", { headers: { "content-type": "application/json" } }), undefined],
+    ["no Content-Type", () => new Response(new TextEncoder().encode("raw")), "raw"],
+    ["form", () => new Response("a=1", { headers: { "content-type": "application/x-www-form-urlencoded" } }), "a=1"],
+  ];
+  for (const [name, response, expected] of cases) {
+    assert.deepEqual((await item(response)).data, expected, name);
+  }
+  const mixed = await item(() => new Response("--b--", { headers: { "content-type": "multipart/mixed; boundary=b" } }));
+  assert.ok(mixed.data instanceof Blob);
+
+  // Sequential media types by alias and by suffix.
+  const collect = async (contentType: string, text: string) => {
+    const res = await item(() => new Response(text, { headers: { "content-type": contentType } }));
+    const items = [];
+    for await (const i of res.data as AsyncIterable<unknown>) items.push(i);
+    return items;
+  };
+  assert.deepEqual(await collect("application/x-ndjson", '{"a":1}\n{"a":2}\n'), [{ a: 1 }, { a: 2 }]);
+  assert.deepEqual(await collect("application/foo+json-seq", '\x1e{"a":1}\n\x1e{"a":2}\n'), [{ a: 1 }, { a: 2 }]);
+});

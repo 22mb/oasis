@@ -9,6 +9,9 @@ export type Exact = [
     components["requestSchemas"]["Account"],
     { id?: number; name: string; password: string; owner?: components["requestSchemas"]["Owner"] }
   >>,
+  // YAML 1.2: `yes`, `off`, `N` stay strings; `null` in a typed enum stays `null`.
+  Expect<Equal<schemas["Flag"], "N" | "Y" | "yes" | "off" | "A">>,
+  Expect<Equal<schemas["Level"], 1 | 2 | null>>,
 ];
 
 const api = createClient();
@@ -40,11 +43,6 @@ export async function checks() {
   // Recursive schemas behind non-component $refs.
   const tree = {} as schemas["Tree"];
   tree.left?.right?.value satisfies number | undefined;
-
-  // YAML 1.2: `yes`, `off`, `N` stay strings.
-  const flags: schemas["Flag"][] = ["N", "Y", "yes", "off", "A"];
-  const level: schemas["Level"] = null;
-  void flags, level;
 
   // Media type ranges decode to `unknown`.
   const item = await api.GET("/items/{coords}", { path: { coords: { x: 1 } } });

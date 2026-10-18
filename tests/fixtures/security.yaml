@@ -68,10 +68,32 @@ paths:
           session: []
       responses:
         "204": { description: Needs both. }
+  /digest:
+    get:
+      operationId: digest
+      security:
+        - digest: []
+      responses:
+        "204": { description: An http scheme other than bearer and basic. }
+  /oidc:
+    get:
+      operationId: oidc
+      security:
+        - oidc: []
+      responses:
+        "204": { description: An OpenID Connect token. }
+  /mtls:
+    get:
+      operationId: mtls
+      security:
+        - mtls: []
+      responses:
+        "204": { description: A client certificate; nothing to add to the request. }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer, bearerFormat: JWT }
     basic: { type: http, scheme: Basic }
+    digest: { type: http, scheme: Digest }
     apiKey: { type: apiKey, in: header, name: X-API-Key }
     queryKey: { type: apiKey, in: query, name: api_key }
     session: { type: apiKey, in: cookie, name: sid }
@@ -81,3 +103,7 @@ components:
         clientCredentials:
           tokenUrl: https://auth.example.com/token
           scopes: { admin: Administer, write: Write }
+    oidc:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.example.com/.well-known/openid-configuration
+    mtls: { type: mutualTLS }

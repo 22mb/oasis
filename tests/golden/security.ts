@@ -75,6 +75,36 @@ export interface paths {
       };
     };
   };
+  "/digest": {
+    /** operationId: digest */
+    GET: {
+      request: {};
+      responses: {
+        /** An http scheme other than bearer and basic. */
+        "204": undefined;
+      };
+    };
+  };
+  "/oidc": {
+    /** operationId: oidc */
+    GET: {
+      request: {};
+      responses: {
+        /** An OpenID Connect token. */
+        "204": undefined;
+      };
+    };
+  };
+  "/mtls": {
+    /** operationId: mtls */
+    GET: {
+      request: {};
+      responses: {
+        /** A client certificate; nothing to add to the request. */
+        "204": undefined;
+      };
+    };
+  };
 }
 
 export interface components {
@@ -87,7 +117,7 @@ export interface components {
 export type schemas = components["schemas"];
 
 /** Security schemes declared in the document. */
-export type SecuritySchemeName = "bearer" | "basic" | "apiKey" | "queryKey" | "session" | "oauth";
+export type SecuritySchemeName = "bearer" | "basic" | "digest" | "apiKey" | "queryKey" | "session" | "oauth" | "oidc" | "mtls";
 
 // ---------------------------------------------------------------------------
 // Runtime (embedded by oasis-gen; identical in every generated file)
@@ -582,10 +612,13 @@ const spec: Spec = {
   securitySchemes: {
     bearer: { type: "http", scheme: "bearer" },
     basic: { type: "http", scheme: "basic" },
+    digest: { type: "http", scheme: "digest" },
     apiKey: { type: "apiKey", in: "header", name: "X-API-Key" },
     queryKey: { type: "apiKey", in: "query", name: "api_key" },
     session: { type: "apiKey", in: "cookie", name: "sid" },
     oauth: { type: "oauth2" },
+    oidc: { type: "openIdConnect" },
+    mtls: { type: "mutualTLS" },
   },
   operations: {
     "POST /login": { operationId: "login", security: [] },
@@ -594,6 +627,9 @@ const spec: Spec = {
     "POST /webhooks": { operationId: "webhook", security: [{ apiKey: [] }] },
     "GET /reports": { operationId: "reports", security: [{ queryKey: [] }, { basic: [] }] },
     "GET /both": { operationId: "both", security: [{ apiKey: [], session: [] }] },
+    "GET /digest": { operationId: "digest", security: [{ digest: [] }] },
+    "GET /oidc": { operationId: "oidc", security: [{ oidc: [] }] },
+    "GET /mtls": { operationId: "mtls", security: [{ mtls: [] }] },
   },
 };
 
