@@ -201,7 +201,7 @@ pub enum ParamValue {
     Content(Content),
 }
 
-/// Parameter styles oasis supports. Others are rejected while parsing.
+/// Parameter styles oasis-gen supports. Others are rejected while parsing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Style {
     /// `form`: query and cookie (default for both).

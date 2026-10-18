@@ -2,8 +2,9 @@
 
 A minimal API client generator for **OpenAPI 3.2**.
 
-oasis-gen reads an OpenAPI 3.2 document and writes a single, dependency-free
-TypeScript file: types for every operation plus a small `fetch`-based runtime.
+oasis-gen reads an OpenAPI 3.0, 3.1 or 3.2 document and writes a single,
+dependency-free TypeScript file: types for every operation plus a small
+`fetch`-based runtime.
 There is no runtime package to install and nothing to configure.
 
 ```sh
@@ -194,9 +195,17 @@ The output uses only erasable TypeScript syntax, so it also runs directly under
 Node's type stripping. It type-checks with TypeScript 5.0 and later, and does
 not need the `dom` lib.
 
-## OpenAPI 3.2 support
+## OpenAPI support
 
-oasis-gen accepts `openapi: 3.2.x` documents only.
+oasis-gen accepts `openapi: 3.0.x`, `3.1.x` and `3.2.x` documents. A 3.1
+document is read exactly like a 3.2 one. In a 3.0 document, `nullable: true`
+adds `null` to the type, also to an `enum` (as other generators read it,
+although 3.0.3 itself leaves an `enum` without `null` excluding it);
+`example`, a boolean `exclusiveMinimum` and `format: binary` or `byte` do not
+affect the generated types and are ignored. `nullable` in a 3.1 or 3.2
+document is rejected, since the spec would have it silently ignored there.
+
+The 3.2 features oasis-gen supports:
 
 - `query` operations (the HTTP `QUERY` method) and `additionalOperations` with custom methods such as `LINK`
 - `in: querystring` parameters
@@ -211,6 +220,7 @@ oasis-gen accepts `openapi: 3.2.x` documents only.
 
 Not supported yet:
 
+- Swagger 2.0 documents (`swagger: "2.0"`)
 - Remote `$ref`s (`https://...` URIs that do not map onto a local file) and URLs as input
 - `additionalOperations` entries for `delete`, `get`, `head`, `options`, `post` or `put` in any case are rejected, since fetch sends them uppercased and they would collide with the fixed fields
 - Parameter styles `label`, `matrix`, `spaceDelimited` and `pipeDelimited` (rejected with an error)

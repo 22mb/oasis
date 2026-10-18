@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::process::ExitCode;
 
 const USAGE: &str = "\
-Generate an API client from an OpenAPI 3.2 document.
+Generate an API client from an OpenAPI 3.0, 3.1 or 3.2 document.
 
 Usage: oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
 

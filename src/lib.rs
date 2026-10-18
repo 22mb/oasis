@@ -1,4 +1,4 @@
-//! oasis-gen: generate API clients from OpenAPI 3.2 documents.
+//! oasis-gen: generate API clients from OpenAPI 3.0, 3.1 or 3.2 documents.
 //!
 //! The pipeline is [`Documents`] (JSON/YAML files and the `$ref`s between
 //! them) -> [`parse`] (language-neutral [`ir::Api`]) -> an emitter for the
@@ -28,7 +28,7 @@ impl Lang {
     }
 }
 
-/// Generates client source code from an OpenAPI 3.2 document file in JSON or
+/// Generates client source code from an OpenAPI 3.0, 3.1 or 3.2 document file in JSON or
 /// YAML, following `$ref`s into other local files.
 pub fn generate_file(path: &std::path::Path, lang: Lang) -> Result<String, Error> {
     emit(&parse(&Documents::from_file(path)?)?, lang)

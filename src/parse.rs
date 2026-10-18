@@ -1,4 +1,4 @@
-//! Builds the [`ir::Api`](crate::ir::Api) from loaded OpenAPI 3.2 documents.
+//! Builds the [`ir::Api`](crate::ir::Api) from loaded OpenAPI documents (3.0 to 3.2).
 
 use crate::Error;
 use crate::documents::{Documents, Target};
@@ -25,17 +25,39 @@ const IGNORED_HEADERS: [&str; 3] = ["accept", "content-type", "authorization"];
 const MAX_DEPTH: usize = 64;
 
 pub fn parse(docs: &Documents) -> Result<Api, Error> {
-    let version = docs
-        .root()
-        .get("openapi")
-        .and_then(Value::as_str)
-        .ok_or_else(|| Error::new("missing `openapi` version field"))?;
-    if !version.starts_with("3.2.") {
-        return Err(Error::new(format!(
-            "unsupported OpenAPI version {version}: oasis supports 3.2.x only"
-        )));
+    let version = version(docs.root())?;
+    Parser::new(docs, version).api()
+}
+
+/// The `openapi` version of the entry document, as far as the parser reads
+/// documents differently.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Version {
+    /// 3.0: schemas have `nullable` instead of a `"null"` type.
+    V30,
+    /// 3.1 and 3.2: JSON Schema 2020-12; nothing else differs for the parser.
+    V31Plus,
+}
+
+fn version(root: &Value) -> Result<Version, Error> {
+    let version = match root.get("openapi") {
+        Some(Value::String(v)) => v.as_str(),
+        Some(_) => return Err(Error::new("`openapi` must be a string such as \"3.0.3\"")),
+        None if root.get("swagger").is_some() => {
+            return Err(Error::new(
+                "Swagger 2.0 documents are not supported; convert to OpenAPI 3.x",
+            ));
+        }
+        None => return Err(Error::new("missing `openapi` version field")),
+    };
+    let mut parts = version.split('.');
+    match (parts.next(), parts.next()) {
+        (Some("3"), Some("0")) => Ok(Version::V30),
+        (Some("3"), Some("1" | "2")) => Ok(Version::V31Plus),
+        _ => Err(Error::new(format!(
+            "unsupported OpenAPI version {version}: oasis-gen supports 3.0.x, 3.1.x and 3.2.x"
+        ))),
     }
-    Parser::new(docs).api()
 }
 
 /// A value together with the base URI that references inside it resolve against.
@@ -82,6 +104,7 @@ impl<'a> Node<'a> {
 
 struct Parser<'a> {
     docs: &'a Documents,
+    version: Version,
     root: Node<'a>,
     /// Non-component `$ref` targets already queued for hoisting.
     hoisted: HashSet<Target>,
@@ -92,9 +115,10 @@ struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn new(docs: &'a Documents) -> Parser<'a> {
+    fn new(docs: &'a Documents, version: Version) -> Parser<'a> {
         Parser {
             docs,
+            version,
             root: Node {
                 v: docs.root(),
                 base: docs.root_base(),
@@ -594,11 +618,21 @@ impl<'a> Parser<'a> {
             }
         }
         parts.retain(|s| *s != Schema::Any);
-        Ok(match parts.len() {
+        let schema = match parts.len() {
             0 => Schema::Any,
             1 => parts.remove(0),
             _ => Schema::Intersection(parts),
-        })
+        };
+        // OpenAPI 3.0 has no `"null"` type; `nullable: true` adds it.
+        match (self.version, obj.get("nullable")) {
+            (_, None) => Ok(schema),
+            (Version::V30, Some(Value::Bool(true))) => Ok(nullable(schema)),
+            (Version::V30, Some(Value::Bool(false))) => Ok(schema),
+            (Version::V30, Some(_)) => Err(Error::new("`nullable` must be a boolean")),
+            (Version::V31Plus, Some(_)) => Err(Error::new(
+                "`nullable` is OpenAPI 3.0 syntax; use `type: [..., \"null\"]`",
+            )),
+        }
     }
 
     fn discriminator(&mut self, d: &Node<'a>, variants: &[Schema]) -> Result<Discriminator, Error> {
@@ -774,6 +808,54 @@ impl<'a> Parser<'a> {
             }
             other => return Err(Error::new(format!("unknown type `{other}`"))),
         })
+    }
+}
+
+/// A 3.0 schema with `nullable: true` in its 3.1 form: `"null"` joins the
+/// type, and an `enum` gains `null`. The latter is how generators read 3.0
+/// documents, although 3.0.3 itself leaves an `enum` without `null` excluding it.
+fn nullable(s: Schema) -> Schema {
+    let types = |variants| Schema::Union {
+        kind: UnionKind::Types,
+        variants,
+        discriminator: None,
+    };
+    match s {
+        Schema::Any | Schema::Null => s,
+        Schema::Union {
+            kind: UnionKind::Types,
+            mut variants,
+            discriminator,
+        } => {
+            if !variants.contains(&Schema::Null) {
+                variants.push(Schema::Null);
+            }
+            Schema::Union {
+                kind: UnionKind::Types,
+                variants,
+                discriminator,
+            }
+        }
+        s @ (Schema::Boolean
+        | Schema::Integer { .. }
+        | Schema::Number { .. }
+        | Schema::String { .. }
+        | Schema::Array { .. }
+        | Schema::Object { .. }) => types(vec![s, Schema::Null]),
+        Schema::Enum { mut values, base } => {
+            if !values.contains(&Value::Null) {
+                values.push(Value::Null);
+            }
+            Schema::Enum {
+                values,
+                base: base.map(|b| Box::new(nullable(*b))),
+            }
+        }
+        other => Schema::Union {
+            kind: UnionKind::AnyOf,
+            variants: vec![other, Schema::Null],
+            discriminator: None,
+        },
     }
 }
 
@@ -955,9 +1037,83 @@ mod tests {
     }
 
     #[test]
-    fn rejects_other_versions() {
-        let err = parse_value(json!({"openapi": "3.1.0"})).unwrap_err();
-        assert!(err.to_string().contains("3.2.x only"));
+    fn accepts_3_0_through_3_2() {
+        for v in ["3.0.0", "3.0.3", "3.1.0", "3.2.0", "3.2.1"] {
+            assert!(parse_value(json!({"openapi": v})).is_ok(), "{v}");
+        }
+        for v in ["2.0", "3.10.0", "4.0.0"] {
+            rejects(json!({"openapi": v}), "supports 3.0.x, 3.1.x and 3.2.x");
+        }
+        rejects(
+            json!({"swagger": "2.0"}),
+            "Swagger 2.0 documents are not supported",
+        );
+        rejects(json!({"openapi": 3.2}), "`openapi` must be a string");
+    }
+
+    #[test]
+    fn nullable_adds_null_in_3_0() {
+        let schema = |s: Value| {
+            parse_value(json!({
+                "openapi": "3.0.3",
+                "components": {"schemas": {"S": s, "T": {"type": "string"}}}
+            }))
+            .unwrap()
+            .schemas
+            .remove(0)
+            .schema
+        };
+        let null_or = |s: Schema, kind: UnionKind| Schema::Union {
+            kind,
+            variants: vec![s, Schema::Null],
+            discriminator: None,
+        };
+        let types = |s| null_or(s, UnionKind::Types);
+        let any_of = |s| null_or(s, UnionKind::AnyOf);
+        let t = json!({"$ref": "#/components/schemas/T"});
+
+        assert_eq!(
+            schema(json!({"type": "string", "nullable": true})),
+            types(string())
+        );
+        assert_eq!(
+            schema(json!({"type": "string", "nullable": false})),
+            string()
+        );
+        assert_eq!(
+            schema(json!({"type": "string", "enum": ["a"], "nullable": true})),
+            Schema::Enum {
+                values: vec![json!("a"), Value::Null],
+                base: Some(Box::new(types(string())))
+            }
+        );
+        // References and compositions become `anyOf` with `null`.
+        assert_eq!(
+            schema(json!({"$ref": "#/components/schemas/T", "nullable": true})),
+            any_of(Schema::Ref("T".into()))
+        );
+        assert_eq!(
+            schema(json!({"allOf": [t], "nullable": true})),
+            any_of(Schema::Ref("T".into()))
+        );
+        // Nested schemas are converted too.
+        assert_eq!(
+            schema(json!({"type": "array", "items": {"type": "integer", "nullable": true}})),
+            Schema::Array {
+                prefix_items: vec![],
+                items: Some(Box::new(types(Schema::Integer { format: None })))
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_nullable_after_3_0() {
+        for v in ["3.1.0", "3.2.0"] {
+            rejects(
+                json!({"openapi": v, "components": {"schemas": {"S": {"type": "string", "nullable": true}}}}),
+                "`nullable` is OpenAPI 3.0 syntax",
+            );
+        }
     }
 
     #[test]

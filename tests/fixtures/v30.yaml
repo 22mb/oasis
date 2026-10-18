@@ -1,0 +1,96 @@
+# An OpenAPI 3.0 document: `nullable` instead of a `"null"` type, and 3.0-only
+# keywords (`example`, boolean `exclusiveMinimum`, `format: binary`) that do not
+# affect the generated types.
+openapi: 3.0.3
+info:
+  title: Legacy
+  version: "3.0"
+servers:
+  - url: https://api.example.com
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      parameters:
+        - name: kind
+          in: query
+          schema: { $ref: "#/components/schemas/Kind" }
+      responses:
+        "200":
+          description: Pets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Pet" }
+  /pets/{petId}/photo:
+    put:
+      operationId: uploadPhoto
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: { type: integer, format: int64, minimum: 0, exclusiveMinimum: true }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "204":
+          description: Uploaded.
+components:
+  schemas:
+    Kind:
+      type: string
+      enum: [cat, dog]
+      nullable: true
+    Owner:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+    Circle:
+      type: object
+      required: [kind, r]
+      properties:
+        kind: { type: string }
+        r: { type: number }
+    Square:
+      type: object
+      required: [kind, side]
+      properties:
+        kind: { type: string }
+        side: { type: number }
+    Shape:
+      oneOf:
+        - $ref: "#/components/schemas/Circle"
+        - $ref: "#/components/schemas/Square"
+      discriminator:
+        propertyName: kind
+      nullable: true
+    Pet:
+      type: object
+      required: [id, name, kind, tags]
+      properties:
+        id: { type: integer, format: int64, example: 1 }
+        name: { type: string, nullable: true }
+        kind: { $ref: "#/components/schemas/Kind" }
+        owner:
+          allOf: [{ $ref: "#/components/schemas/Owner" }]
+          nullable: true
+        # 3.0 ignores the siblings of `$ref`, but `nullable` is honored here.
+        home:
+          $ref: "#/components/schemas/Owner"
+          nullable: true
+        tags:
+          type: array
+          nullable: true
+          items: { type: string, nullable: true }
+        address:
+          type: object
+          nullable: true
+          properties:
+            street: { type: string }
+        shape: { $ref: "#/components/schemas/Shape" }
+        weight: { type: number, nullable: false }
