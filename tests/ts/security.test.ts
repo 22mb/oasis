@@ -169,9 +169,54 @@ test("auth awaits credential functions", async () => {
   assert.equal(s.requests[0]!.headers.get("authorization"), "Bearer t");
 });
 
-test("auth places query API keys in the URL", async () => {
+test("auth appends query API keys without rewriting the rest of the request", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ queryKey: "q k" })] });
-  await api.GET("/reports");
-  assert.equal(s.requests[0]!.url, "https://api.example.com/reports?api_key=q+k");
+  await api.GET("/reports", { query: { ids: [1, 2] } }); // `explode: false` keeps its comma
+  assert.equal(s.requests[0]!.url, "https://api.example.com/reports?ids=1,2&api_key=q%20k");
+
+  const res = await api.POST("/reports", { body: { q: "x" } });
+  assert.equal(res.status, 204);
+  assert.equal(s.requests[1]!.url, "https://api.example.com/reports?api_key=q%20k");
+  assert.equal(s.requests[1]!.method, "POST");
+  assert.equal(s.requests[1]!.headers.get("content-type"), "application/json");
+  assert.equal(s.bodies[1], '{"q":"x"}');
+});
+
+test("auth prefers alternatives that add credentials", async () => {
+  const s = server(noContent);
+  let token: string | undefined = "t";
+  const api = createClient({ fetch: s.fetch, middleware: [auth({ bearer: () => token })] });
+  await api.GET("/mtls-or-bearer"); // `mutualTLS` alone adds nothing: the bearer alternative wins
+  assert.equal(s.requests[0]!.headers.get("authorization"), "Bearer t");
+  token = undefined;
+  await api.GET("/mtls-or-bearer");
+  assert.equal(s.requests[1]!.headers.get("authorization"), null);
+});
+
+test("auth sets cookie API keys once, encoded, replacing an existing cookie", async () => {
+  const s = server(noContent);
+  const twice: Middleware = async (request, next) => {
+    await next(request);
+    return next(request); // the same Request object again, as a careless retry would
+  };
+  const api = createClient({ fetch: s.fetch, middleware: [twice, auth({ apiKey: "k", session: "s 1;x" })] });
+  await api.GET("/both", { headers: { cookie: "sid=old; theme=dark" } });
+  assert.equal(s.requests[0]!.headers.get("cookie"), "theme=dark; sid=s%201%3Bx");
+  assert.equal(s.requests[1]!.headers.get("cookie"), "theme=dark; sid=s%201%3Bx");
+});
+
+test("synchronous throws reach middleware as rejections", async () => {
+  const fallback: Middleware = (request, next) => next(request).catch(() => Response.json([]));
+  const broken: Middleware = () => {
+    throw new Error("middleware threw synchronously");
+  };
+  const api = createClient({
+    fetch: () => {
+      throw new TypeError("fetch threw synchronously");
+    },
+    middleware: [fallback],
+  });
+  assert.deepEqual((await api.GET("/pets")).data, []);
+  assert.deepEqual((await api.GET("/pets", { middleware: [broken] })).data, []);
 });

@@ -55,11 +55,31 @@ paths:
   /reports:
     get:
       operationId: reports
+      parameters:
+        - name: ids
+          in: query
+          style: form
+          explode: false
+          schema: { type: array, items: { type: integer } }
       security:
         - queryKey: []
         - basic: []
       responses:
         "204": { description: Either credential works. }
+    post:
+      operationId: createReport
+      security:
+        - queryKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                q: { type: string }
+      responses:
+        "204": { description: Created. }
   /both:
     get:
       operationId: both
@@ -89,6 +109,14 @@ paths:
         - mtls: []
       responses:
         "204": { description: A client certificate; nothing to add to the request. }
+  /mtls-or-bearer:
+    get:
+      operationId: mtlsOrBearer
+      security:
+        - mtls: []
+        - bearer: []
+      responses:
+        "204": { description: "A client certificate, or a bearer token when there is one." }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer, bearerFormat: JWT }

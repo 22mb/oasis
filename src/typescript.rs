@@ -208,7 +208,8 @@ impl<'a> Emitter<'a> {
         check_cycles(self.api, &edges)
     }
 
-    /// Runtime data: default base URL, per-operation servers and non-default parameter styles.
+    /// Runtime data: default base URL, the document's methods, per-operation
+    /// servers and non-default parameter styles.
     fn spec(&self, out: &mut String) {
         let api = self.api;
         let base_url = api
@@ -216,6 +217,13 @@ impl<'a> Emitter<'a> {
             .first()
             .map(Server::default_url)
             .unwrap_or_default();
+        let mut methods: Vec<&str> = Vec::new();
+        for op in api.paths.iter().flat_map(|item| &item.operations) {
+            if !methods.contains(&op.method.as_str()) {
+                methods.push(&op.method);
+            }
+        }
+        let methods = methods.iter().map(|m| quote(m)).collect::<Vec<_>>();
         let mut servers = String::new();
         let mut styles = String::new();
         let mut operations = String::new();
@@ -281,8 +289,9 @@ impl<'a> Emitter<'a> {
         }
         writeln!(
             out,
-            "const spec: Spec = {{\n  baseUrl: {},\n  servers: {},\n  styles: {},\n  security: {},\n  securitySchemes: {},\n  operations: {},\n}};\n",
+            "const spec: Spec = {{\n  baseUrl: {},\n  methods: [{}],\n  servers: {},\n  styles: {},\n  security: {},\n  securitySchemes: {},\n  operations: {},\n}};\n",
             quote(&base_url),
+            methods.join(", "),
             block(servers),
             block(styles),
             security_literal(&api.security),

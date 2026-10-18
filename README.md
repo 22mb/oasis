@@ -81,6 +81,11 @@ is an error response. Non-2xx responses are returned, not thrown. Network
 errors throw as usual. A path parameter that would leave a path segment empty,
 `.` or `..` is rejected with a `TypeError` before anything is sent.
 
+The client has one property per HTTP method in the document, plus `with`.
+Any other property, including a lowercase method name, is what a plain object
+has, so inspecting or serializing the client never sends a request. `with` and
+`then` are therefore not allowed as `additionalOperations` names.
+
 Response bodies are decoded from the response `Content-Type`:
 
 | Media type | `data` |
@@ -167,11 +172,13 @@ const api = createClient({
 
 Keys are the names in `components.securitySchemes` (typed as
 `SecuritySchemeName`). For each request, `auth` picks the first alternative
-whose credentials are all available (not `undefined` or `""`), trying anonymous
-access (`{}`) last; if none is, the request is sent without credentials and the
-server decides. It places each credential where its scheme expects it: `Authorization: Bearer`
-for `http` bearer, `oauth2` and `openIdConnect`; base64-encoded `user:password`
-for `http` basic; the named header, query parameter or cookie for `apiKey`.
+whose credentials are all available (not `undefined` or `""`). Alternatives
+that add nothing to the request (anonymous `{}`, or `mutualTLS` alone) are
+taken only when no other is; if none is, the request is sent without
+credentials and the server decides. It places each credential where its scheme
+expects it: `Authorization: Bearer` for `http` bearer, `oauth2` and
+`openIdConnect`; base64-encoded `user:password` for `http` basic; the named
+header, or the percent-encoded named query parameter or cookie, for `apiKey`.
 Operations with `security: []` get nothing. Required OAuth2 scopes are passed
 to the credential function.
 

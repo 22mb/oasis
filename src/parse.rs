@@ -312,6 +312,11 @@ impl<'a> Parser<'a> {
         }
         if let Some(extra) = item.get("additionalOperations") {
             for (method, op) in extra.entries() {
+                if matches!(method.as_str(), "with" | "then") {
+                    return Err(Error::new(format!(
+                        "additionalOperations must not define `{method}`: the generated client reserves that name"
+                    )));
+                }
                 let lower = method.to_ascii_lowercase();
                 let fixed = FIXED_METHODS.contains(&lower.as_str());
                 if fixed
@@ -1551,6 +1556,13 @@ mod tests {
             rejects(
                 json!({"openapi": "3.2.0", "paths": paths}),
                 "additionalOperations must not define",
+            );
+        }
+        for method in ["with", "then"] {
+            let paths = json!({"/s": {"additionalOperations": {method: {"responses": {}}}}});
+            rejects(
+                json!({"openapi": "3.2.0", "paths": paths}),
+                "reserves that name",
             );
         }
         let paths = json!({"/s": {"additionalOperations": {"LINK": {"responses": {}}}}});

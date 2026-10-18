@@ -58,9 +58,26 @@ export interface paths {
   "/reports": {
     /** operationId: reports */
     GET: {
-      request: {};
+      request: {
+        query?: {
+          ids?: number[];
+        };
+      };
       responses: {
         /** Either credential works. */
+        "204": undefined;
+      };
+    };
+    /** operationId: createReport */
+    POST: {
+      request: {
+        contentType?: "application/json";
+        body: {
+          q?: string;
+        };
+      };
+      responses: {
+        /** Created. */
         "204": undefined;
       };
     };
@@ -101,6 +118,16 @@ export interface paths {
       request: {};
       responses: {
         /** A client certificate; nothing to add to the request. */
+        "204": undefined;
+      };
+    };
+  };
+  "/mtls-or-bearer": {
+    /** operationId: mtlsOrBearer */
+    GET: {
+      request: {};
+      responses: {
+        /** A client certificate, or a bearer token when there is one. */
         "204": undefined;
       };
     };
@@ -209,7 +236,8 @@ type Args<O extends Operation> = {} extends O["request"] & RequestOptions
   : [init: O["request"] & RequestOptions];
 
 export type Client<P> = {
-  [M in Methods<P>]: <K extends PathsWith<P, M>>(
+  // `& {}` keeps the paths listed in the error for a path that does not exist.
+  [M in Methods<P>]: <K extends PathsWith<P, M> & {}>(
     path: K,
     ...args: Args<OperationAt<P, K, M>>
   ) => Promise<ApiResponse<OperationAt<P, K, M>["responses"]>>;
@@ -232,6 +260,8 @@ type SecuritySchemeSpec =
 /** Data from the document that the runtime needs; per-operation tables are keyed by `METHOD path`. */
 type Spec = {
   baseUrl: string;
+  /** Every HTTP method the document uses, as written: the client's callable properties. */
+  methods: string[];
   servers: Record<string, string>;
   styles: Record<string, Record<string, ParamStyle>>;
   security: SecurityRequirement[];
@@ -253,6 +283,9 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
   const send = async (method: string, path: string, init: Init = {}) => {
     const { path: pathParams, query, header, cookie, querystring, contentType, body, middleware, ...rest } = init;
     const op = `${method} ${path}`;
+    if (!path.startsWith("/")) {
+      throw new TypeError(`${op}: the path must be a template from the document, starting with "/"`);
+    }
     const styles = spec.styles[op] ?? {};
     const style = (location: string, name: string) => styles[`${location}:${name}`] ?? {};
 
@@ -310,7 +343,8 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       },
     };
     const chain = [...(options.middleware ?? []), ...(middleware ?? [])];
-    const dispatch = (i: number) => (req: Request): Promise<Response> => {
+    // `async`, so that a synchronous throw from a middleware or fetch rejects like any other failure.
+    const dispatch = (i: number) => async (req: Request): Promise<Response> => {
       const mw = chain[i];
       return mw ? mw(req, dispatch(i + 1), context) : (options.fetch ?? fetch)(req);
     };
@@ -323,14 +357,16 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     };
   };
   return new Proxy({}, {
-    get: (_, method) => {
+    get: (target, method) => {
       if (method === "with") {
         return (...middleware: Middleware[]) =>
           makeClient<P>({ ...options, middleware: [...(options.middleware ?? []), ...middleware] }, spec);
       }
-      return typeof method === "string" && method !== "then"
+      // Only the document's methods send. Everything else (`then`, `toJSON`, inspection
+      // hooks, lowercase names) resolves as on a plain object, so nothing sends by accident.
+      return typeof method === "string" && spec.methods.includes(method)
         ? (path: string, init?: Init) => send(method, path, init)
-        : undefined;
+        : Reflect.get(target, method);
     },
   }) as Client<P>;
 }
@@ -518,14 +554,16 @@ export type Credential =
 
 /**
  * Middleware that authenticates each request as the document's `security` says:
- * it picks the first alternative whose credentials are all available (anonymous
- * access last; with none, the request goes out unauthenticated) and places each
- * credential where its security scheme expects it.
+ * it picks the first alternative whose credentials are all available and places
+ * each credential where its security scheme expects it. Alternatives that add
+ * nothing to the request (anonymous `{}`, `mutualTLS` alone) are taken only when
+ * no other is; with none, the request goes out unauthenticated.
  *
  * - `http` bearer, `oauth2`, `openIdConnect`: `Authorization: Bearer <credential>`
  * - `http` basic: the credential is `user:password`, sent base64-encoded
  * - other `http` schemes: `Authorization: <scheme> <credential>`
- * - `apiKey`: the credential as the named header, query parameter or cookie
+ * - `apiKey`: the credential as the named header, or percent-encoded as the named
+ *   query parameter or cookie
  * - `mutualTLS`: nothing to add; configure TLS on the fetch implementation
  *
  * ```ts
@@ -534,14 +572,12 @@ export type Credential =
  */
 export function auth(credentials: { [K in SecuritySchemeName]?: Credential }): Middleware {
   return async (request, next, context) => {
-    // Try authenticated alternatives first; anonymous access (`{}`) is the fallback.
-    const alternatives = [...context.operation.security].sort(
-      (a, b) => Number(Object.keys(a).length === 0) - Number(Object.keys(b).length === 0),
-    );
-    for (const requirement of alternatives) {
+    // Alternatives that resolve to no credentials are skipped: sending nothing is
+    // also what happens when none is satisfiable.
+    for (const requirement of context.operation.security) {
       const resolved = await satisfy(requirement, credentials, context);
-      if (resolved) {
-        for (const [scheme, value] of resolved) request = authenticate(request, scheme, value);
+      if (resolved?.length) {
+        for (const [scheme, value] of resolved) request = await authenticate(request, scheme, value);
         break;
       }
     }
@@ -569,21 +605,14 @@ async function satisfy(
   return out;
 }
 
-function authenticate(request: Request, scheme: SecuritySchemeSpec, value: string): Request {
+async function authenticate(request: Request, scheme: SecuritySchemeSpec, value: string): Promise<Request> {
   switch (scheme.type) {
     case "apiKey":
       if (scheme.in === "query") {
-        const url = new URL(request.url);
-        url.searchParams.set(scheme.name, value);
-        return new Request(url, request);
+        return withQuery(request, `${encodeURIComponent(scheme.name)}=${encodeURIComponent(value)}`);
       }
-      if (scheme.in === "cookie") {
-        const cookie = `${scheme.name}=${value}`;
-        const existing = request.headers.get("cookie");
-        request.headers.set("cookie", existing ? `${existing}; ${cookie}` : cookie);
-      } else {
-        request.headers.set(scheme.name, value);
-      }
+      if (scheme.in === "cookie") setCookie(request.headers, scheme.name, encodeURIComponent(value));
+      else request.headers.set(scheme.name, value);
       return request;
     case "http": {
       const name = scheme.scheme.toLowerCase();
@@ -604,10 +633,46 @@ function authenticate(request: Request, scheme: SecuritySchemeSpec, value: strin
   }
 }
 
+/** `request` with `pair` appended to its query; the rest of the URL stays as it is. */
+async function withQuery(request: Request, pair: string): Promise<Request> {
+  const hash = request.url.indexOf("#");
+  const [url, fragment] = hash < 0 ? [request.url, ""] : [request.url.slice(0, hash), request.url.slice(hash)];
+  const joined = `${url}${url.includes("?") ? "&" : "?"}${pair}${fragment}`;
+  if (request.body === null) return new Request(joined, request);
+  // `new Request(joined, request)` would pass the body on as a stream, which Chromium
+  // and WebKit refuse and Firefox sends empty: read it first.
+  return new Request(joined, {
+    method: request.method,
+    headers: request.headers,
+    body: await request.arrayBuffer(),
+    mode: request.mode,
+    credentials: request.credentials,
+    cache: request.cache,
+    redirect: request.redirect,
+    referrer: request.referrer,
+    referrerPolicy: request.referrerPolicy,
+    integrity: request.integrity,
+    keepalive: request.keepalive,
+    signal: request.signal,
+  });
+}
+
+/** Sets cookie `name` in the Cookie header, replacing an existing cookie of that name. */
+function setCookie(headers: Headers, name: string, value: string): void {
+  const others = (headers.get("cookie") ?? "")
+    .split(";")
+    .map((c) => c.trim())
+    .filter((c) => c && !c.startsWith(`${name}=`));
+  headers.set("cookie", [...others, `${name}=${value}`].join("; "));
+}
+
 const spec: Spec = {
   baseUrl: "https://api.example.com",
+  methods: ["POST", "GET", "DELETE"],
   servers: {},
-  styles: {},
+  styles: {
+    "GET /reports": { "query:ids": { explode: false } },
+  },
   security: [{ bearer: [] }],
   securitySchemes: {
     bearer: { type: "http", scheme: "bearer" },
@@ -626,10 +691,12 @@ const spec: Spec = {
     "DELETE /admin/users": { operationId: "deleteUsers", security: [{ oauth: ["admin", "write"] }] },
     "POST /webhooks": { operationId: "webhook", security: [{ apiKey: [] }] },
     "GET /reports": { operationId: "reports", security: [{ queryKey: [] }, { basic: [] }] },
+    "POST /reports": { operationId: "createReport", security: [{ queryKey: [] }] },
     "GET /both": { operationId: "both", security: [{ apiKey: [], session: [] }] },
     "GET /digest": { operationId: "digest", security: [{ digest: [] }] },
     "GET /oidc": { operationId: "oidc", security: [{ oidc: [] }] },
     "GET /mtls": { operationId: "mtls", security: [{ mtls: [] }] },
+    "GET /mtls-or-bearer": { operationId: "mtlsOrBearer", security: [{ mtls: [] }, { bearer: [] }] },
   },
 };
 

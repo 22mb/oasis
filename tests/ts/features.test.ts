@@ -71,6 +71,20 @@ test("baseUrl replaces every server", async () => {
   assert.deepEqual(sent.map((s) => s.url), ["http://localhost:4010/upload", "http://localhost:4010/shapes"]);
 });
 
+test("only the document's methods are client properties", async () => {
+  const { api, sent } = recording(json({}));
+  assert.equal(JSON.stringify(api), "{}");
+  assert.equal(String(api), "[object Object]");
+  assert.equal(Reflect.get(api, "get"), undefined); // lowercase names do not send either
+  assert.equal(Reflect.get(api, "toJSON"), undefined);
+  assert.equal(typeof Reflect.get(api, "GET"), "function");
+  assert.equal(sent.length, 0);
+  // Paths are the document's templates, which start with `/`.
+  const GET = api.GET as unknown as (path: string) => Promise<unknown>;
+  await assert.rejects(GET("shapes"), TypeError);
+  assert.equal(sent.length, 0);
+});
+
 test("sends static and per-call headers, and is not a thenable", async () => {
   const sent: Headers[] = [];
   const api = createClient({
