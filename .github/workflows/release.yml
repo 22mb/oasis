@@ -111,9 +111,13 @@ jobs:
             # Re-run: replace assets on a draft; a published release is final.
             if [[ "$(cat draft)" == true ]]; then gh release upload "$GITHUB_REF_NAME" release/* --clobber; fi
           else
+            # The notes are the version's section of CHANGELOG.md, which must exist.
+            awk -v heading="## [${GITHUB_REF_NAME#v}]" \
+              '/^## \[/ { if (found) exit; found = index($0, heading) == 1; next } found' CHANGELOG.md > notes.md
+            test -s notes.md
             flags=()
             [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)
-            gh release create "$GITHUB_REF_NAME" release/* --draft --generate-notes --verify-tag "${flags[@]}"
+            gh release create "$GITHUB_REF_NAME" release/* --draft --notes-file notes.md --verify-tag "${flags[@]}"
           fi
       - name: Publish to npm
         env:
