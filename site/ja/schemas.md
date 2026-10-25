@@ -85,5 +85,3 @@ oasis-gen は、`oneOf` を持たず、サブタイプから `allOf` で参照�
 | --- | --- |
 | `schemas["Pet"]` または `components["schemas"]["Pet"]` | `Pet` と同じ型 |
 | `components["requestSchemas"]` | コンポーネントのスキーマのリクエスト用の型 |
-| `components["refs"]` | ほかのファイルやほかの場所にあるスキーマ。`schemas/pet.yaml#` のようなキーで格納 |
-| `components["requestRefs"]` | `components["refs"]` にあるスキーマのリクエスト用の型 |

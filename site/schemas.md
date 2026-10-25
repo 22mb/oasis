@@ -104,5 +104,3 @@ aliases:
 | --- | --- |
 | `schemas["Pet"]`, or `components["schemas"]["Pet"]` | The same type as `Pet` |
 | `components["requestSchemas"]` | Request variants of component schemas |
-| `components["refs"]` | Schemas from other files or other locations, under keys like `schemas/pet.yaml#` |
-| `components["requestRefs"]` | Request variants of the schemas in `components["refs"]` |

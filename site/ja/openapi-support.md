@@ -36,7 +36,7 @@ OpenAPI 3.0 のドキュメントでは、これらのキーワードを次の�
 | `components.mediaTypes` とそれへの `$ref` | 対応 | |
 | リモートの `$ref` と、入力としての URL | 未対応 | ローカルのファイルに対応付けられない `https://...` の URI |
 
-ほかのファイルのスキーマは `components["refs"]` に含まれます（[スキーマ](./schemas#type-aliases-and-components)を参照）。
+ほかのファイルのスキーマも型エイリアスとして定義されますが、エクスポートされて `components` に含まれるのは、コンポーネントのスキーマだけです（[スキーマ](./schemas#type-aliases-and-components)を参照）。
 
 ## スキーマ {#schemas}
 

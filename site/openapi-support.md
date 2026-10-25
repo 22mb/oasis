@@ -39,7 +39,8 @@ instead.
 | `components.mediaTypes` and `$ref`s to them | Supported | |
 | Remote `$ref`s, and URLs as input | Not supported | `https://...` URIs that do not map onto a local file |
 
-Schemas from other files appear in `components["refs"]` (see
+Schemas from other files get type aliases of their own, but only component
+schemas are exported and listed in `components` (see
 [Schemas](./schemas#type-aliases-and-components)).
 
 ## Schemas
