@@ -165,6 +165,14 @@ test("auth follows the document's security requirements", async () => {
   assert.equal(header(13, "authorization"), null);
 });
 
+test("auth treats an undefined credential as unavailable", async () => {
+  const s = server(noContent);
+  const api = createClient({ fetch: s.fetch, middleware: [auth({ queryKey: undefined, basic: "u:p" })] });
+  await api.GET("/reports"); // the queryKey alternative is skipped for basic
+  assert.equal(s.requests[0]!.url, "https://api.example.com/reports");
+  assert.equal(s.requests[0]!.headers.get("authorization"), `Basic ${btoa("u:p")}`);
+});
+
 test("auth awaits credential functions", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ bearer: async () => "t" })] });

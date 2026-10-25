@@ -17,7 +17,8 @@ const api = createClient({
     auth({
       // Keys are the scheme names in components.securitySchemes.
       bearer: (scopes) => getToken(scopes),
-      apiKey: () => process.env.API_KEY,
+      // An unset variable skips the alternatives that need it.
+      apiKey: process.env.API_KEY,
     }),
   ],
 });
@@ -26,11 +27,11 @@ const api = createClient({
 ## Choosing credentials
 
 The keys are the names in `components.securitySchemes` (typed as
-`SecuritySchemeName`). Each value is a `Credential`: a string, or a function
-that returns one, possibly asynchronously. A function is called for each
-request with the scopes that the requirement lists and the
-[middleware context](./middleware#the-operation). It returns `undefined` or
-`""` when the credential is unavailable.
+`SecuritySchemeName`). Each value is a `Credential` (a string, or a function
+that returns one, possibly asynchronously) or `undefined`. A function is called
+for each request with the scopes that the requirement lists and the
+[middleware context](./middleware#the-operation). A value or a returned value
+of `undefined` or `""` means that the credential is unavailable.
 
 For each request, `auth` picks the first of the operation's `security`
 alternatives whose credentials are all available. Alternatives that add

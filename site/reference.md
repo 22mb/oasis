@@ -102,7 +102,8 @@ type Credential =
     ) => string | undefined | Promise<string | undefined>);
 ```
 
-`undefined` or `""` means that the credential is unavailable.
+`undefined` or `""` means that the credential is unavailable. `auth` also
+accepts `undefined` in place of a `Credential`.
 
 ### Typing results
 
