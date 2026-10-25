@@ -8,7 +8,7 @@
     "preview": "vitepress preview"
   },
   "devDependencies": {
-    "@shikijs/vitepress-twoslash": "2.5.0",
+    "@shikijs/vitepress-twoslash": "4.5.0",
     "@tanstack/react-query": "5.104.2",
     "monaco-editor": "0.57.0",
     "typescript": "6.0.3",
