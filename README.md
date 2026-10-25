@@ -198,10 +198,14 @@ import type { schemas } from "./api.ts";
 type Pet = schemas["Pet"];
 ```
 
-`schemas` describes responses. A schema with required `readOnly` or `writeOnly`
-properties also gets a request variant in `components["requestSchemas"]`, where
-`readOnly` properties are optional (and `writeOnly` ones keep their
-requiredness); in responses, required `writeOnly` properties are optional.
+`schemas` describes responses. A schema with `readOnly` or `writeOnly`
+properties also gets a request variant in `components["requestSchemas"]`. As
+the specification says they should not be sent, `readOnly` properties are
+absent from requests (`id?: never`) and `writeOnly` ones from responses; the
+other side keeps the declared requiredness. A property is also `readOnly` when
+its `$ref` target is, or when another `allOf` member marks a property of the
+same name, so `allOf: [$ref Base, { required: [id] }]` keeps `id` out of
+requests when `Base` marks it `readOnly`.
 
 Each schema becomes a type alias named after it, `$Pet` (and `$Pet$Request`
 for the request variant); that is the name hovers and error messages show.

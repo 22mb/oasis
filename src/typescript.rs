@@ -9,11 +9,140 @@ use std::fmt::Write;
 const RUNTIME: &str = include_str!("typescript/runtime.ts");
 
 pub fn emit(api: &Api) -> Result<String, Error> {
-    Emitter::new(api).emit()
+    let mut api = api.clone();
+    inherit_access(&mut api);
+    Emitter::new(&api).emit()
 }
 
-/// Which side of the wire a type describes. Required `readOnly` properties are
-/// optional in requests; required `writeOnly` properties are optional in responses.
+/// Copies `readOnly` and `writeOnly` onto every property they apply to, so that
+/// the emitter can read them off the property: one whose schema is a `$ref` to
+/// a flagged schema, and one that an `allOf` member names (often only in
+/// `required`) while another member flags it.
+fn inherit_access(api: &mut Api) {
+    let schemas: HashMap<String, NamedSchema> = api
+        .schemas
+        .iter()
+        .map(|s| (s.key.clone(), s.clone()))
+        .collect();
+    let mut fix = |s: &mut Schema| match s {
+        Schema::Object { properties, .. } => {
+            for p in properties {
+                let (r, w) = access(&p.schema, &schemas, &mut Vec::new());
+                p.meta.read_only |= r;
+                p.meta.write_only |= w;
+            }
+        }
+        Schema::Intersection(parts) => {
+            let mut flagged = (HashSet::new(), HashSet::new());
+            for p in parts.iter() {
+                flagged_properties(p, &schemas, &mut flagged, &mut Vec::new());
+            }
+            for p in parts {
+                mark(p, &flagged);
+            }
+        }
+        _ => {}
+    };
+    for s in &mut api.schemas {
+        walk_mut(&mut s.schema, &mut fix);
+    }
+    for op in api.paths.iter_mut().flat_map(|p| &mut p.operations) {
+        let mut contents: Vec<&mut Content> = Vec::new();
+        for p in &mut op.params {
+            match &mut p.value {
+                ParamValue::Schema { schema, .. } => walk_mut(schema, &mut fix),
+                ParamValue::Content(c) => contents.push(c),
+            }
+        }
+        contents.extend(op.querystring.as_mut().map(|q| &mut q.content));
+        contents.extend(op.body.iter_mut().flat_map(|b| &mut b.content));
+        contents.extend(op.responses.iter_mut().flat_map(|r| &mut r.content));
+        for c in contents {
+            for s in c.schema.iter_mut().chain(&mut c.item_schema) {
+                walk_mut(s, &mut fix);
+            }
+        }
+    }
+}
+
+/// Whether a value of `s` is `readOnly` and `writeOnly` through `$ref` and
+/// `allOf` alone; `visiting` guards against `$ref` cycles.
+fn access<'s>(
+    s: &'s Schema,
+    schemas: &'s HashMap<String, NamedSchema>,
+    visiting: &mut Vec<&'s str>,
+) -> (bool, bool) {
+    match s {
+        Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
+            let Some(n) = schemas.get(k) else {
+                return (false, false);
+            };
+            visiting.push(k);
+            let (r, w) = access(&n.schema, schemas, visiting);
+            visiting.pop();
+            (n.meta.read_only || r, n.meta.write_only || w)
+        }
+        Schema::Intersection(parts) => parts.iter().fold((false, false), |(r, w), p| {
+            let (pr, pw) = access(p, schemas, visiting);
+            (r || pr, w || pw)
+        }),
+        _ => (false, false),
+    }
+}
+
+/// Adds the names of the `readOnly` and `writeOnly` properties of `s`, with
+/// `allOf` members and `$ref` targets flattened, to `flagged`.
+fn flagged_properties<'s>(
+    s: &'s Schema,
+    schemas: &'s HashMap<String, NamedSchema>,
+    flagged: &mut (HashSet<String>, HashSet<String>),
+    visiting: &mut Vec<&'s str>,
+) {
+    match s {
+        Schema::Object { properties, .. } => {
+            for p in properties {
+                let (r, w) = access(&p.schema, schemas, &mut Vec::new());
+                if p.meta.read_only || r {
+                    flagged.0.insert(p.name.clone());
+                }
+                if p.meta.write_only || w {
+                    flagged.1.insert(p.name.clone());
+                }
+            }
+        }
+        Schema::Intersection(parts) => {
+            for p in parts {
+                flagged_properties(p, schemas, flagged, visiting);
+            }
+        }
+        Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
+            if let Some(n) = schemas.get(k) {
+                visiting.push(k);
+                flagged_properties(&n.schema, schemas, flagged, visiting);
+                visiting.pop();
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Flags the properties of the object members of `s` (an `allOf` member) that
+/// `flagged` names.
+fn mark(s: &mut Schema, flagged: &(HashSet<String>, HashSet<String>)) {
+    match s {
+        Schema::Object { properties, .. } => {
+            for p in properties {
+                p.meta.read_only |= flagged.0.contains(&p.name);
+                p.meta.write_only |= flagged.1.contains(&p.name);
+            }
+        }
+        Schema::Intersection(parts) => parts.iter_mut().for_each(|p| mark(p, flagged)),
+        _ => {}
+    }
+}
+
+/// Which side of the wire a type describes. `readOnly` properties are absent
+/// (`?: never`) from requests, and `writeOnly` properties from responses.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum View {
     Request,
@@ -50,8 +179,8 @@ impl<'a> Emitter<'a> {
             names.insert(s.key.as_str(), name);
         }
 
-        // A schema needs a request variant if it has a required readOnly or
-        // writeOnly property, or references a schema that does.
+        // A schema needs a request variant if it has a readOnly or writeOnly
+        // property, or references a schema that does.
         let mut direct = Vec::new();
         for s in &api.schemas {
             let mut flagged = false;
@@ -61,7 +190,7 @@ impl<'a> Emitter<'a> {
                 Schema::Object { properties, .. } => {
                     flagged |= properties
                         .iter()
-                        .any(|p| p.required && (p.meta.read_only || p.meta.write_only));
+                        .any(|p| p.meta.read_only || p.meta.write_only);
                 }
                 _ => {}
             });
@@ -530,12 +659,15 @@ impl<'a> Emitter<'a> {
                 }
                 let mut out = String::from("{\n");
                 for p in properties {
-                    let optional = !p.required
-                        || (view == View::Request && p.meta.read_only)
+                    // A readOnly property should not be sent in a request, nor a
+                    // writeOnly one in a response.
+                    let absent = (view == View::Request && p.meta.read_only)
                         || (view == View::Response && p.meta.write_only);
+                    let optional = !p.required || absent;
                     // A required property can be anything but undefined; this also makes
                     // `{ id: {} | null } & Base` narrow `Base["id"]` instead of widening it.
                     let t = match &p.schema {
+                        _ if absent => "never".to_string(),
                         Schema::Any if p.required => "{} | null".to_string(),
                         s => self.ty(s, indent + 1, view),
                     };
@@ -830,6 +962,37 @@ fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
     }
 }
 
+/// [`walk`], with each node mutable before its children are visited.
+fn walk_mut(s: &mut Schema, f: &mut dyn FnMut(&mut Schema)) {
+    f(s);
+    match s {
+        Schema::Array {
+            prefix_items,
+            items,
+        } => {
+            prefix_items.iter_mut().for_each(|c| walk_mut(c, f));
+            if let Some(c) = items {
+                walk_mut(c, f);
+            }
+        }
+        Schema::Object {
+            properties,
+            additional,
+        } => {
+            properties
+                .iter_mut()
+                .for_each(|p| walk_mut(&mut p.schema, f));
+            if let Some(c) = additional {
+                walk_mut(c, f);
+            }
+        }
+        Schema::Union { variants, .. } | Schema::Intersection(variants) => {
+            variants.iter_mut().for_each(|c| walk_mut(c, f))
+        }
+        _ => {}
+    }
+}
+
 /// A `security` list as a runtime `SecurityRequirement[]` literal.
 fn security_literal(security: &[SecurityRequirement]) -> String {
     let items: Vec<String> = security
@@ -1073,6 +1236,6 @@ mod tests {
             "    \"Pet.Owner\": $Pet_Owner;\n    Pet_Owner: $Pet_Owner_2;\n    Pet$Request: $Pet_Request;\n    Pet: $Pet;\n",
         );
         has("  requestSchemas: {\n    Pet: $Pet$Request;\n");
-        has("type $Pet$Request = {\n  id?: number;\n};\n");
+        has("type $Pet$Request = {\n  id?: never;\n};\n");
     }
 }

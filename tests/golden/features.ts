@@ -113,10 +113,17 @@ export interface components {
     Bike: $Bike;
     OtherVehicle: $OtherVehicle;
     Vehicle: $Vehicle;
+    Serial: $Serial;
+    Entity: $Entity;
+    Entry: $Entry;
+    Holder: $Holder;
   };
   requestSchemas: {
     Account: $Account$Request;
     Owner: $Owner$Request;
+    Entity: $Entity$Request;
+    Entry: $Entry$Request;
+    Holder: $Holder$Request;
   };
   refs: {
     "#/components/schemas/Tree/$defs/node": $components_schemas_Tree_defs_node;
@@ -136,7 +143,7 @@ type $Account = {
   id: number;
   /** @default "anonymous" */
   name: string;
-  password?: string;
+  password?: never;
   owner?: $Owner;
 };
 /**
@@ -144,7 +151,7 @@ type $Account = {
  * A user account.
  */
 type $Account$Request = {
-  id?: number;
+  id?: never;
   /** @default "anonymous" */
   name: string;
   password: string;
@@ -154,7 +161,7 @@ type $Owner = {
   ownerId: number;
 };
 type $Owner$Request = {
-  ownerId?: number;
+  ownerId?: never;
 };
 type $Base = {
   id?: number;
@@ -203,6 +210,33 @@ type $OtherVehicle = {
   kind: string;
 };
 type $Vehicle = ($Car & { kind: "car" | "Car" }) | ($Bike & { kind: "Bike" }) | ($OtherVehicle & { kind: string });
+type $Serial = number;
+type $Entity = {
+  serial?: $Serial;
+  secret?: never;
+  label?: string;
+};
+type $Entity$Request = {
+  serial?: never;
+  secret?: string;
+  label?: string;
+};
+type $Entry = $Entity & {
+  serial: {} | null;
+  secret?: never;
+  label: {} | null;
+};
+type $Entry$Request = $Entity$Request & {
+  serial?: never;
+  secret: {} | null;
+  label: {} | null;
+};
+type $Holder = {
+  serial: $Serial;
+};
+type $Holder$Request = {
+  serial?: never;
+};
 type $components_schemas_Tree_defs_node = {
   value?: number;
   left?: $components_schemas_Tree_defs_node;

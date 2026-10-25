@@ -255,3 +255,21 @@ components:
         mapping:
           car: "#/components/schemas/Car"
         defaultMapping: OtherVehicle
+    # readOnly and writeOnly reach a property from the schema it references and
+    # from another allOf member, which often lists it only in `required`.
+    Serial: { type: integer, readOnly: true }
+    Entity:
+      type: object
+      properties:
+        serial: { $ref: "#/components/schemas/Serial" }
+        secret: { type: string, writeOnly: true }
+        label: { type: string }
+    Entry:
+      allOf:
+        - $ref: "#/components/schemas/Entity"
+        - required: [serial, secret, label]
+    Holder:
+      type: object
+      required: [serial]
+      properties:
+        serial: { $ref: "#/components/schemas/Serial" }
