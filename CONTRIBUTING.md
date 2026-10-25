@@ -85,7 +85,8 @@ translate the IR. Adding a target language means adding one emitter next to
    match it. Edit the changelog on the branch if an entry needs more than its
    title, such as how to migrate from a breaking change.
 3. Merge it. The release workflow tags the commit `v<version>`, builds every
-   platform, and publishes the npm packages and the GitHub release.
+   platform, and publishes the npm packages and the GitHub release. If it
+   fails, re-run its failed jobs; the steps already done are skipped.
 
 By contributing, you agree that your contribution is licensed under the
 project's dual MIT and Apache-2.0 license.
