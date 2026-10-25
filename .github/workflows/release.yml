@@ -3,15 +3,14 @@ name: Release
 # Merging a release pull request (`release: <version>`, from prepare-release.yml)
 # tags its commit `v<version>`, builds binaries for every platform, attests them,
 # publishes the npm packages and publishes a GitHub release. Other pushes to main
-# stop after the first job. Pushing the tag `v<version>` on a release commit by
-# hand runs the same steps, to retry a release; steps already done are skipped.
-# The release is created as a draft and published last, which works with
-# immutable releases (assets cannot change afterwards).
+# stop after the first job. To retry a failed release, re-run its failed jobs;
+# steps already done are skipped. The release is created as a draft and
+# published last, which works with immutable releases (assets cannot change
+# afterwards).
 # Run it by hand (workflow_dispatch) to build every platform without publishing.
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions: {}
@@ -80,8 +79,8 @@ jobs:
     # Only a release commit on main publishes; a manual run stops after the builds.
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
-    # The environment accepts only main, where only merged pull requests land,
-    # and `v*` tags, which only admins and this workflow can create.
+    # The environment accepts only main, where only merged pull requests land:
+    # a `v*` tag pushed by anyone else cannot publish.
     environment: release
     concurrency:
       group: release-publish
@@ -131,7 +130,7 @@ jobs:
       - uses: actions/attest-build-provenance@v4.2.2
         with:
           subject-path: release/oasis-gen-*
-      # The `release tags` ruleset lets only admins and this workflow create `v*` tags.
+      # The `release tags` ruleset keeps `v*` tags from being moved or deleted.
       - name: Tag the release commit
         env:
           GH_TOKEN: ${{ github.token }}
