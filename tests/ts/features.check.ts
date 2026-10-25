@@ -8,6 +8,7 @@ import {
   type ApiResponse,
   type Client_2,
   type components,
+  type paths,
   type schemas,
 } from "../golden/features.ts";
 import type { Codes, Equal, Expect, Failure, Result, Success } from "./equal.ts";
@@ -143,4 +144,48 @@ export type Named = [
   Expect<Equal<typeof Flag, readonly ["N", "Y", "yes", "off", "A"]>>,
   Expect<Equal<Flag, schemas["Flag"]>>,
   Expect<Equal<typeof Level, readonly [1, 2, null]>>,
+];
+
+// Shapes below the top of a schema, and request shapes reached through them.
+export type Nested = [
+  // `allOf` in a property or an array item; readOnly reaches a property through it.
+  Expect<Equal<schemas["Stamped"], { stamp?: schemas["Serial"] & number; pairs?: (schemas["Base"] & schemas["Owner"])[] }>>,
+  Expect<Equal<
+    components["requestSchemas"]["Stamped"],
+    { stamp?: never; pairs?: (schemas["Base"] & components["requestSchemas"]["Owner"])[] }
+  >>,
+  // ... and a property named only in a nested `allOf`.
+  Expect<Equal<Flat<components["requestSchemas"]["Nested"]>, { serial?: never; secret?: string; label?: string; extra?: string }>>,
+  // A schema hoisted from `$defs` has a request shape too.
+  Expect<Equal<components["requestRefs"]["#/components/schemas/Doc/$defs/meta"], { rev?: never }>>,
+  Expect<Equal<components["requestSchemas"]["Doc"], { meta?: components["requestRefs"]["#/components/schemas/Doc/$defs/meta"] }>>,
+  // `items` without `type` is an array; tuples with and without `items`.
+  Expect<Equal<schemas["Words"], string[]>>,
+  Expect<Equal<schemas["Tuple"], [string, ...number[]]>>,
+  Expect<Equal<schemas["OpenTuple"], [boolean, ...unknown[]]>>,
+  // `additionalProperties: false` adds no index signature.
+  Expect<Equal<schemas["Closed"], { x?: string }>>,
+  Expect<Equal<schemas["Empty"], Record<string, never>>>,
+  Expect<Equal<schemas["Constants"], { one: 1; yes: true; nothing: null }>>,
+  Expect<Equal<schemas["Described"], { owner?: schemas["Owner"] }>>,
+];
+
+type Operation<P extends keyof paths, M extends keyof paths[P]> = paths[P][M] extends { request: infer R; responses: infer S }
+  ? { request: R; responses: S }
+  : never;
+
+export type Operations = [
+  // Parameters next to several request media types: one object, and a union of bodies.
+  Expect<Equal<
+    Operation<"/forms/{id}", "PUT">["request"],
+    { path: { id: number } } & (
+      | { contentType?: "application/json"; body: schemas["Form"] }
+      | { contentType: "application/x-www-form-urlencoded"; body: schemas["Form"] }
+    )
+  >>,
+  // Several response media types are a union; a sequence without a schema has unknown items.
+  Expect<Equal<Operation<"/params/{list}/{pair}", "GET">["responses"], { "200": { n?: number } | string; "202": AsyncIterable<unknown> }>>,
+  // No `responses` at all, a form querystring without a schema, and a `*/*` body.
+  Expect<Equal<Operation<"/blobs", "GET">, { request: { querystring?: Record<string, unknown> }; responses: { default: unknown } }>>,
+  Expect<Equal<Operation<"/blobs", "POST">["request"], { contentType?: string; body?: unknown }>>,
 ];

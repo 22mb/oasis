@@ -127,6 +127,23 @@ test("handles binary bodies", async () => {
   assert.deepEqual([...new Uint8Array(await photo.data.arrayBuffer())], [0x89, 0x50]);
 });
 
+test("streams request bodies", async () => {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array([1, 2]));
+      controller.enqueue(new Uint8Array([3]));
+      controller.close();
+    },
+  });
+  const res = await api.PUT("/pets/{petId}/photo", { path: { petId: 1 }, contentType: "image/png", body });
+  assert.equal(res.status, 204);
+  assert.deepEqual([...last.body], [1, 2, 3]);
+});
+
+test("an aborted signal cancels the request", async () => {
+  await assert.rejects(api.GET("/pets", { signal: AbortSignal.abort() }), { name: "AbortError" });
+});
+
 test("sends multipart bodies with the boundary set by fetch", async () => {
   const form = new FormData();
   form.append("caption", "Tama");

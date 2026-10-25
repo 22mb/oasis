@@ -153,13 +153,16 @@ test("auth follows the document's security requirements", async () => {
   await api.GET("/mtls"); // satisfied by the TLS configuration: nothing to add
   assert.equal(header(10, "authorization"), null);
 
+  await api.GET("/by-uri"); // a requirement naming the scheme by its URI
+  assert.equal(header(11, "authorization"), "Bearer t0k3n");
+
   // With no satisfiable alternative, the request goes out unauthenticated.
   token = undefined;
   await api.GET("/me");
-  assert.equal(header(11, "authorization"), null);
+  assert.equal(header(12, "authorization"), null);
   token = ""; // an empty credential counts as unavailable
   await api.GET("/me");
-  assert.equal(header(12, "authorization"), null);
+  assert.equal(header(13, "authorization"), null);
 });
 
 test("auth awaits credential functions", async () => {

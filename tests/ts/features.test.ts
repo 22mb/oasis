@@ -173,3 +173,76 @@ test("decodes bodies by status and Content-Type", async () => {
   assert.deepEqual(await collect("application/x-ndjson", '{"a":1}\n{"a":2}\n'), [{ a: 1 }, { a: 2 }]);
   assert.deepEqual(await collect("application/foo+json-seq", '\x1e{"a":1}\n\x1e{"a":2}\n'), [{ a: 1 }, { a: 2 }]);
 });
+
+test("serializes arrays and objects in every location", async () => {
+  const { api, sent } = recording(json({ n: 1 }));
+  const res = await api.GET("/params/{list}/{pair}", {
+    path: { list: ["a b", "c"], pair: { x: 1, y: 2 } },
+    query: { obj: { a: 1, b: 2 }, flat: { a: 1, b: 2 }, deep: { a: [1, 2], b: [3] }, opt: null },
+    header: { "X-Ids": [1, 2], "X-Pair": { a: "1", b: "2" } },
+    cookie: { multi: ["x", "y"] },
+  });
+  const [{ url, headers }] = sent as [Sent];
+  // The operation's server wins over the path's; `null` leaves a parameter out.
+  assert.equal(
+    url,
+    "https://operation.example.com/params/a%20b,c/x,1,y,2?a=1&b=2&flat=a,1,b,2&deep%5Ba%5D=1&deep%5Ba%5D=2&deep%5Bb%5D=3",
+  );
+  assert.equal(headers.get("x-ids"), "1,2");
+  assert.equal(headers.get("x-pair"), "a,1,b,2");
+  assert.equal(headers.get("cookie"), "multi=x; multi=y");
+  assert.deepEqual(res.data, { n: 1 });
+
+  // `undefined` leaves a parameter out too, as passed without `exactOptionalPropertyTypes`.
+  const absent = undefined as never;
+  await api.GET("/params/{list}/{pair}", { path: { list: ["a"], pair: { x: 1 } }, query: { obj: absent }, header: { "X-Ids": absent } });
+  assert.equal(sent[1]!.url, "https://operation.example.com/params/a/x,1");
+  assert.equal(sent[1]!.headers.get("x-ids"), null);
+});
+
+test("adds cookie parameters to a cookie from async client headers", async () => {
+  const sent: Headers[] = [];
+  const api = createClient({
+    headers: async () => ({ cookie: "theme=dark", "x-api-key": "k" }),
+    fetch: async (request: Request) => {
+      sent.push(request.headers);
+      return new Response(null, { status: 204 });
+    },
+  });
+  await api.GET("/params/{list}/{pair}", { path: { list: ["a"], pair: { x: 1 } }, cookie: { multi: ["x"] } });
+  assert.equal(sent[0]!.get("cookie"), "theme=dark; multi=x");
+  assert.equal(sent[0]!.get("x-api-key"), "k");
+});
+
+test("form bodies repeat array values and leave out null", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  await api.PUT("/forms/{id}", { path: { id: 1 }, contentType: "application/x-www-form-urlencoded", body: { tags: ["a", "b c"], note: null } });
+  await api.PUT("/forms/{id}", { path: { id: 1 }, body: { tags: ["a"], note: null } });
+  assert.deepEqual(sent.map((s) => [s.url, s.headers.get("content-type"), s.body]), [
+    ["https://api.example.com/forms/1", "application/x-www-form-urlencoded", "tags=a&tags=b+c"],
+    ["https://api.example.com/forms/1", "application/json", '{"tags":["a"],"note":null}'],
+  ]);
+});
+
+test("a body for a media type range is sent by its kind unless the call names one", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  await api.POST("/blobs", { body: new TextEncoder().encode("raw") });
+  await api.POST("/blobs", { body: { a: 1 } });
+  await api.POST("/blobs", { contentType: "text/csv", body: "a,b" });
+  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [
+    [null, "raw"],
+    ["application/json", '{"a":1}'],
+    ["text/csv", "a,b"],
+  ]);
+});
+
+test("a form querystring takes fields or an encoded string", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  await api.GET("/blobs", { querystring: { a: 1, b: [2, 3], c: null } });
+  // A form querystring whose schema is a string is passed as it is, without a leading "?".
+  await api.GET("/blobs", { querystring: "?a=1&b=%202" as unknown as Record<string, unknown> });
+  assert.deepEqual(sent.map((s) => s.url), [
+    "https://api.example.com/blobs?a=1&b=2&b=3",
+    "https://api.example.com/blobs?a=1&b=%202",
+  ]);
+});

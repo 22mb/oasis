@@ -132,6 +132,16 @@ export interface paths {
       };
     };
   };
+  "/by-uri": {
+    /** operationId: byUri */
+    GET: {
+      request: {};
+      responses: {
+        /** A scheme named by its URI is the component of that name. */
+        "204": undefined;
+      };
+    };
+  };
 }
 
 export interface components {
@@ -772,6 +782,7 @@ const spec: Spec = {
     "GET /oidc": { operationId: "oidc", security: [{ oidc: [] }] },
     "GET /mtls": { operationId: "mtls", security: [{ mtls: [] }] },
     "GET /mtls-or-bearer": { operationId: "mtlsOrBearer", security: [{ mtls: [] }, { bearer: [] }] },
+    "GET /by-uri": { operationId: "byUri", security: [{ bearer: [] }] },
   },
 };
 

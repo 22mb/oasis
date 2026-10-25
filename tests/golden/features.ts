@@ -135,6 +135,79 @@ export interface paths {
       };
     };
   };
+  "/params/{list}/{pair}": {
+    GET: {
+      request: {
+        path: {
+          list: string[];
+          pair: {
+            x?: number;
+            y?: number;
+          };
+        };
+        query?: {
+          obj?: { [key: string]: number };
+          flat?: { [key: string]: number };
+          deep?: { [key: string]: number[] };
+          opt?: string | null;
+        };
+        header?: {
+          "X-Ids"?: number[];
+          "X-Pair"?: { [key: string]: string };
+        };
+        cookie?: {
+          multi?: string[];
+        };
+      };
+      responses: {
+        /** JSON or text. */
+        "200": {
+          n?: number;
+        } | string;
+        /** Items without a schema. */
+        "202": AsyncIterable<unknown>;
+      };
+    };
+  };
+  "/forms/{id}": {
+    PUT: {
+      request: {
+        path: {
+          id: number;
+        };
+      } & ({
+        contentType?: "application/json";
+        body: $Form;
+      } | {
+        contentType: "application/x-www-form-urlencoded";
+        body: $Form;
+      });
+      responses: {
+        /** Saved. */
+        "204": undefined;
+      };
+    };
+  };
+  "/blobs": {
+    GET: {
+      request: {
+        querystring?: Record<string, unknown>;
+      };
+      responses: {
+        default: unknown;
+      };
+    };
+    POST: {
+      request: {
+        contentType?: string;
+        body?: unknown;
+      };
+      responses: {
+        /** Stored. */
+        "204": undefined;
+      };
+    };
+  };
 }
 
 export interface components {
@@ -164,6 +237,17 @@ export interface components {
     Entry: $Entry;
     Holder: $Holder;
     Client: $Client;
+    Form: $Form;
+    Stamped: $Stamped;
+    Nested: $Nested;
+    Doc: $Doc;
+    Words: $Words;
+    Tuple: $Tuple;
+    OpenTuple: $OpenTuple;
+    Closed: $Closed;
+    Empty: $Empty;
+    Constants: $Constants;
+    Described: $Described;
   };
   requestSchemas: {
     Account: $Account$Request;
@@ -171,11 +255,18 @@ export interface components {
     Entity: $Entity$Request;
     Entry: $Entry$Request;
     Holder: $Holder$Request;
+    Stamped: $Stamped$Request;
+    Nested: $Nested$Request;
+    Doc: $Doc$Request;
+    Described: $Described$Request;
   };
   refs: {
     "#/components/schemas/Tree/$defs/node": $components_schemas_Tree_defs_node;
+    "#/components/schemas/Doc/$defs/meta": $components_schemas_Doc_defs_meta;
   };
-  requestRefs: {};
+  requestRefs: {
+    "#/components/schemas/Doc/$defs/meta": $components_schemas_Doc_defs_meta$Request;
+  };
 }
 
 export type schemas = components["schemas"];
@@ -285,10 +376,64 @@ type $Holder$Request = {
   serial?: never;
 };
 type $Client = string;
+type $Form = {
+  tags?: string[];
+  note?: string | null;
+};
+type $Stamped = {
+  stamp?: $Serial & number;
+  pairs?: ($Base & $Owner)[];
+};
+type $Stamped$Request = {
+  stamp?: never;
+  pairs?: ($Base & $Owner$Request)[];
+};
+type $Nested = $Entity & {
+  serial: {} | null;
+} & {
+  extra?: string;
+};
+type $Nested$Request = $Entity$Request & {
+  serial?: never;
+} & {
+  extra?: string;
+};
+type $Doc = {
+  meta?: $components_schemas_Doc_defs_meta;
+};
+type $Doc$Request = {
+  meta?: $components_schemas_Doc_defs_meta$Request;
+};
+type $Words = string[];
+type $Tuple = [string, ...number[]];
+type $OpenTuple = [boolean, ...unknown[]];
+type $Closed = {
+  x?: string;
+};
+type $Empty = Record<string, never>;
+type $Constants = {
+  one: 1;
+  yes: true;
+  nothing: null;
+};
+type $Described = {
+  /** Who owns it. */
+  owner?: $Owner;
+};
+type $Described$Request = {
+  /** Who owns it. */
+  owner?: $Owner$Request;
+};
 type $components_schemas_Tree_defs_node = {
   value?: number;
   left?: $components_schemas_Tree_defs_node;
   right?: $components_schemas_Tree_defs_node;
+};
+type $components_schemas_Doc_defs_meta = {
+  rev?: number;
+};
+type $components_schemas_Doc_defs_meta$Request = {
+  rev?: never;
 };
 
 // Each component schema under its own name; `<name>Request` is its request shape.
@@ -316,11 +461,26 @@ export type {
   $Entry as Entry,
   $Holder as Holder,
   $Client as Client_2,
+  $Form as Form,
+  $Stamped as Stamped,
+  $Nested as Nested,
+  $Doc as Doc,
+  $Words as Words,
+  $Tuple as Tuple,
+  $OpenTuple as OpenTuple,
+  $Closed as Closed,
+  $Empty as Empty,
+  $Constants as Constants,
+  $Described as Described,
   $Account$Request as AccountRequest,
   $Owner$Request as OwnerRequest,
   $Entity$Request as EntityRequest,
   $Entry$Request as EntryRequest,
   $Holder$Request as HolderRequest,
+  $Stamped$Request as StampedRequest,
+  $Nested$Request as NestedRequest,
+  $Doc$Request as DocRequest,
+  $Described$Request as DescribedRequest,
 };
 
 // The values of each enum schema, exported with its type.
@@ -931,13 +1091,15 @@ function setCookie(headers: Headers, name: string, value: string): void {
 
 const spec: Spec = {
   baseUrl: "https://api.example.com",
-  methods: ["GET", "DELETE", "POST", "PATCH"],
+  methods: ["GET", "DELETE", "POST", "PATCH", "PUT"],
   servers: {
     "POST /upload": "https://upload.example.com",
     "GET /shapes": "https://shapes.example.com/v2",
+    "GET /params/{list}/{pair}": "https://operation.example.com",
   },
   styles: {
     "GET /items/{coords}": { "path:coords": { explode: true }, "header:X-Meta": { explode: true }, "cookie:list": { style: "cookie", explode: false }, "cookie:raw": { style: "cookie" }, "query:path": { reserved: true }, "query:filter": { style: "json" } },
+    "GET /params/{list}/{pair}": { "query:flat": { explode: false }, "query:deep": { style: "deepObject" } },
   },
   security: [],
   securitySchemes: {},
@@ -948,6 +1110,8 @@ const spec: Spec = {
     "PATCH /notes": { contentType: "application/merge-patch+json" },
     "GET /lookup": { querystring: "application/json" },
     "POST /lookup": { querystring: "text/plain" },
+    "PUT /forms/{id}": { contentType: "application/json" },
+    "GET /blobs": { querystring: "application/x-www-form-urlencoded" },
   },
 };
 

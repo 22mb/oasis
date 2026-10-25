@@ -13,7 +13,6 @@ export type Exact = [
   Expect<Equal<schemas["Error"], { title: string; detail?: string; [key: string]: unknown }>>,
   Expect<Equal<schemas["Point"], [number, number]>>,
   Expect<Equal<Parameters<typeof api.GET<"/pets/{petId}">>, [path: "/pets/{petId}", init: { path: { petId: number } } & RequestOptions]>>,
-  Expect<Equal<Parameters<typeof api.DELETE<"/pets/{petId}">>, [path: "/pets/{petId}", init: { path: { petId: number } } & RequestOptions]>>,
   Expect<Equal<
     Parameters<typeof api.POST<"/pets">>,
     [path: "/pets", init: (

@@ -117,6 +117,13 @@ paths:
         - bearer: []
       responses:
         "204": { description: "A client certificate, or a bearer token when there is one." }
+  /by-uri:
+    get:
+      operationId: byUri
+      security:
+        - "#/components/securitySchemes/bearer": []
+      responses:
+        "204": { description: A scheme named by its URI is the component of that name. }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer, bearerFormat: JWT }
