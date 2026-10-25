@@ -48,7 +48,7 @@ See [Schemas](./schemas) for the TypeScript type that each keyword becomes.
 
 | Feature | Support | Notes |
 | --- | --- | --- |
-| JSON Schema 2020-12 | Supported | `type` arrays, `const`, `enum`, `allOf`, `oneOf`, `anyOf`, `prefixItems`, `additionalProperties`, `$ref` with sibling keywords, and `readOnly` and `writeOnly` (see [Strict types](./strict-types#requests-and-responses-have-separate-types)) |
+| JSON Schema 2020-12 | Supported | `type` arrays, `const`, `enum`, `allOf`, `oneOf`, `anyOf`, `prefixItems`, `additionalProperties`, `patternProperties`, `$ref` with sibling keywords, and `readOnly` and `writeOnly` (see [Strict types](./strict-types#requests-and-responses-have-separate-types)) |
 | Recursive schemas | Supported | Through properties, arrays, and `additionalProperties`, including `$ref`s into `$defs` and other locations outside `components.schemas` |
 | `discriminator` on `oneOf` or `anyOf` | Supported | Explicit and implicit mappings, and `defaultMapping` |
 | Subtypes listed in the parent's `oneOf`, each extending it with `allOf` | Supported | See [Subtypes](./schemas#subtypes) |

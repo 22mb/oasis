@@ -39,6 +39,7 @@ type PetKind = Pet["kind"];
 | `type: array` | `T[]`; with `prefixItems`, a tuple |
 | `type: object` with `properties` | An object type; properties not in `required` are optional |
 | `additionalProperties` | An index signature (`unknown` when the object also has `properties`) |
+| `patternProperties` | An index signature over every key, since TypeScript cannot restrict keys to a pattern: the patterns' types and that of `additionalProperties` (`unknown` when the object also has `properties`, or no `additionalProperties`) |
 | `oneOf`, `anyOf` | A union; with a `discriminator`, each member is tagged with its value |
 | `allOf` | An intersection |
 | `$ref` to a component | That schema's type |

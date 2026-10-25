@@ -700,9 +700,24 @@ impl<'a> Emitter<'a> {
             }
             Schema::Object {
                 properties,
+                pattern_properties,
                 additional,
             } => {
                 let index = match (properties.is_empty(), additional.as_deref()) {
+                    // TypeScript cannot restrict keys to a pattern, so the index
+                    // covers every key, with the types of the patterns and of
+                    // `additionalProperties` that are not closed.
+                    (true, Some(s)) if !pattern_properties.is_empty() => {
+                        let mut types: Vec<String> = pattern_properties
+                            .iter()
+                            .map(|(_, p)| self.ty(p, indent + 1, view))
+                            .collect();
+                        if *s != Schema::Never {
+                            types.push(self.ty(s, indent + 1, view));
+                        }
+                        Some(union(types))
+                    }
+                    (false, _) if !pattern_properties.is_empty() => Some("unknown".to_string()),
                     (_, Some(Schema::Never)) => None,
                     (true, Some(s)) => Some(self.ty(s, indent + 1, view)),
                     (true, None) => Some("unknown".to_string()),
@@ -1008,9 +1023,11 @@ fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
         }
         Schema::Object {
             properties,
+            pattern_properties,
             additional,
         } => {
             properties.iter().for_each(|p| walk(&p.schema, f));
+            pattern_properties.iter().for_each(|(_, c)| walk(c, f));
             if let Some(c) = additional {
                 walk(c, f);
             }
@@ -1054,11 +1071,15 @@ fn walk_mut(s: &mut Schema, f: &mut dyn FnMut(&mut Schema)) {
         }
         Schema::Object {
             properties,
+            pattern_properties,
             additional,
         } => {
             properties
                 .iter_mut()
                 .for_each(|p| walk_mut(&mut p.schema, f));
+            pattern_properties
+                .iter_mut()
+                .for_each(|(_, c)| walk_mut(c, f));
             if let Some(c) = additional {
                 walk_mut(c, f);
             }

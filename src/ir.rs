@@ -378,8 +378,12 @@ pub enum Schema {
     Object {
         /// Includes names listed only in `required` (with schema `Any`).
         properties: Vec<Property>,
+        /// `patternProperties`: the schema of the properties whose names match
+        /// each regular expression, in document order.
+        pattern_properties: Vec<(String, Schema)>,
         /// `None` when `additionalProperties` is absent; `Some(Any)` when it
-        /// is explicitly `true`. Both allow any extra property.
+        /// is explicitly `true`. Both allow any extra property. It applies to
+        /// the properties that neither `properties` nor `patternProperties` cover.
         additional: Option<Box<Schema>>,
     },
     Union {
