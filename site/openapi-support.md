@@ -82,7 +82,7 @@ as JSON. Other parameters with `content` are passed as strings that are already
 serialized.
 
 Cookie parameters and cookie API keys are sent as a `Cookie` header, which
-browsers ignore in `fetch`. They work in Node, Deno, and Bun.
+browsers ignore in `fetch`. They work in Node and Bun.
 
 ## Request and response bodies
 

@@ -39,7 +39,7 @@ const api = createClient({
 | `apiKey`（クエリーまたはクッキー） | 指定された名前のクエリーパラメーターまたはクッキー（パーセントエンコード済み） |
 | `mutualTLS` | なし。`fetch` の実装側で TLS を設定 |
 
-ブラウザーは `fetch` で設定した `Cookie` ヘッダーを無視するため、クッキーで送信する API キーは Node.js、Deno、Bun でのみ機能します。
+ブラウザーは `fetch` で設定した `Cookie` ヘッダーを無視するため、クッキーで送信する API キーは Node.js と Bun でのみ機能します。
 
 ## 資格情報が送信されないとき {#when-nothing-is-sent}
 
