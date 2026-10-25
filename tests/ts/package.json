@@ -7,7 +7,7 @@
     "check:no-dom": "node node_modules/typescript/bin/tsc --lib es2022"
   },
   "devDependencies": {
-    "@types/node": "25.9.9",
+    "@types/node": "26.6.5",
     "typescript": "7.0.2",
     "typescript-5.0": "npm:typescript@5.0.4"
   }
