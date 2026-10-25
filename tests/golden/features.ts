@@ -978,7 +978,8 @@ export type Credential =
 /**
  * Middleware that authenticates each request as the document's `security` says:
  * it picks the first alternative whose credentials are all available and places
- * each credential where its security scheme expects it. Alternatives that add
+ * each credential where its security scheme expects it. A credential given as
+ * `undefined`, such as an unset environment variable, is unavailable. Alternatives that add
  * nothing to the request (anonymous `{}`, `mutualTLS` alone) are taken only when
  * no other is; with none, the request goes out unauthenticated.
  *
@@ -993,7 +994,7 @@ export type Credential =
  * createClient({ middleware: [auth({ bearer: (scopes) => getToken(scopes) })] });
  * ```
  */
-export function auth(credentials: { [K in SecuritySchemeName]?: Credential }): Middleware {
+export function auth(credentials: { [K in SecuritySchemeName]?: Credential | undefined }): Middleware {
   return async (request, next, context) => {
     // Alternatives that resolve to no credentials are skipped: sending nothing is
     // also what happens when none is satisfiable.
@@ -1011,7 +1012,7 @@ export function auth(credentials: { [K in SecuritySchemeName]?: Credential }): M
 /** The credential for every scheme of a requirement, or `undefined` if one is missing. */
 async function satisfy(
   requirement: SecurityRequirement,
-  credentials: { [K in SecuritySchemeName]?: Credential },
+  credentials: { [K in SecuritySchemeName]?: Credential | undefined },
   context: MiddlewareContext,
 ): Promise<[SecuritySchemeSpec, string][] | undefined> {
   const out: [SecuritySchemeSpec, string][] = [];

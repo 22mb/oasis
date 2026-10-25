@@ -89,7 +89,7 @@ type Credential =
     ) => string | undefined | Promise<string | undefined>);
 ```
 
-`undefined` または `""` は、その資格情報が利用できないことを表します。
+`undefined` または `""` は、その資格情報が利用できないことを表します。`auth` には、`Credential` の代わりに `undefined` も渡せます。
 
 ### 結果の型付け {#typing-results}
 
