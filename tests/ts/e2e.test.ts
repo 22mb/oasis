@@ -145,9 +145,7 @@ test("an aborted signal cancels the request", async () => {
 });
 
 test("sends multipart bodies with the boundary set by fetch", async () => {
-  const form = new FormData();
-  form.append("caption", "Tama");
-  form.append("file", new Blob([new Uint8Array([0x89, 0x50])], { type: "image/png" }), "tama.png");
+  const form = { caption: "Tama", file: new File([new Uint8Array([0x89, 0x50])], "tama.png", { type: "image/png" }) };
   const sentAsMultipart = () => {
     assert.match(last.headers["content-type"]!, /^multipart\/form-data; boundary=/);
     assert.match(last.body.toString(), /name="caption"\r\n\r\nTama\r\n/);

@@ -219,6 +219,51 @@ paths:
       responses:
         "204":
           description: Saved.
+  # Form bodies: parts typed from the schema, binary ones without a `type` as `Blob`,
+  # and Encoding Objects. Optional part headers are left out.
+  /uploads:
+    post:
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, meta]
+              properties:
+                file: { contentMediaType: image/png }
+                attachments: { type: array, items: {} }
+                photo: { $ref: "#/components/schemas/Photo" }
+                meta: { $ref: "#/components/schemas/Form" }
+                id: { type: integer, readOnly: true }
+                caption: { type: string }
+                checksum: { type: string, contentEncoding: base64 }
+                tags: { type: array, items: { type: string } }
+                filter: { type: object, properties: { kind: { type: string } } }
+                note: { type: string }
+            encoding:
+              file: { contentType: "image/png, image/jpeg" }
+              photo: { contentType: image/png }
+              filter: { style: deepObject }
+              note: { contentType: application/json }
+              tags:
+                headers:
+                  X-Note: { schema: { type: string } }
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                meta: { $ref: "#/components/schemas/Form" }
+                filter: { type: object, properties: { kind: { type: string }, size: { type: integer } } }
+                path: { type: string }
+                id: { type: string }
+            encoding:
+              filter: { explode: true }
+              path: { allowReserved: true }
+              id: { contentType: application/json }
+      responses:
+        "204":
+          description: Uploaded.
   # An optional body with no implied media type can still be left out.
   /photos/{id}:
     put:
@@ -405,6 +450,7 @@ components:
         serial: { $ref: "#/components/schemas/Serial" }
     # Named like a runtime export, so exported as `Client_2`.
     Client: { type: string }
+    Photo: { contentMediaType: image/png }
     Form:
       type: object
       properties:

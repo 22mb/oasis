@@ -413,7 +413,9 @@ impl<'a> Parser<'a> {
                         .and_then(Value::as_bool)
                         .unwrap_or(false),
                     meta: meta(b.v),
-                    content: self.content(b.get("content"))?,
+                    content: self
+                        .content(b.get("content"))
+                        .map_err(|e| e.context("requestBody"))?,
                 })
             }
             None => None,
@@ -542,11 +544,73 @@ impl<'a> Parser<'a> {
         for (media_type, m) in map.entries() {
             let m = self.deref(m)?;
             let mut schema = |key| m.get(key).map(|s| self.schema(s, 0)).transpose();
+            let (schema, item_schema) = (schema("schema")?, schema("itemSchema")?);
             out.push(Content {
                 media_type: media_type.clone(),
-                schema: schema("schema")?,
-                item_schema: schema("itemSchema")?,
+                schema,
+                item_schema,
+                encoding: self
+                    .encoding(media_type, &m)
+                    .map_err(|e| e.context(media_type.clone()))?,
             });
+        }
+        Ok(out)
+    }
+
+    /// The `encoding` of a form media type. A `multipart/form-data` body is
+    /// sent as `FormData`, which cannot carry part headers or nested parts, so
+    /// a required header or a `multipart` part is rejected; other headers can
+    /// be left out.
+    fn encoding(&self, media_type: &str, m: &Node<'a>) -> Result<Vec<(String, Encoding)>, Error> {
+        let multipart = essence(media_type) == "multipart/form-data";
+        let Some(map) = m.get("encoding") else {
+            return Ok(Vec::new());
+        };
+        if !multipart && MediaKind::of(media_type) != MediaKind::FormUrlEncoded {
+            return Ok(Vec::new());
+        }
+        let mut out = Vec::new();
+        for (name, e) in map.entries() {
+            let fail = |message: String| Error::new(message).context(format!("encoding.{name}"));
+            if multipart {
+                for (header, h) in e.get("headers").iter().flat_map(|h| h.entries()) {
+                    let h = self.deref(h)?;
+                    let required = h.v.get("required").and_then(Value::as_bool) == Some(true);
+                    if required && !header.eq_ignore_ascii_case("content-type") {
+                        return Err(fail(format!(
+                            "required part header `{header}` is not supported"
+                        )));
+                    }
+                }
+            }
+            let flag = |key| e.v.get(key).and_then(Value::as_bool);
+            let encoding = if ["style", "explode", "allowReserved"]
+                .iter()
+                .any(|k| e.v.get(*k).is_some())
+            {
+                let style = match e.str("style") {
+                    None | Some("form") => Style::Form,
+                    Some("deepObject") => Style::DeepObject,
+                    Some(s) => {
+                        return Err(fail(format!(
+                            "style `{s}` for form fields is not supported"
+                        )));
+                    }
+                };
+                Encoding::Style {
+                    style,
+                    explode: flag("explode").unwrap_or(style == Style::Form),
+                    allow_reserved: flag("allowReserved").unwrap_or(false),
+                }
+            } else if let Some(ct) = e.str("contentType") {
+                if multipart && ct.split(',').any(|t| essence(t).starts_with("multipart/")) {
+                    return Err(fail("nested multipart parts are not supported".into()));
+                }
+                Encoding::ContentType(ct.to_string())
+            } else {
+                continue;
+            };
+            out.push((name.clone(), encoding));
         }
         Ok(out)
     }
@@ -759,10 +823,20 @@ impl<'a> Parser<'a> {
             "number" => Schema::Number {
                 format: text("format"),
             },
+            // 3.0 marks binary data with `format`; 3.1 leaves raw binary
+            // without a `type`, and gives encoded binary a `contentEncoding`.
+            "string"
+                if self.version == Version::V30 && text("format").as_deref() == Some("binary") =>
+            {
+                Schema::Any
+            }
             "string" => Schema::String {
                 format: text("format"),
                 content_media_type: text("contentMediaType"),
-                content_encoding: text("contentEncoding"),
+                content_encoding: match (self.version, text("format").as_deref()) {
+                    (Version::V30, Some("byte")) => Some("base64".into()),
+                    _ => text("contentEncoding"),
+                },
             },
             "array" => {
                 let prefix_items = match node.get("prefixItems") {
@@ -1122,6 +1196,103 @@ mod tests {
                 prefix_items: vec![],
                 items: Some(Box::new(types(Schema::Integer { format: None })))
             }
+        );
+    }
+
+    #[test]
+    fn binary_formats_take_their_3_1_form_in_3_0() {
+        let doc = |openapi: &str, format: &str| {
+            json!({
+                "openapi": openapi,
+                "components": {"schemas": {"S": {"type": "string", "format": format}}}
+            })
+        };
+        let first = |doc| parse_value(doc).unwrap().schemas.remove(0).schema;
+        assert_eq!(first(doc("3.0.3", "binary")), Schema::Any);
+        assert_eq!(
+            first(doc("3.0.3", "byte")),
+            Schema::String {
+                format: Some("byte".into()),
+                content_media_type: None,
+                content_encoding: Some("base64".into()),
+            }
+        );
+        // From 3.1, `format` does not describe the encoding.
+        assert!(matches!(
+            first(doc("3.1.0", "binary")),
+            Schema::String {
+                content_encoding: None,
+                ..
+            }
+        ));
+    }
+
+    /// The encoding of the only media type of a `POST /s` body.
+    fn encoding(media_type: &str, encoding: Value) -> Result<Vec<(String, Encoding)>, Error> {
+        let paths = json!({"/s": {"post": {"requestBody": {"content": {
+            media_type: {"schema": {"type": "object"}, "encoding": encoding}
+        }}, "responses": {}}}});
+        Ok(api(paths, json!({}))?.paths[0].operations[0]
+            .body
+            .clone()
+            .unwrap()
+            .content
+            .remove(0)
+            .encoding)
+    }
+
+    #[test]
+    fn parses_form_encodings() {
+        let e = encoding(
+            "multipart/form-data",
+            json!({
+                "a": {"contentType": "image/png", "headers": {"X-Note": {"schema": {"type": "string"}}}},
+                "b": {"style": "deepObject", "contentType": "image/png"},
+                "c": {"explode": false},
+                "d": {"allowReserved": true},
+                "e": {"headers": {"Content-Type": {"required": true, "schema": {}}}},
+            }),
+        )
+        .unwrap();
+        let style = |style, explode, allow_reserved| Encoding::Style {
+            style,
+            explode,
+            allow_reserved,
+        };
+        assert_eq!(
+            e,
+            vec![
+                ("a".into(), Encoding::ContentType("image/png".into())),
+                ("b".into(), style(Style::DeepObject, false, false)),
+                ("c".into(), style(Style::Form, false, false)),
+                ("d".into(), style(Style::Form, true, true)),
+            ]
+        );
+        // Encoding by name only applies to form media types.
+        let e = encoding(
+            "multipart/mixed",
+            json!({"a": {"contentType": "multipart/mixed"}}),
+        );
+        assert_eq!(e.unwrap(), vec![]);
+    }
+
+    #[test]
+    fn rejects_what_form_data_cannot_send() {
+        let err = |media_type, e| encoding(media_type, e).unwrap_err().to_string();
+        let required = json!({"a": {"headers": {"X-Id": {"required": true, "schema": {}}}}});
+        assert!(err("multipart/form-data", required.clone()).contains(
+            "paths./s: POST: requestBody: multipart/form-data: encoding.a: required part header `X-Id` is not supported"
+        ));
+        // Headers only apply to multipart.
+        assert!(encoding("application/x-www-form-urlencoded", required).is_ok());
+        let nested = json!({"a": {"contentType": "application/json, multipart/mixed"}});
+        assert!(
+            err("multipart/form-data", nested).contains("nested multipart parts are not supported")
+        );
+        let style = json!({"a": {"style": "spaceDelimited"}});
+        assert!(
+            err("application/x-www-form-urlencoded", style)
+                .contains("style `spaceDelimited` for form fields is not supported")
         );
     }
 

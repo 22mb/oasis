@@ -224,6 +224,64 @@ test("form bodies repeat array values and leave out null", async () => {
   ]);
 });
 
+test("form fields are JSON for objects, and follow their Encoding Objects", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  await api.POST("/uploads", {
+    contentType: "application/x-www-form-urlencoded",
+    body: { meta: { tags: ["a"], note: null }, filter: { kind: "cat", size: 2 }, path: "/a b?c=d", id: "i 1" },
+  });
+  await api.PUT("/forms/{id}", { path: { id: 1 }, contentType: "application/x-www-form-urlencoded", body: { tags: [{ a: 1 } as unknown as string] } });
+  assert.deepEqual(sent.map((s) => s.body), [
+    "meta=%7B%22tags%22%3A%5B%22a%22%5D%2C%22note%22%3Anull%7D&kind=cat&size=2&path=/a%20b?c=d&id=%22i+1%22",
+    "tags=%7B%22a%22%3A1%7D",
+  ]);
+});
+
+/** Each part of a multipart body: its name, media type (without parameters) and content. */
+function parts({ headers, body }: Sent): [string, string | null, string][] {
+  const boundary = headers.get("content-type")!.match(/^multipart\/form-data; boundary=(.+)$/)![1]!;
+  return body.split(`--${boundary}`).slice(1, -1).map((part) => {
+    const [head = "", content = ""] = part.split("\r\n\r\n");
+    const name = head.match(/ name="([^"]*)"/)![1]!;
+    const type = head.match(/content-type: ([^;\r]+)/i)?.[1] ?? null;
+    return [name, type, content.slice(0, -2)];
+  });
+}
+
+test("multipart parts take their media type from the value or the Encoding Object", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  await api.POST("/uploads", {
+    contentType: "multipart/form-data",
+    body: {
+      file: new File(["f"], "a.jpg", { type: "image/jpeg" }),
+      attachments: [new Blob(["x"]), new Blob(["y"])],
+      photo: new Blob(["p"]),
+      meta: { tags: ["a"] },
+      caption: "Tama",
+      checksum: "iQ==",
+      tags: ["a", "b"],
+      filter: { kind: "cat" },
+      note: "n",
+    },
+  });
+  assert.match(sent[0]!.body, /name="file"; filename="a.jpg"/);
+  assert.deepEqual(parts(sent[0]!), [
+    // A Blob keeps its own type; with none, it is sent as application/octet-stream,
+    // the default, or as the single media type its Encoding Object names.
+    ["file", "image/jpeg", "f"],
+    ["attachments", "application/octet-stream", "x"],
+    ["attachments", "application/octet-stream", "y"],
+    ["photo", "image/png", "p"],
+    ["meta", "application/json", '{"tags":["a"]}'],
+    ["caption", null, "Tama"],
+    ["checksum", "application/octet-stream", "iQ=="],
+    ["tags", null, "a"],
+    ["tags", null, "b"],
+    ["filter[kind]", null, "cat"],
+    ["note", "application/json", '"n"'],
+  ]);
+});
+
 test("a body for a media type range is sent by its kind unless the call names one", async () => {
   const { api, sent } = recording(() => new Response(null, { status: 204 }));
   await api.POST("/blobs", { body: new TextEncoder().encode("raw") });

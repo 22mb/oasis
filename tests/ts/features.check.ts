@@ -213,7 +213,38 @@ export type Operations = [
   // No `responses` at all, a form querystring without a schema, and a `*/*` body.
   Expect<Equal<Operation<"/blobs", "GET">, { request: { querystring?: Record<string, unknown> }; responses: { default: unknown } }>>,
   Expect<Equal<Operation<"/blobs", "POST">["request"], { contentType?: string; body?: unknown }>>,
+  // Form bodies are typed by their schema. A multipart part without a `type` is binary,
+  // an array of them one part per item; a `type: string` part is text, also when encoded.
+  Expect<Equal<
+    Operation<"/uploads", "POST">["request"],
+    | {
+        contentType: "multipart/form-data";
+        body: {
+          file: Blob;
+          attachments?: Blob[];
+          photo?: Blob;
+          meta: schemas["Form"];
+          id?: never;
+          caption?: string;
+          checksum?: string;
+          tags?: string[];
+          filter?: { kind?: string };
+          note?: string;
+        };
+      }
+    | {
+        contentType: "application/x-www-form-urlencoded";
+        body: { meta?: schemas["Form"]; filter?: { kind?: string; size?: number }; path?: string; id?: string };
+      }
+  >>,
 ];
+
+export async function formBodies() {
+  // @ts-expect-error a multipart body with a schema is not a FormData
+  await api.POST("/uploads", { contentType: "multipart/form-data", body: new FormData() });
+  // @ts-expect-error a binary part is a Blob, not text
+  await api.POST("/uploads", { contentType: "multipart/form-data", body: { file: "png", meta: {} } });
+}
 
 export async function optionalBodies() {
   await api.PUT("/photos/{id}", { path: { id: 1 } });

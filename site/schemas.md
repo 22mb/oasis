@@ -31,7 +31,7 @@ type PetKind = Pet["kind"];
 
 | Schema | TypeScript |
 | --- | --- |
-| `type: string`, any `format` (`date-time`, `uuid`, `binary`, ...) | `string` |
+| `type: string`, any `format` (`date-time`, `uuid`, ...) | `string` |
 | `type: integer` or `number`, any `format` (`int64`, ...) | `number` |
 | `type: boolean` | `boolean` |
 | `type: "null"`, or `nullable: true` in OpenAPI 3.0 | Adds `null` |
@@ -44,7 +44,7 @@ type PetKind = Pet["kind"];
 | `allOf` | An intersection |
 | `$ref` to a component | That schema's type |
 | A property in `required` but not in `properties` | `{} \| null` (any value except `undefined`) |
-| No schema, or `{}` | `unknown` |
+| No schema, or `{}` (also `type: string, format: binary` in OpenAPI 3.0) | `unknown`; `Blob` as a part of a multipart body |
 
 `title`, `description`, `default`, and `deprecated` become JSDoc comments, so
 they appear in editor hovers. Formats are not converted; see

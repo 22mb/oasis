@@ -427,9 +427,24 @@ impl<'a> Emitter<'a> {
                 }
                 if let Some(qs) = &op.querystring {
                     info.push(format!("querystring: {}", quote(&qs.content.media_type)));
+                    if let Some(e) = self.encoding_literal(&qs.content) {
+                        info.push(format!("querystringEncoding: {e}"));
+                    }
                 }
                 if let Some(ct) = op.body.as_ref().and_then(default_media_type) {
                     info.push(format!("contentType: {}", quote(ct)));
+                }
+                let encodings: Vec<String> = op
+                    .body
+                    .iter()
+                    .flat_map(|b| &b.content)
+                    .filter_map(|c| {
+                        let e = self.encoding_literal(c)?;
+                        Some(format!("{}: {e}", quote(&c.media_type)))
+                    })
+                    .collect();
+                if !encodings.is_empty() {
+                    info.push(format!("encoding: {{ {} }}", encodings.join(", ")));
                 }
                 if !info.is_empty() {
                     writeln!(operations, "    {op_key}: {{ {} }},", info.join(", ")).unwrap();
@@ -616,10 +631,114 @@ impl<'a> Emitter<'a> {
             MediaKind::Json | MediaKind::FormUrlEncoded | MediaKind::Unknown => {
                 self.schema_or_unknown(c.schema.as_ref(), 4, View::Request)
             }
-            MediaKind::Multipart => "FormData".to_string(),
+            MediaKind::Multipart => match c.schema.as_ref().map(|s| (s, self.resolve(s))) {
+                Some((
+                    _,
+                    Schema::Object {
+                        properties,
+                        pattern_properties,
+                        additional,
+                    },
+                )) if essence(&c.media_type) == "multipart/form-data" => self.object(
+                    properties,
+                    pattern_properties,
+                    additional.as_deref(),
+                    4,
+                    View::Request,
+                    &|s, indent| self.part(s, indent),
+                ),
+                Some((s, other))
+                    if *other != Schema::Any && essence(&c.media_type) == "multipart/form-data" =>
+                {
+                    self.ty(s, 4, View::Request)
+                }
+                _ => "FormData".to_string(),
+            },
             MediaKind::Text => "string".to_string(),
             _ => "BodyInit".to_string(),
         }
+    }
+
+    /// A property of a `multipart/form-data` body: a `Blob` where its schema has
+    /// no `type`, which is how binary data is described, and an array of them
+    /// for an array, whose items are sent as parts of the same name.
+    fn part(&self, s: &Schema, indent: usize) -> String {
+        match self.resolve(s) {
+            Schema::Any => "Blob".into(),
+            Schema::Array {
+                prefix_items,
+                items,
+            } if prefix_items.is_empty()
+                && items
+                    .as_deref()
+                    .is_none_or(|i| *self.resolve(i) == Schema::Any) =>
+            {
+                "Blob[]".into()
+            }
+            _ => self.ty(s, indent, View::Request),
+        }
+    }
+
+    /// `s`, with references followed.
+    fn resolve<'s>(&'s self, mut s: &'s Schema) -> &'s Schema {
+        while let Schema::Ref(k) = s {
+            s = &self.schemas[k.as_str()].schema;
+        }
+        s
+    }
+
+    /// The runtime `Encoding` of each property of a form body that needs one:
+    /// those the document gives an Encoding Object, and the `multipart` parts
+    /// of encoded binary strings, which are not text.
+    fn encoding_literal(&self, c: &Content) -> Option<String> {
+        let multipart = essence(&c.media_type) == "multipart/form-data";
+        let mut fields: Vec<String> = c
+            .encoding
+            .iter()
+            .map(|(name, e)| {
+                let e = match e {
+                    Encoding::ContentType(ct) => format!("{{ contentType: {} }}", quote(ct)),
+                    Encoding::Style {
+                        style,
+                        explode,
+                        allow_reserved,
+                    } => format!(
+                        "{{ style: {} }}",
+                        // `multipart` parts are not percent-encoded at all.
+                        style_literal(*style, *explode, *allow_reserved && !multipart)
+                            .unwrap_or("{}".into())
+                    ),
+                };
+                format!("{}: {e}", key(name))
+            })
+            .collect();
+        if multipart
+            && let Some(Schema::Object { properties, .. }) =
+                c.schema.as_ref().map(|s| self.resolve(s))
+        {
+            for p in properties {
+                let encoded = |s: &Schema| {
+                    matches!(
+                        self.resolve(s),
+                        Schema::String {
+                            content_encoding: Some(_),
+                            ..
+                        }
+                    )
+                };
+                let binary = match self.resolve(&p.schema) {
+                    Schema::Array { items: Some(i), .. } => encoded(i),
+                    s => encoded(s),
+                };
+                if binary && !c.encoding.iter().any(|(name, _)| *name == p.name) {
+                    fields.push(format!(
+                        "{}: {{ contentType: \"application/octet-stream\" }}",
+                        key(&p.name)
+                    ));
+                }
+            }
+        }
+        (!fields.is_empty()).then(|| format!("{{ {} }}", fields.join(", ")))
     }
 
     fn response_data(&self, c: &Content) -> String {
@@ -696,66 +815,14 @@ impl<'a> Emitter<'a> {
                 properties,
                 pattern_properties,
                 additional,
-            } => {
-                let index = match (properties.is_empty(), additional.as_deref()) {
-                    // TypeScript cannot restrict keys to a pattern, so the index
-                    // covers every key, with the types of the patterns and of
-                    // `additionalProperties` that are not closed.
-                    (true, Some(s)) if !pattern_properties.is_empty() => {
-                        let mut types: Vec<String> = pattern_properties
-                            .iter()
-                            .map(|(_, p)| self.ty(p, indent + 1, view))
-                            .collect();
-                        if *s != Schema::Never {
-                            types.push(self.ty(s, indent + 1, view));
-                        }
-                        Some(union(types))
-                    }
-                    (false, _) if !pattern_properties.is_empty() => Some("unknown".to_string()),
-                    (_, Some(Schema::Never)) => None,
-                    (true, Some(s)) => Some(self.ty(s, indent + 1, view)),
-                    (true, None) => Some("unknown".to_string()),
-                    // Index signatures must cover every declared property type.
-                    (false, Some(_)) => Some("unknown".to_string()),
-                    (false, None) => None,
-                };
-                if properties.is_empty() {
-                    return match index {
-                        Some(t) => format!("{{ [key: string]: {t} }}"),
-                        None => "Record<string, never>".into(),
-                    };
-                }
-                let mut out = String::from("{\n");
-                for p in properties {
-                    // A readOnly property should not be sent in a request, nor a
-                    // writeOnly one in a response.
-                    let absent = (view == View::Request && p.meta.read_only)
-                        || (view == View::Response && p.meta.write_only);
-                    let optional = !p.required || absent;
-                    // A required property can be anything but undefined; this also makes
-                    // `{ id: {} | null } & Base` narrow `Base["id"]` instead of widening it.
-                    let t = match &p.schema {
-                        _ if absent => "never".to_string(),
-                        Schema::Any if p.required => "{} | null".to_string(),
-                        s => self.ty(s, indent + 1, view),
-                    };
-                    out.push_str(&jsdoc(&p.meta, &[], indent + 1));
-                    writeln!(
-                        out,
-                        "{}{}{}: {t};",
-                        pad(indent + 1),
-                        key(&p.name),
-                        opt(optional)
-                    )
-                    .unwrap();
-                }
-                if let Some(t) = index {
-                    writeln!(out, "{}[key: string]: {t};", pad(indent + 1)).unwrap();
-                }
-                out.push_str(&pad(indent));
-                out.push('}');
-                out
-            }
+            } => self.object(
+                properties,
+                pattern_properties,
+                additional.as_deref(),
+                indent,
+                view,
+                &|s, indent| self.ty(s, indent, view),
+            ),
             Schema::Union {
                 variants,
                 discriminator,
@@ -772,6 +839,77 @@ impl<'a> Emitter<'a> {
                 .collect::<Vec<_>>()
                 .join(" & "),
         }
+    }
+
+    /// An object type whose property, pattern and additional values are typed
+    /// by `ty`, which takes the indent level as well.
+    fn object(
+        &self,
+        properties: &[Property],
+        pattern_properties: &[(String, Schema)],
+        additional: Option<&Schema>,
+        indent: usize,
+        view: View,
+        ty: &dyn Fn(&Schema, usize) -> String,
+    ) -> String {
+        let index = match (properties.is_empty(), additional) {
+            // TypeScript cannot restrict keys to a pattern, so the index
+            // covers every key, with the types of the patterns and of
+            // `additionalProperties` that are not closed.
+            (true, Some(s)) if !pattern_properties.is_empty() => {
+                let mut types: Vec<String> = pattern_properties
+                    .iter()
+                    .map(|(_, p)| ty(p, indent + 1))
+                    .collect();
+                if *s != Schema::Never {
+                    types.push(ty(s, indent + 1));
+                }
+                Some(union(types))
+            }
+            (false, _) if !pattern_properties.is_empty() => Some("unknown".to_string()),
+            (_, Some(Schema::Never)) => None,
+            (true, Some(s)) => Some(ty(s, indent + 1)),
+            (true, None) => Some("unknown".to_string()),
+            // Index signatures must cover every declared property type.
+            (false, Some(_)) => Some("unknown".to_string()),
+            (false, None) => None,
+        };
+        if properties.is_empty() {
+            return match index {
+                Some(t) => format!("{{ [key: string]: {t} }}"),
+                None => "Record<string, never>".into(),
+            };
+        }
+        let mut out = String::from("{\n");
+        for p in properties {
+            // A readOnly property should not be sent in a request, nor a
+            // writeOnly one in a response.
+            let absent = (view == View::Request && p.meta.read_only)
+                || (view == View::Response && p.meta.write_only);
+            let optional = !p.required || absent;
+            // A required property can be anything but undefined; this also makes
+            // `{ id: {} | null } & Base` narrow `Base["id"]` instead of widening it.
+            let t = match ty(&p.schema, indent + 1) {
+                _ if absent => "never".to_string(),
+                t if t == "unknown" && p.required => "{} | null".to_string(),
+                t => t,
+            };
+            out.push_str(&jsdoc(&p.meta, &[], indent + 1));
+            writeln!(
+                out,
+                "{}{}{}: {t};",
+                pad(indent + 1),
+                key(&p.name),
+                opt(optional)
+            )
+            .unwrap();
+        }
+        if let Some(t) = index {
+            writeln!(out, "{}[key: string]: {t};", pad(indent + 1)).unwrap();
+        }
+        out.push_str(&pad(indent));
+        out.push('}');
+        out
     }
 
     /// A union variant `v` rendered as `t`, tagged with its discriminating
@@ -1110,33 +1248,41 @@ fn security_literal(security: &[SecurityRequirement]) -> String {
 
 /// Non-default serialization of a parameter, as a runtime `ParamStyle` literal.
 fn param_style(p: &Param) -> Option<String> {
-    let mut fields = Vec::new();
     match &p.value {
         ParamValue::Content(c) => match p.location {
-            Location::Query if c.kind() == MediaKind::Json => fields.push("style: \"json\"".into()),
+            Location::Query if c.kind() == MediaKind::Json => Some("{ style: \"json\" }".into()),
             // Pre-serialized cookie values are sent as-is.
-            Location::Cookie => fields.push("style: \"cookie\"".into()),
-            _ => {}
+            Location::Cookie => Some("{ style: \"cookie\" }".into()),
+            _ => None,
         },
         ParamValue::Schema {
             style,
             explode,
             allow_reserved,
             ..
-        } => {
-            match style {
-                Style::DeepObject => fields.push("style: \"deepObject\"".into()),
-                Style::Cookie => fields.push("style: \"cookie\"".into()),
-                Style::Form | Style::Simple => {}
-            }
-            let default_explode = *style != Style::Simple;
-            if *explode != default_explode && *style != Style::DeepObject {
-                fields.push(format!("explode: {explode}"));
-            }
-            if *allow_reserved && p.location == Location::Query {
-                fields.push("reserved: true".into());
-            }
-        }
+        } => style_literal(
+            *style,
+            *explode,
+            *allow_reserved && p.location == Location::Query,
+        ),
+    }
+}
+
+/// A `ParamStyle` literal for a schema-based serialization, or `None` for the
+/// default of its style.
+fn style_literal(style: Style, explode: bool, allow_reserved: bool) -> Option<String> {
+    let mut fields = Vec::new();
+    match style {
+        Style::DeepObject => fields.push("style: \"deepObject\"".to_string()),
+        Style::Cookie => fields.push("style: \"cookie\"".into()),
+        Style::Form | Style::Simple => {}
+    }
+    let default_explode = style != Style::Simple;
+    if explode != default_explode && style != Style::DeepObject {
+        fields.push(format!("explode: {explode}"));
+    }
+    if allow_reserved {
+        fields.push("reserved: true".into());
     }
     (!fields.is_empty()).then(|| format!("{{ {} }}", fields.join(", ")))
 }

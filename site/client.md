@@ -88,7 +88,8 @@ The type of `body` depends on the media type of the request:
 | --- | --- |
 | `application/json`, `*+json` | The schema type |
 | `application/x-www-form-urlencoded` | The schema type, sent form-encoded |
-| `multipart/*` | `FormData` |
+| `multipart/form-data` | The schema type, with binary parts as `Blob`; `FormData` without a schema |
+| Other `multipart/*` | `FormData` |
 | `text/*` | `string` |
 | `*/*`, `application/*` | The schema type, or `unknown` |
 | Anything else | `BodyInit` |
@@ -115,6 +116,50 @@ JSON string when the media type is JSON. For multipart bodies, `fetch` sets the
 `Content-Type` header, including its boundary. A request body uses the
 [request variant](./strict-types#requests-and-responses-have-separate-types)
 of its schema.
+
+### Form bodies
+
+A form body sends each property of the object as a field
+(`application/x-www-form-urlencoded`) or a part (`multipart/form-data`). An
+array sends one field or part per item, all with the property's name, and
+`undefined` and `null` are left out. Each value is sent as the document's
+Encoding Object for the property says, or else by its type:
+
+| Value | Form field | Multipart part |
+| --- | --- | --- |
+| An object, or an array inside an array | JSON | JSON, as `application/json` |
+| A `Blob` | Not supported | Binary, as the `Blob`'s own type, or `application/octet-stream` without one |
+| Anything else | `String(value)` | Text |
+
+In a multipart body, a property whose schema has no `type` is a `Blob`, since
+that is how OpenAPI describes binary data. In OpenAPI 3.0,
+`type: string, format: binary` means the same. A part with `type: string` is
+text, also with `contentMediaType`.
+
+```ts twoslash
+import { createClient } from "./api.ts";
+const api = createClient();
+const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+// ---cut---
+await api.POST("/pets/{petId}/photo", {
+  path: { petId: 1 },
+  body: { file: new File([png], "tama.png", { type: "image/png" }), caption: "Tama" },
+});
+```
+
+The Encoding Object changes how a property is sent:
+
+- `contentType` sets the media type. A JSON media type sends the value as JSON,
+  also in a form field, and a multipart part is sent with that `Content-Type`.
+  A `Blob` without a type gets it too. When `contentType` lists several media
+  types, such as `image/png, image/jpeg`, the `Blob`'s own type says which.
+- `style`, `explode`, and `allowReserved` send the property like a query
+  parameter. In a multipart body, each name and value becomes a part, without
+  percent-encoding.
+
+`FormData` sends a part that has a media type, such as JSON or a `Blob`, with a
+filename. Servers that treat every part with a filename as a file, such as
+FastAPI's `UploadFile` and multer, therefore read JSON parts as files.
 
 ### `querystring` parameters
 

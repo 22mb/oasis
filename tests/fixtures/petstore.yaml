@@ -151,7 +151,7 @@ paths:
               type: object
               required: [file]
               properties:
-                file: { type: string, contentMediaType: image/png }
+                file: { contentMediaType: image/png }
                 caption: { type: string }
       responses:
         "204":

@@ -1,6 +1,6 @@
-# An OpenAPI 3.0 document: `nullable` instead of a `"null"` type, and 3.0-only
-# keywords (`example`, boolean `exclusiveMinimum`, `format: binary`) that do not
-# affect the generated types.
+# An OpenAPI 3.0 document: `nullable` instead of a `"null"` type, `format: binary`
+# and `byte` for raw and base64-encoded data, and 3.0-only keywords (`example`,
+# boolean `exclusiveMinimum`) that do not affect the generated types.
 openapi: 3.0.3
 info:
   title: Legacy
@@ -36,6 +36,27 @@ paths:
         content:
           application/octet-stream:
             schema: { type: string, format: binary }
+      responses:
+        "204":
+          description: Uploaded.
+    post:
+      operationId: uploadPhotoForm
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                extras: { type: array, items: { type: string, format: binary } }
+                checksum: { type: string, format: byte }
       responses:
         "204":
           description: Uploaded.

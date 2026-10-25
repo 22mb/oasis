@@ -30,6 +30,24 @@ export interface paths {
         "204": undefined;
       };
     };
+    /** operationId: uploadPhotoForm */
+    POST: {
+      request: {
+        path: {
+          petId: number;
+        };
+        contentType?: "multipart/form-data";
+        body: {
+          file: Blob;
+          extras?: Blob[];
+          checksum?: string;
+        };
+      };
+      responses: {
+        /** Uploaded. */
+        "204": undefined;
+      };
+    };
   };
 }
 
@@ -222,6 +240,13 @@ export type Client<P> = {
  */
 type ParamStyle = { style?: "deepObject" | "cookie" | "json"; explode?: boolean; reserved?: true };
 
+/**
+ * How a property of a form body is sent, where the document says: as a media type,
+ * or like a query parameter. Other properties are sent by their value: objects as
+ * JSON, arrays as one field per item, and the rest as text, or binary for a `Blob`.
+ */
+type Encoding = { contentType: string } | { style: ParamStyle };
+
 type SecuritySchemeSpec =
   | { type: "apiKey"; in: "query" | "header" | "cookie"; name: string }
   | { type: "http"; /** Lowercased, e.g. `bearer`. */ scheme: string }
@@ -245,6 +270,9 @@ type Spec = {
     contentType?: string;
     /** The media type of the `querystring` parameter. */
     querystring?: string;
+    querystringEncoding?: Record<string, Encoding>;
+    /** Form body encodings, keyed by media type and then by property. */
+    encoding?: Record<string, Record<string, Encoding>>;
   }>;
 };
 
@@ -281,7 +309,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       return value;
     }).join("/");
     const search = querystring !== undefined
-      ? encodeQuerystring(querystring, info.querystring)
+      ? encodeQuerystring(querystring, info.querystring, info.querystringEncoding)
       : present(query).flatMap(([name, value]) => queryPairs(name, value, style("query", name))).join("&");
     if (search) url += `?${search}`;
 
@@ -309,7 +337,8 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       }
     });
 
-    const encoded = encodeBody(body, contentType ?? info.contentType, headers);
+    const mediaType = contentType ?? info.contentType;
+    const encoded = encodeBody(body, mediaType, headers, info.encoding?.[mediaType ?? ""]);
     const request = new Request(url, {
       ...rest,
       method,
@@ -366,10 +395,14 @@ type Encode = (s: string) => string;
  * The whole query string from the value of a `querystring` parameter: form
  * fields, or else the value serialized as its media type and percent-encoded.
  */
-function encodeQuerystring(value: unknown, mediaType = "application/x-www-form-urlencoded"): string {
+function encodeQuerystring(
+  value: unknown,
+  mediaType = "application/x-www-form-urlencoded",
+  encoding?: Record<string, Encoding>,
+): string {
   switch (mediaKind(mediaType)) {
     case "form":
-      return typeof value === "string" ? value.replace(/^\?/, "") : formEncode(value as Record<string, unknown>);
+      return typeof value === "string" ? value.replace(/^\?/, "") : formEncode(value as Record<string, unknown>, encoding);
     case "json":
       return encodeURIComponent(JSON.stringify(value));
     default:
@@ -422,20 +455,67 @@ function queryPairs(name: string, value: unknown, s: ParamStyle): string[] {
   return form(name, value, s.explode ?? true, enc);
 }
 
-function formEncode(value: Record<string, unknown>): string {
-  const params = new URLSearchParams();
-  for (const [name, v] of Object.entries(value)) {
-    for (const item of Array.isArray(v) ? v : [v]) {
-      if (item !== undefined && item !== null) params.append(name, String(item));
+/** `application/x-www-form-urlencoded` fields, encoded as {@link Encoding} says. */
+function formEncode(value: Record<string, unknown>, encoding: Record<string, Encoding> = {}): string {
+  return present(value).flatMap(([name, v]) => {
+    const e = encoding[name];
+    if (e && "style" in e) return queryPairs(name, v, e.style);
+    const contentType = e?.contentType;
+    return items(v).map((item) => {
+      const json = contentType ? mediaKind(contentType) === "json" : typeof item === "object";
+      return new URLSearchParams([[name, json ? JSON.stringify(item) : String(item)]]).toString();
+    });
+  }).join("&");
+}
+
+/**
+ * `multipart/form-data` parts, encoded as {@link Encoding} says. A part with a
+ * media type is sent as a `Blob`, as `FormData` has no other way to give it one.
+ */
+function formData(value: Record<string, unknown>, encoding: Record<string, Encoding> = {}): FormData {
+  const data = new FormData();
+  for (const [name, v] of present(value)) {
+    const e = encoding[name];
+    if (e && "style" in e) {
+      // Like a query parameter, but without percent-encoding.
+      for (const pair of queryPairs(name, v, e.style)) {
+        const i = pair.indexOf("=");
+        data.append(decodeURIComponent(pair.slice(0, i)), decodeURIComponent(pair.slice(i + 1)));
+      }
+      continue;
+    }
+    // A list or range of media types leaves the choice to the Blob's own type.
+    const type = e && !/[,*]/.test(e.contentType) ? e.contentType : undefined;
+    for (const item of items(v)) {
+      if (item instanceof Blob) {
+        if (item.type || !type) data.append(name, item);
+        else data.append(name, new Blob([item], { type }), (item as Blob & { name?: string }).name);
+      } else if (type ? mediaKind(type) === "json" : typeof item === "object") {
+        data.append(name, new Blob([JSON.stringify(item)], { type: type ?? "application/json" }));
+      } else if (type && essence(type) !== "text/plain") {
+        data.append(name, new Blob([String(item)], { type }));
+      } else {
+        data.append(name, String(item));
+      }
     }
   }
-  return params.toString();
+  return data;
+}
+
+/** The items of an array, or else the value itself, leaving out `undefined` and `null`. */
+function items(value: unknown): unknown[] {
+  return (Array.isArray(value) ? value : [value]).filter((v) => v !== undefined && v !== null);
 }
 
 type Kind = "json" | "form" | "multipart" | "text" | "sse" | "jsonl" | "json-seq" | "binary";
 
+/** The media type without parameters, lowercased. */
+function essence(mediaType: string): string {
+  return (mediaType.split(";")[0] ?? "").trim().toLowerCase();
+}
+
 function mediaKind(mediaType: string): Kind {
-  const mt = (mediaType.split(";")[0] ?? "").trim().toLowerCase();
+  const mt = essence(mediaType);
   if (mt === "application/json" || mt.endsWith("+json")) return "json";
   if (mt === "application/x-www-form-urlencoded") return "form";
   if (mt === "text/event-stream") return "sse";
@@ -452,7 +532,12 @@ function isRawBody(body: unknown): body is BodyInit {
     ArrayBuffer.isView(body) || body instanceof ReadableStream;
 }
 
-function encodeBody(body: unknown, contentType: string | undefined, headers: Headers): BodyInit | null {
+function encodeBody(
+  body: unknown,
+  contentType: string | undefined,
+  headers: Headers,
+  encoding?: Record<string, Encoding>,
+): BodyInit | null {
   if (body === undefined) return null;
   const kind = contentType ? mediaKind(contentType) : isRawBody(body) ? "binary" : "json";
   if (kind === "json") {
@@ -461,10 +546,11 @@ function encodeBody(body: unknown, contentType: string | undefined, headers: Hea
   }
   if (kind === "form" && !isRawBody(body)) {
     headers.set("content-type", contentType!);
-    return formEncode(body as Record<string, unknown>);
+    return formEncode(body as Record<string, unknown>, encoding);
   }
   // multipart: let fetch set the boundary.
-  if (contentType && kind !== "multipart") headers.set("content-type", contentType);
+  if (kind === "multipart") return isRawBody(body) ? body : formData(body as Record<string, unknown>, encoding);
+  if (contentType) headers.set("content-type", contentType);
   return body as BodyInit;
 }
 
@@ -699,12 +785,13 @@ function setCookie(headers: Headers, name: string, value: string): void {
 
 const spec: Spec = {
   baseUrl: "https://api.example.com",
-  methods: ["GET", "PUT"],
+  methods: ["GET", "PUT", "POST"],
   security: [],
   securitySchemes: {},
   operations: {
     "GET /pets": { operationId: "listPets" },
     "PUT /pets/{petId}/photo": { operationId: "uploadPhoto", contentType: "application/octet-stream" },
+    "POST /pets/{petId}/photo": { operationId: "uploadPhotoForm", contentType: "multipart/form-data", encoding: { "multipart/form-data": { checksum: { contentType: "application/octet-stream" } } } },
   },
 };
 

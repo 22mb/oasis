@@ -100,4 +100,4 @@ type InRequests = AccountRequest;
 
 ## `format` に応じた変換は行われない {#formats-are-not-converted}
 
-`format` によって型は変わりません。`date-time` は `string` のままで、`int64` は `JSON.parse` が返すとおり `number` になります。そのため、2<sup>53</sup> を超える整数では精度が失われます。別の型が必要なときは、値を自分で変換してください。
+`format` によって型は変わりません。`date-time` は `string` のままで、`int64` は `JSON.parse` が返すとおり `number` になります。そのため、2<sup>53</sup> を超える整数では精度が失われます。別の型が必要なときは、値を自分で変換してください。ただし、OpenAPI 3.0 の `format: binary` と `byte` は、バイナリーデータを表すため例外です。詳しくは[バージョン](./openapi-support#versions)をご覧ください。
