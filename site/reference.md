@@ -57,9 +57,9 @@ The generated file exports the following:
 | `auth(credentials)` | Middleware that sends credentials as the document's `security` specifies; see [Authentication](./authentication) |
 | `DecodeError` | Thrown for a body that does not match its `Content-Type`; see [Errors](./client#decodeerror) |
 | Schema types, such as `Pet` and `AccountRequest`, and enum values, such as `Kind` | See [Schemas](./schemas) |
-| `paths` | Every operation's inputs and responses, by path and method |
+| `paths` | Every operation's inputs, responses and the statuses each response covers, by path and method |
 | `schemas`, `components` | The document's schemas by name; see [Schemas](./schemas#type-aliases-and-components) |
-| `ApiResponse<Responses>` | The result type of a call, from an operation's `responses` |
+| `ApiResponse<Operation>` | The result type of a call, from an operation in `paths` |
 | `Client<Paths>`, `ClientOptions`, `RequestOptions` | The client, its options, and the fetch options of a call |
 | `Middleware`, `MiddlewareContext`, `OperationInfo` | Middleware and the information it receives; see [Middleware](./middleware) |
 | `Credential`, `SecurityRequirement`, `SecuritySchemeName` | The types that `auth` uses |
@@ -107,10 +107,10 @@ accepts `undefined` in place of a `Credential`.
 
 ### Typing results
 
-`ApiResponse` takes an operation's `responses` from `paths`:
+`ApiResponse` takes an operation from `paths`:
 
 ```ts twoslash
 import type { ApiResponse, paths } from "./api.ts";
 
-type GetPet = ApiResponse<paths["/pets/{petId}"]["GET"]["responses"]>;
+type GetPet = ApiResponse<paths["/pets/{petId}"]["GET"]>;
 ```

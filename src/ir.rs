@@ -255,6 +255,43 @@ impl Status {
     }
 }
 
+impl Operation {
+    /// The statuses each response covers, ascending: a code itself, a range
+    /// such as `4XX` minus the codes declared in it, in document order. The
+    /// last entry is every status from 200 to 599 that none of those covers,
+    /// with the `default` response if there is one; a response can still have
+    /// those statuses when no `default` is declared.
+    pub fn coverage(&self) -> Vec<(Option<&Response>, Vec<u16>)> {
+        let mut covered = [false; 600];
+        for r in &self.responses {
+            match r.status {
+                Status::Code(c) => covered[usize::from(c)] = true,
+                Status::Range(d) => covered[usize::from(d) * 100..][..100].fill(true),
+                Status::Default => {}
+            }
+        }
+        let codes = |r: &Response| match r.status {
+            Status::Code(c) => Some(vec![c]),
+            Status::Range(d) => {
+                let first = u16::from(d) * 100;
+                let declared =
+                    |s: &u16| self.responses.iter().any(|r| r.status == Status::Code(*s));
+                Some((first..first + 100).filter(|s| !declared(s)).collect())
+            }
+            Status::Default => None,
+        };
+        let mut out: Vec<_> = self
+            .responses
+            .iter()
+            .filter_map(|r| Some((Some(r), codes(r)?)))
+            .collect();
+        let rest = (200..600).filter(|&s| !covered[usize::from(s)]).collect();
+        let default = self.responses.iter().find(|r| r.status == Status::Default);
+        out.push((default, rest));
+        out
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Content {
     pub media_type: String,
@@ -438,4 +475,82 @@ pub struct Property {
     pub required: bool,
     pub meta: Meta,
     pub schema: Schema,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The keys and statuses of [`Operation::coverage`] for responses `keys`.
+    fn coverage(keys: &[Status]) -> Vec<(String, Vec<u16>)> {
+        let op = Operation {
+            method: "GET".into(),
+            operation_id: None,
+            meta: Meta::default(),
+            servers: Vec::new(),
+            params: Vec::new(),
+            querystring: None,
+            body: None,
+            responses: keys
+                .iter()
+                .map(|&status| Response {
+                    status,
+                    meta: Meta::default(),
+                    content: Vec::new(),
+                })
+                .collect(),
+            security: None,
+        };
+        op.coverage()
+            .into_iter()
+            .map(|(r, s)| (r.map_or("-".into(), |r| r.status.key()), s))
+            .collect()
+    }
+
+    fn codes(range: std::ops::Range<u16>, except: &[u16]) -> Vec<u16> {
+        range.filter(|s| !except.contains(s)).collect()
+    }
+
+    #[test]
+    fn coverage_splits_statuses_by_key() {
+        use Status::*;
+        // A range loses the codes declared in it; the rest is undeclared.
+        assert_eq!(
+            coverage(&[Code(200), Code(404), Range(4)]),
+            vec![
+                ("200".into(), vec![200]),
+                ("404".into(), vec![404]),
+                ("4XX".into(), codes(400..500, &[404])),
+                (
+                    "-".into(),
+                    codes(200..600, &[200])
+                        .into_iter()
+                        .filter(|s| !(400..500).contains(s))
+                        .collect()
+                ),
+            ]
+        );
+        // `default` takes what is left, successes included; with `2XX`, none are.
+        assert_eq!(
+            coverage(&[Range(2), Default]),
+            vec![
+                ("2XX".into(), codes(200..300, &[])),
+                ("default".into(), codes(300..600, &[]))
+            ]
+        );
+        assert_eq!(
+            coverage(&[Default]),
+            vec![("default".into(), codes(200..600, &[]))]
+        );
+        assert_eq!(coverage(&[]), vec![("-".into(), codes(200..600, &[]))]);
+        // 1xx statuses appear only where a key names them.
+        assert_eq!(
+            coverage(&[Code(101), Range(1)]),
+            vec![
+                ("101".into(), vec![101]),
+                ("1XX".into(), codes(100..200, &[101])),
+                ("-".into(), codes(200..600, &[])),
+            ]
+        );
+    }
 }
