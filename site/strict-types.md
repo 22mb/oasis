@@ -1,6 +1,6 @@
 # Strict types
 
-The types that oasis-gen generates follow the text of the OpenAPI
+The types that oasis-gen generates follow the text and intent of the OpenAPI
 specification. When the specification allows a status or a value, the
 generated types include it, so the compiler makes you handle it. This page
 shows the rules that follow from this principle.

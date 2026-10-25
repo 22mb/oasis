@@ -45,6 +45,23 @@ once, so references stay references and recursion is cheap. Emitters only
 translate the IR. Adding a target language means adding one emitter next to
 `src/typescript.rs`. The IR is public but not yet stable.
 
+### Principles for the generated types
+
+- The types express what the OpenAPI specification allows, following both its
+  text and its intent. They are neither narrower (rejecting values the
+  document allows) nor wider (accepting what the specification says not to
+  send). For example, `readOnly` properties are typed `?: never` in requests.
+- Where TypeScript cannot express a rule exactly, the generated type is the
+  closest one that still accepts every allowed value. For example,
+  `patternProperties` becomes an index signature that covers every key.
+- Strictness is a consequence of the first principle, not a goal in itself.
+  For example, status codes the document does not declare remain in the
+  response type, because the specification says they can occur.
+- A document that does not conform to the specification is rejected with an
+  error. There is no lenient mode.
+- Inputs the specification does not define, such as the credentials passed to
+  `auth()`, are handled as documented for the runtime.
+
 ## Pull requests
 
 - Keep a pull request to one change, and add a test or a fixture for it.
