@@ -7,6 +7,12 @@ change the generated code or the CLI in incompatible ways.
 
 ## [Unreleased]
 
+### Security
+
+- The generated client rejects a path that starts with `//` with a
+  `TypeError`. With no server URL and no `baseUrl`, browsers resolved such a
+  path as a URL on another host, and `auth()` sent credentials there.
+
 ## [0.1.2] - 2026-10-25
 
 ### Changed

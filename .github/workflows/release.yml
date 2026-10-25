@@ -59,7 +59,7 @@ jobs:
     # Only a pushed tag publishes; a manual run from any ref stops after the builds.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    # Protect with required reviewers and a `v*` tag rule in the repository settings.
+    # The environment accepts only `v*` tags, and the `release tags` ruleset lets only admins create them.
     environment: release
     permissions:
       contents: write # create and publish the GitHub release
