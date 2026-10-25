@@ -125,6 +125,7 @@ test("only the document's methods are client properties", async () => {
   // Paths are the document's templates, which start with `/`.
   const GET = api.GET as unknown as (path: string) => Promise<unknown>;
   await assert.rejects(GET("shapes"), TypeError);
+  await assert.rejects(GET("//evil.example/x"), TypeError); // a host in a relative URL
   assert.equal(sent.length, 0);
 });
 

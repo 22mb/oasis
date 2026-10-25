@@ -312,8 +312,9 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
   const send = async (method: string, path: string, init: Init = {}) => {
     const { path: pathParams, query, header, cookie, querystring, contentType, body, middleware, ...rest } = init;
     const op = `${method} ${path}`;
-    if (!path.startsWith("/")) {
-      throw new TypeError(`${op}: the path must be a template from the document, starting with "/"`);
+    // A leading "//" would make a relative URL point at another host in browsers.
+    if (!path.startsWith("/") || path.startsWith("//")) {
+      throw new TypeError(`${op}: the path must be a template from the document, starting with one "/"`);
     }
     const info = spec.operations[op];
     const styles = spec.styles[op] ?? {};
