@@ -5,6 +5,12 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.3.0](https://github.com/22mb/oasis/compare/v0.2.0...v0.3.0) - 2026-10-25
+
+### Added
+
+- **Breaking:** Type multipart/form-data bodies by their schema and follow Encoding Objects ([#36](https://github.com/22mb/oasis/pull/36))
+
 ## [0.2.0](https://github.com/22mb/oasis/compare/v0.1.2...v0.2.0) - 2026-10-25
 
 ### Removed
