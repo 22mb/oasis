@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/22mb/oasis"
 keywords = ["openapi", "codegen", "typescript", "client"]
 categories = ["command-line-utilities", "development-tools"]
-exclude = ["tests/ts/node_modules", "npm"]
+exclude = ["tests/ts/node_modules", "npm", "site", "docs"]
 
 [dependencies]
 serde-saphyr = "2.0.0"
