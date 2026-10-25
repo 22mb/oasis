@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "Minimal API client generator for OpenAPI 3.2",
   "license": "MIT OR Apache-2.0",
+  "homepage": "https://22mb.github.io/oasis/",
   "keywords": [
     "openapi",
     "openapi-3.2",
