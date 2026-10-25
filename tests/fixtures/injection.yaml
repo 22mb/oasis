@@ -32,6 +32,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Pet" }
+  /forms:
+    post:
+      requestBody:
+        content:
+          "multipart/form-data; x=\"*/\u2028'`\\\"":
+            schema:
+              type: object
+              properties:
+                *text : {}
+                "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`": { type: string, contentEncoding: base64 }
+            encoding:
+              *text : { contentType: *text }
+          application/x-www-form-urlencoded:
+            encoding:
+              *text : { style: deepObject }
+              "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: *text }
+      responses: {}
 components:
   schemas:
     Pet:

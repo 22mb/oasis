@@ -125,4 +125,5 @@ type InRequests = AccountRequest;
 A `format` does not change the type. A `date-time` stays a `string`, and an
 `int64` is a `number`, which is what `JSON.parse` produces. Integers above
 2<sup>53</sup> therefore lose precision. Convert values yourself where you need
-another type.
+another type. The exceptions are `format: binary` and `byte` in OpenAPI 3.0,
+which describe binary data there; see [Versions](./openapi-support#versions).

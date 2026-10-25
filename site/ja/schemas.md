@@ -23,7 +23,7 @@ type PetKind = Pet["kind"];
 
 | スキーマ | TypeScript |
 | --- | --- |
-| `type: string`（`format` は問わない。`date-time`、`uuid`、`binary` など） | `string` |
+| `type: string`（`format` は問わない。`date-time`、`uuid` など） | `string` |
 | `type: integer` または `number`（`format` は問わない。`int64` など） | `number` |
 | `type: boolean` | `boolean` |
 | `type: "null"`、または OpenAPI 3.0 の `nullable: true` | `null` を追加 |
@@ -36,7 +36,7 @@ type PetKind = Pet["kind"];
 | `allOf` | インターセクション型 |
 | コンポーネントへの `$ref` | そのスキーマの型 |
 | `required` にだけ含まれるプロパティ | `{} \| null`（`undefined` 以外の任意の値） |
-| スキーマなし、または `{}` | `unknown` |
+| スキーマなし、または `{}`（OpenAPI 3.0 の `type: string, format: binary` も含む） | `unknown`。マルチパートの本体のパートでは `Blob` |
 
 `title`、`description`、`default`、`deprecated` は JSDoc コメントになるため、エディターでホバーしたときに表示されます。なお、`format` に応じた変換は行われません。詳しくは[厳密な型](./strict-types#formats-are-not-converted)をご覧ください。
 

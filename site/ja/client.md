@@ -76,7 +76,8 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 | --- | --- |
 | `application/json`、`*+json` | スキーマの型 |
 | `application/x-www-form-urlencoded` | スキーマの型（フォームエンコードして送信） |
-| `multipart/*` | `FormData` |
+| `multipart/form-data` | スキーマの型（バイナリーのパートは `Blob`）。スキーマがないときは `FormData` |
+| その他の `multipart/*` | `FormData` |
 | `text/*` | `string` |
 | `*/*`、`application/*` | スキーマの型、または `unknown` |
 | その他 | `BodyInit` |
@@ -94,6 +95,36 @@ await api.POST("/pets", {
 ```
 
 JSON の本体は `JSON.stringify` でシリアライズされます。そのため、メディアタイプが JSON のときは、文字列の本体は JSON 文字列として送信されます。マルチパートの本体では、`fetch` が境界（boundary）を含めて `Content-Type` ヘッダーを設定します。また、リクエスト本体には、そのスキーマの[リクエスト用の型](./strict-types#requests-and-responses-have-separate-types)が使われます。
+
+### フォームの本体 {#form-bodies}
+
+フォームの本体では、オブジェクトの各プロパティが 1 つのフィールド（`application/x-www-form-urlencoded`）またはパート（`multipart/form-data`）として送信されます。配列は要素ごとに、プロパティ名を名前とするフィールドまたはパートになり、`undefined` と `null` の要素は送信されません。各値は、ドキュメントがそのプロパティに指定した Encoding Object に従って送信されます。Encoding Object がないときは、値の型によって次のように送信されます。
+
+| 値 | フォームのフィールド | マルチパートのパート |
+| --- | --- | --- |
+| オブジェクト、または配列の中の配列 | JSON | JSON（`application/json`） |
+| `Blob` | 未対応 | バイナリー。メディアタイプは `Blob` 自身の型で、型がないときは `application/octet-stream` |
+| その他 | `String(value)` | テキスト |
+
+マルチパートの本体では、スキーマに `type` がないプロパティは `Blob` になります。OpenAPI では、バイナリーデータを `type` のないスキーマで表すためです。OpenAPI 3.0 では、`type: string, format: binary` が同じ意味になります。一方、`type: string` のパートは、`contentMediaType` があってもテキストです。
+
+```ts twoslash
+import { createClient } from "./api.ts";
+const api = createClient();
+const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+// ---cut---
+await api.POST("/pets/{petId}/photo", {
+  path: { petId: 1 },
+  body: { file: new File([png], "tama.png", { type: "image/png" }), caption: "Tama" },
+});
+```
+
+Encoding Object を指定すると、プロパティの送信方法が次のように変わります。
+
+- `contentType` はメディアタイプを指定します。メディアタイプが JSON のときは、フォームのフィールドでも値が JSON として送信されます。マルチパートのパートは、その `Content-Type` で送信され、型のない `Blob` にもこのメディアタイプが付きます。`image/png, image/jpeg` のように複数のメディアタイプが列挙されているときは、`Blob` 自身の型でどれを使うかを指定します。
+- `style`、`explode`、`allowReserved` を指定すると、プロパティはクエリーパラメーターと同じ形式で送信されます。マルチパートの本体では、名前と値の組がそれぞれパートになり、パーセントエンコードはされません。
+
+`FormData` は、JSON や `Blob` のようにメディアタイプを持つパートを、ファイル名を付けて送信します。そのため、ファイル名のあるパートをすべてファイルとして扱うサーバー（FastAPI の `UploadFile` や multer など）では、JSON のパートがファイルとして読み込まれます。
 
 ### `querystring` パラメーター {#querystring-parameters}
 

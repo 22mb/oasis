@@ -1,5 +1,5 @@
 // Type-level tests for tests/fixtures/v30.yaml (OpenAPI 3.0): compiled by `tsc`, never run.
-import type { schemas } from "../golden/v30.ts";
+import type { paths, schemas } from "../golden/v30.ts";
 import type { Equal, Expect } from "./equal.ts";
 
 // `nullable: true` adds `null`: to a type, to an enum, to a `$ref` (bare or in
@@ -22,4 +22,12 @@ export type Exact = [
     shape?: schemas["Shape"];
     weight?: number;
   }>>,
+];
+
+// `format: binary` is raw binary, a `Blob` in a multipart body; `format: byte` is base64 text.
+export type Binary = [
+  Expect<Equal<
+    paths["/pets/{petId}/photo"]["POST"]["request"]["body"],
+    { file: Blob; extras?: Blob[]; checksum?: string }
+  >>,
 ];

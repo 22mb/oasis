@@ -22,7 +22,9 @@ OpenAPI 3.0 のドキュメントでは、これらのキーワードを次の�
 | --- | --- |
 | `nullable: true` | 型に `null` を追加。`enum` に付いているときは、列挙に `null` がなくても `null` を追加。ほかの生成ツールと同じ解釈だが、3.0.3 自体の規定ではこのような `enum` は `null` を含まない |
 | `$ref` と並んだ `nullable: true`、または `$ref` を 1 つだけ含む `allOf` に付いた `nullable: true` | 参照先の型に `null` を追加 |
-| `example`、真偽値の `exclusiveMinimum`、`format: binary` または `byte` | 無視 |
+| `type: string, format: binary` | 生のバイナリーデータ。`type` のないスキーマとして解釈し、`unknown`（マルチパートの本体では `Blob`）になる |
+| `type: string, format: byte` | Base64 のテキスト。`contentEncoding: base64` として解釈し、`string` になる。マルチパートのパートは `application/octet-stream` として送信 |
+| `example`、真偽値の `exclusiveMinimum` | 無視 |
 
 3.1 または 3.2 のドキュメントでは、仕様書に従うと `nullable` が警告なく無視されることになるため、`nullable` は拒否されます。代わりに `type: [..., "null"]` を使用してください。
 
@@ -83,8 +85,10 @@ OpenAPI 3.0 のドキュメントでは、これらのキーワードを次の�
 | 機能 | 対応状況 | 備考 |
 | --- | --- | --- |
 | 逐次的なメディアタイプ（sequential media types）と `itemSchema` | 対応 | JSON Lines、NDJSON、JSON テキストシーケンス、サーバー送信イベント。非同期反復可能オブジェクトとしてストリーミング |
-| マルチパートのリクエスト本体 | 対応 | `FormData` として渡す。各パートのスキーマと Encoding Object は使用しない |
-| `multipart/mixed` のストリーミング | 未対応 | |
+| `multipart/form-data` のリクエスト本体 | 対応 | スキーマから型付けし、`FormData` として送信。[フォームの本体](./client#form-bodies)を参照 |
+| その他の `multipart` のリクエスト本体（`multipart/mixed` など） | 未対応 | `FormData` として渡す。`FormData` は常に `multipart/form-data` として送信される |
+| Encoding Object（`encoding`） | 対応 | `contentType`、`style`、`explode`、`allowReserved` に対応。`FormData` ではパートのヘッダーや入れ子のパートを送信できないため、省略可能な `headers` は送信せず、必須のヘッダーと `multipart` のパートは拒否 |
+| `prefixEncoding`、`itemEncoding` | 未対応 | その他の `multipart` のメディアタイプにだけ適用される |
 | 型付きのレスポンスヘッダー | 未対応 | |
 
 ## サーバーとセキュリティ {#servers-and-security}

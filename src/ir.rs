@@ -261,6 +261,24 @@ pub struct Content {
     pub schema: Option<Schema>,
     /// Schema of each item of a sequential media type (new in 3.2).
     pub item_schema: Option<Schema>,
+    /// `encoding`: how each named property is sent, in document order. Only
+    /// read for `application/x-www-form-urlencoded` and `multipart/form-data`;
+    /// properties without an entry use the defaults for their value.
+    pub encoding: Vec<(String, Encoding)>,
+}
+
+/// How one property of a form body is sent (Encoding Object).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Encoding {
+    /// As `contentType`.
+    ContentType(String),
+    /// Like a query parameter, when `style`, `explode` or `allowReserved` is
+    /// given; `contentType` is then ignored.
+    Style {
+        style: Style,
+        explode: bool,
+        allow_reserved: bool,
+    },
 }
 
 /// How a media type's payload is represented, independent of target language.

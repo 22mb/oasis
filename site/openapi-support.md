@@ -23,7 +23,9 @@ In an OpenAPI 3.0 document, these keywords are handled as follows:
 | --- | --- |
 | `nullable: true` | Adds `null` to the type. On an `enum`, `null` is added even if the list omits it. Other generators read it this way, although under 3.0.3 itself such an `enum` still disallows `null` |
 | `nullable: true` next to a `$ref`, or on an `allOf` with one `$ref` | Adds `null` to the referenced type |
-| `example`, a boolean `exclusiveMinimum`, `format: binary` or `byte` | Ignored |
+| `type: string, format: binary` | Raw binary, read as a schema without a `type`: `unknown`, or `Blob` in a multipart body |
+| `type: string, format: byte` | Base64 text, read as `contentEncoding: base64`: a `string`, sent as an `application/octet-stream` multipart part |
+| `example`, a boolean `exclusiveMinimum` | Ignored |
 
 `nullable` in a 3.1 or 3.2 document is rejected, because those versions of the
 specification would silently ignore it. Use `type: [..., "null"]`
@@ -94,8 +96,10 @@ and decoded.
 | Feature | Support | Notes |
 | --- | --- | --- |
 | Sequential media types and `itemSchema` | Supported | JSON Lines, NDJSON, JSON text sequences, and server-sent events, streamed as async iterables |
-| Multipart request bodies | Supported | Passed as `FormData`; part schemas and the Encoding Object are not used |
-| `multipart/mixed` streaming | Not supported | |
+| `multipart/form-data` request bodies | Supported | Typed by the schema and sent as `FormData`; see [Form bodies](./client#form-bodies) |
+| Other `multipart` request bodies, such as `multipart/mixed` | Not supported | Passed as `FormData`, which is always sent as `multipart/form-data` |
+| Encoding Object (`encoding`) | Supported | `contentType`, `style`, `explode`, and `allowReserved`. `FormData` cannot send part headers or nested parts, so optional `headers` are left out, and a required header or a `multipart` part is rejected |
+| `prefixEncoding`, `itemEncoding` | Not supported | They apply only to other `multipart` media types |
 | Typed response headers | Not supported | |
 
 ## Servers and security
