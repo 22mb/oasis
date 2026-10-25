@@ -7,6 +7,13 @@ change the generated code or the CLI in incompatible ways.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-25
+
+### Changed
+
+- The documentation no longer lists Deno as a supported runtime for the
+  generated client, since CI tests the client only in Node.js and Bun.
+
 ## [0.1.1] - 2026-10-25
 
 The first release. 0.1.0 was tagged, but its release stopped before the
@@ -34,5 +41,6 @@ The first release. 0.1.0 was tagged, but its release stopped before the
 - Prebuilt binaries for macOS, Linux and Windows on arm64 and x64, published
   to npm as `oasis-gen`.
 
-[Unreleased]: https://github.com/22mb/oasis/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/22mb/oasis/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/22mb/oasis/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/22mb/oasis/releases/tag/v0.1.1
