@@ -44,8 +44,6 @@ jobs:
         if: github.event_name == 'push'
         run: test "v$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)" = "$GITHUB_REF_NAME"
       - run: rustup toolchain install stable --profile minimal --target "$TARGET"
-      - if: contains(matrix.target, 'musl')
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - run: cargo build --release --locked --target "$TARGET"
       - uses: actions/upload-artifact@v7.0.2
         with:

@@ -1,19 +1,17 @@
 // Type-level tests for tests/fixtures/multifile (a document split across files):
 // compiled by `tsc`, never run.
-import { createClient, type RequestOptions, type components, type schemas } from "../golden/multifile.ts";
+import { createClient, type RequestOptions, type schemas } from "../golden/multifile.ts";
 import type { Equal, Expect, Failure, Result, Success } from "./equal.ts";
 
-type Refs = components["refs"];
-type Pet = Refs["schemas/pet.yaml#"];
-type Owner = Refs["schemas/owner.yaml#"];
+// The schemas in other files are reached through the component that refers to them.
+type Pet = schemas["Pet"];
+type Owner = NonNullable<Pet["owner"]>;
 
 const api = createClient();
 
 // References across files, back to the referring file, and to the file itself.
 export type Exact = [
-  Expect<Equal<schemas["Pet"], Pet>>,
-  Expect<Equal<Pet, { id: number; name: string; tags?: Refs["schemas/pet.yaml#/$defs/Tags"]; owner?: Owner }>>,
-  Expect<Equal<Refs["schemas/pet.yaml#/$defs/Tags"], string[]>>,
+  Expect<Equal<Pet, { id: number; name: string; tags?: string[]; owner?: Owner }>>,
   Expect<Equal<Owner, { id: number; pets?: Pet[]; partner?: Owner }>>,
   // A schema found by its `$id`, and a parameter by an `$anchor` in another file.
   Expect<Equal<schemas["Error"], { title: string }>>,

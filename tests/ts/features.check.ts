@@ -165,8 +165,7 @@ export type Nested = [
   // ... and a property named only in a nested `allOf`.
   Expect<Equal<Flat<components["requestSchemas"]["Nested"]>, { serial?: never; secret?: string; label?: string; extra?: string }>>,
   // A schema hoisted from `$defs` has a request shape too.
-  Expect<Equal<components["requestRefs"]["#/components/schemas/Doc/$defs/meta"], { rev?: never }>>,
-  Expect<Equal<components["requestSchemas"]["Doc"], { meta?: components["requestRefs"]["#/components/schemas/Doc/$defs/meta"] }>>,
+  Expect<Equal<components["requestSchemas"]["Doc"], { meta?: { rev?: never } }>>,
   // `items` without `type` is an array; tuples with and without `items`.
   Expect<Equal<schemas["Words"], string[]>>,
   Expect<Equal<schemas["Tuple"], [string, ...number[]]>>,
