@@ -381,6 +381,9 @@ impl<'a> Emitter<'a> {
                 if let Some(security) = &op.security {
                     info.push(format!("security: {}", security_literal(security)));
                 }
+                if let Some(ct) = op.body.as_ref().and_then(default_media_type) {
+                    info.push(format!("contentType: {}", quote(ct)));
+                }
                 if !info.is_empty() {
                     writeln!(operations, "    {op_key}: {{ {} }},", info.join(", ")).unwrap();
                 }
@@ -514,10 +517,7 @@ impl<'a> Emitter<'a> {
                 let ct = if c.media_type.contains('*') {
                     "contentType?: string".to_string()
                 } else {
-                    let implied = matches!(
-                        essence(&c.media_type).as_str(),
-                        "application/json" | "multipart/form-data"
-                    );
+                    let implied = default_media_type(body) == Some(c.media_type.as_str());
                     format!("contentType{}: {}", opt(implied), quote(&c.media_type))
                 };
                 let body_field = format!("body{}: {}", opt(!body.required), self.request_body(c));
@@ -959,6 +959,23 @@ fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
             variants.iter().for_each(|c| walk(c, f))
         }
         _ => {}
+    }
+}
+
+/// The media type a request body is sent as when the call names none: the
+/// only one declared, or else the first `application/json` one.
+fn default_media_type(body: &Body) -> Option<&str> {
+    let declared: Vec<&str> = body
+        .content
+        .iter()
+        .map(|c| c.media_type.as_str())
+        .filter(|m| !m.contains('*'))
+        .collect();
+    match declared.as_slice() {
+        [only] if body.content.len() == 1 => Some(only),
+        _ => declared
+            .into_iter()
+            .find(|m| essence(m) == "application/json"),
     }
 }
 

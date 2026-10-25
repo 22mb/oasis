@@ -116,6 +116,28 @@ paths:
           content:
             text/plain:
               schema: { type: string }
+  /notes:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: string }
+      responses:
+        "204":
+          description: Saved.
+    patch:
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+      responses:
+        "204":
+          description: Patched.
 components:
   schemas:
     Account:

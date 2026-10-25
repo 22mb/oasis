@@ -218,7 +218,12 @@ type Spec = {
   styles: Record<string, Record<string, ParamStyle>>;
   security: SecurityRequirement[];
   securitySchemes: Record<string, SecuritySchemeSpec>;
-  operations: Record<string, { operationId?: string; security?: SecurityRequirement[] }>;
+  operations: Record<string, {
+    operationId?: string;
+    security?: SecurityRequirement[];
+    /** The media type a body is sent as when the call names none. */
+    contentType?: string;
+  }>;
 };
 
 type Init = RequestOptions & {
@@ -276,7 +281,8 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     }
     new Headers(rest.headers).forEach((value, name) => headers.set(name, value));
 
-    const encoded = encodeBody(body, contentType, headers);
+    const info = spec.operations[op];
+    const encoded = encodeBody(body, contentType ?? info?.contentType, headers);
     const request = new Request(url, {
       ...rest,
       method,
@@ -285,7 +291,6 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       // Required by Node to send a stream.
       ...(encoded instanceof ReadableStream ? { duplex: "half" } : {}),
     } as RequestInit);
-    const info = spec.operations[op];
     const context: MiddlewareContext = {
       operation: {
         method,

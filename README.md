@@ -74,6 +74,10 @@ await api.POST("/pets", {
 ```
 
 The init argument is optional only when the operation has no required inputs.
+`contentType` picks the request media type. It may be left out when the body
+has only one media type, or for its first `application/json` one, and the body
+is then sent as that media type, exactly as declared (a string is JSON when the
+operation takes JSON).
 Every call resolves to `{ ok, status, data, response }`, and `status` narrows
 `data` to the matching response type. A status code key covers that code, a
 range such as `4XX` the codes in it not declared on their own, and `default`

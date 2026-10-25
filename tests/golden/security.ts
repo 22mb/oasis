@@ -288,7 +288,12 @@ type Spec = {
   styles: Record<string, Record<string, ParamStyle>>;
   security: SecurityRequirement[];
   securitySchemes: Record<string, SecuritySchemeSpec>;
-  operations: Record<string, { operationId?: string; security?: SecurityRequirement[] }>;
+  operations: Record<string, {
+    operationId?: string;
+    security?: SecurityRequirement[];
+    /** The media type a body is sent as when the call names none. */
+    contentType?: string;
+  }>;
 };
 
 type Init = RequestOptions & {
@@ -346,7 +351,8 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     }
     new Headers(rest.headers).forEach((value, name) => headers.set(name, value));
 
-    const encoded = encodeBody(body, contentType, headers);
+    const info = spec.operations[op];
+    const encoded = encodeBody(body, contentType ?? info?.contentType, headers);
     const request = new Request(url, {
       ...rest,
       method,
@@ -355,7 +361,6 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       // Required by Node to send a stream.
       ...(encoded instanceof ReadableStream ? { duplex: "half" } : {}),
     } as RequestInit);
-    const info = spec.operations[op];
     const context: MiddlewareContext = {
       operation: {
         method,
@@ -740,12 +745,12 @@ const spec: Spec = {
     mtls: { type: "mutualTLS" },
   },
   operations: {
-    "POST /login": { operationId: "login", security: [] },
+    "POST /login": { operationId: "login", security: [], contentType: "application/json" },
     "GET /pets": { operationId: "listPets", security: [{}, { bearer: [] }] },
     "DELETE /admin/users": { operationId: "deleteUsers", security: [{ oauth: ["admin", "write"] }] },
     "POST /webhooks": { operationId: "webhook", security: [{ apiKey: [] }] },
     "GET /reports": { operationId: "reports", security: [{ queryKey: [] }, { basic: [] }] },
-    "POST /reports": { operationId: "createReport", security: [{ queryKey: [] }] },
+    "POST /reports": { operationId: "createReport", security: [{ queryKey: [] }], contentType: "application/json" },
     "GET /both": { operationId: "both", security: [{ apiKey: [], session: [] }] },
     "GET /digest": { operationId: "digest", security: [{ digest: [] }] },
     "GET /oidc": { operationId: "oidc", security: [{ oidc: [] }] },

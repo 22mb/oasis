@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { DecodeError, createClient } from "../golden/features.ts";
 
-type Sent = { url: string; headers: Headers };
+type Sent = { url: string; headers: Headers; body: string };
 
 /** A client whose fetch records the request and answers with `response`. */
 function recording(response: () => Response, baseUrl?: string) {
@@ -10,7 +10,7 @@ function recording(response: () => Response, baseUrl?: string) {
   const api = createClient({
     ...(baseUrl ? { baseUrl } : {}),
     fetch: async (request: Request) => {
-      sent.push({ url: request.url, headers: request.headers });
+      sent.push({ url: request.url, headers: request.headers, body: await request.text() });
       return response();
     },
   });
@@ -60,8 +60,20 @@ test("uses path- and operation-level servers", async () => {
     "https://upload.example.com/upload",
     "https://shapes.example.com/v2/shapes",
   ]);
-  assert.equal(sent[0]!.headers.get("content-type"), "application/json");
+  // The declared media type is sent, parameters included.
+  assert.equal(sent[0]!.headers.get("content-type"), "application/json; charset=utf-8");
   assert.equal(sent[1]!.headers.get("content-type"), "application/json; charset=utf-8");
+});
+
+test("a body is sent as the operation's media type when the call names none", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  // A string is JSON when the operation takes JSON, not text/plain.
+  await api.POST("/notes", { body: "hi" });
+  await api.PATCH("/notes", { body: { text: "hi" } });
+  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [
+    ["application/json", '"hi"'],
+    ["application/merge-patch+json", '{"text":"hi"}'],
+  ]);
 });
 
 test("baseUrl replaces every server", async () => {
