@@ -40,13 +40,14 @@ export type Exact = [
   // A union of one variant keeps its parentheses next to `[]` and `&`.
   Expect<Equal<schemas["Tags"], ("a" | "b")[]>>,
   Expect<Equal<schemas["Tagged"], schemas["Base"] & (schemas["Circle"] | schemas["Square"])>>,
-  // `defaultMapping`: the default variant takes every value the mapping does not list.
-  // Explicitly mapped schemas keep their implicit name as a value too.
+  // `defaultMapping`: the default variant takes every value the mapping does not list,
+  // and values without the property. Explicitly mapped schemas keep their implicit
+  // name as a value too.
   Expect<Equal<
     schemas["Vehicle"],
     | (schemas["Car"] & { kind: "car" | "Car" })
     | (schemas["Bike"] & { kind: "Bike" })
-    | (schemas["OtherVehicle"] & { kind: string })
+    | (schemas["OtherVehicle"] & { kind?: string })
   >>,
 ];
 
@@ -75,6 +76,13 @@ export async function checks() {
   // Discriminated unions narrow on the mapped values.
   const shape = {} as schemas["Shape"];
   if (shape.kind === "c") shape.r satisfies number;
+
+  // The default variant accepts a value without the discriminating property, and
+  // narrowing on a mapped value still leaves it out.
+  const other: schemas["Vehicle"] = {};
+  const vehicle = {} as schemas["Vehicle"];
+  if (vehicle.kind === "Bike") vehicle satisfies schemas["Bike"] | schemas["OtherVehicle"];
+  void other;
 
   // Recursive schemas behind non-component $refs.
   const tree = {} as schemas["Tree"];
