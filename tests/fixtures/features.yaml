@@ -320,3 +320,5 @@ components:
       required: [serial]
       properties:
         serial: { $ref: "#/components/schemas/Serial" }
+    # Named like a runtime export, so exported as `Client_2`.
+    Client: { type: string }

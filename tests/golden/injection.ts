@@ -52,6 +52,12 @@ type $Cat = {
   "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //";
 };
 
+// Each component schema under its own name; `<name>Request` is its request shape.
+export type {
+  $Pet as Pet,
+  $Cat as Cat,
+};
+
 /** Security schemes declared in the document. */
 export type SecuritySchemeName = "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`";
 

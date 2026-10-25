@@ -73,6 +73,12 @@ type $schemas_owner_yaml = {
 };
 type $schemas_pet_yaml_defs_Tags = string[];
 
+// Each component schema under its own name; `<name>Request` is its request shape.
+export type {
+  $Pet as Pet,
+  $Error as Error,
+};
+
 /** Security schemes declared in the document. */
 export type SecuritySchemeName = never;
 

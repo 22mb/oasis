@@ -195,15 +195,24 @@ header, or the percent-encoded named query parameter or cookie, for `apiKey`.
 Operations with `security: []` get nothing. Required OAuth2 scopes are passed
 to the credential function.
 
-Component schemas are exported as `schemas`:
+Each component schema is exported under its name, and an enum schema also
+exports its values, in document order:
 
 ```ts
-import type { schemas } from "./api.ts";
-type Pet = schemas["Pet"];
+import { Kind, type Pet, type NewPet } from "./api.ts";
+
+const kinds: readonly Kind[] = Kind; // ["cat", "dog"]
 ```
 
-`schemas` describes responses. A schema with `readOnly` or `writeOnly`
-properties also gets a request variant in `components["requestSchemas"]`. As
+A name is the schema's key with every run of other characters than letters,
+digits and `_` turned into one `_` (`Pet.Owner` is `Pet_Owner`). A name that is
+already taken, by the client's own exports (`Client`, `Middleware`, ...) or by
+an earlier schema, gets a number: a schema called `Client` is `Client_2`. The
+same types are also available as `schemas["Pet"]`.
+
+These types describe responses. A schema with `readOnly` or `writeOnly`
+properties also gets a request variant, exported as `PetRequest` and found in
+`components["requestSchemas"]`. As
 the specification says they should not be sent, `readOnly` properties are
 absent from requests (`id?: never`) and `writeOnly` ones from responses; the
 other side keeps the declared requiredness. A property is also `readOnly` when

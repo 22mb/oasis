@@ -1,5 +1,15 @@
 // Type-level tests for tests/fixtures/features.yaml: compiled by `tsc`, never run.
-import { createClient, type ApiResponse, type components, type schemas } from "../golden/features.ts";
+import {
+  Flag,
+  Level,
+  createClient,
+  type Account,
+  type AccountRequest,
+  type ApiResponse,
+  type Client_2,
+  type components,
+  type schemas,
+} from "../golden/features.ts";
 import type { Codes, Equal, Expect, Failure, Result, Success } from "./equal.ts";
 
 // An intersection as one object type, to compare its resulting properties.
@@ -122,3 +132,15 @@ export async function querystrings() {
   // @ts-expect-error not the schema's type
   await api.GET("/lookup", { querystring: "tags=a" });
 }
+
+// Component schemas are exported under their names, request shapes as `<name>Request`,
+// and a name the runtime exports gets a number.
+export type Named = [
+  Expect<Equal<Account, schemas["Account"]>>,
+  Expect<Equal<AccountRequest, components["requestSchemas"]["Account"]>>,
+  Expect<Equal<Client_2, schemas["Client"]>>,
+  // Enums also export their values, in document order.
+  Expect<Equal<typeof Flag, readonly ["N", "Y", "yes", "off", "A"]>>,
+  Expect<Equal<Flag, schemas["Flag"]>>,
+  Expect<Equal<typeof Level, readonly [1, 2, null]>>,
+];

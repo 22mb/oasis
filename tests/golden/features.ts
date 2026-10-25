@@ -163,6 +163,7 @@ export interface components {
     Entity: $Entity;
     Entry: $Entry;
     Holder: $Holder;
+    Client: $Client;
   };
   requestSchemas: {
     Account: $Account$Request;
@@ -283,10 +284,51 @@ type $Holder = {
 type $Holder$Request = {
   serial?: never;
 };
+type $Client = string;
 type $components_schemas_Tree_defs_node = {
   value?: number;
   left?: $components_schemas_Tree_defs_node;
   right?: $components_schemas_Tree_defs_node;
+};
+
+// Each component schema under its own name; `<name>Request` is its request shape.
+export type {
+  $Account as Account,
+  $Owner as Owner,
+  $Base as Base,
+  $WithId as WithId,
+  $Circle as Circle,
+  $Square as Square,
+  $Shape as Shape,
+  $Tree as Tree,
+  $Json as Json,
+  $Animal as Animal,
+  $Dog as Dog,
+  $Cat as Cat,
+  $Tags as Tags,
+  $Tagged as Tagged,
+  $Car as Car,
+  $Bike as Bike,
+  $OtherVehicle as OtherVehicle,
+  $Vehicle as Vehicle,
+  $Serial as Serial,
+  $Entity as Entity,
+  $Entry as Entry,
+  $Holder as Holder,
+  $Client as Client_2,
+  $Account$Request as AccountRequest,
+  $Owner$Request as OwnerRequest,
+  $Entity$Request as EntityRequest,
+  $Entry$Request as EntryRequest,
+  $Holder$Request as HolderRequest,
+};
+
+// The values of each enum schema, exported with its type.
+const $Flag = ["N", "Y", "yes", "off", "A"] as const;
+const $Level = [1, 2, null] as const;
+export {
+  $Flag as Flag,
+  $Level as Level,
 };
 
 /** Security schemes declared in the document. */

@@ -78,6 +78,21 @@ type $Pet = {
   weight?: number;
 };
 
+// Each component schema under its own name; `<name>Request` is its request shape.
+export type {
+  $Owner as Owner,
+  $Circle as Circle,
+  $Square as Square,
+  $Shape as Shape,
+  $Pet as Pet,
+};
+
+// The values of each enum schema, exported with its type.
+const $Kind = ["cat", "dog", null] as const;
+export {
+  $Kind as Kind,
+};
+
 /** Security schemes declared in the document. */
 export type SecuritySchemeName = never;
 

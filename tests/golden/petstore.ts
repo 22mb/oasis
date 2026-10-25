@@ -270,6 +270,23 @@ type $Category = {
   children?: $Category[];
 };
 
+// Each component schema under its own name; `<name>Request` is its request shape.
+export type {
+  $NewPet as NewPet,
+  $Pet as Pet,
+  $Owner as Owner,
+  $Error as Error,
+  $Labels as Labels,
+  $Point as Point,
+  $Category as Category,
+};
+
+// The values of each enum schema, exported with its type.
+const $Kind = ["cat", "dog"] as const;
+export {
+  $Kind as Kind,
+};
+
 /** Security schemes declared in the document. */
 export type SecuritySchemeName = never;
 

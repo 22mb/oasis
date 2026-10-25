@@ -256,6 +256,7 @@ impl<'a> Emitter<'a> {
         out.push_str("}\n\n");
         out.push_str("export type schemas = components[\"schemas\"];\n\n");
         self.definitions(&mut out)?;
+        self.exports(&mut out);
         let names: Vec<String> = api.security_schemes.iter().map(|s| quote(&s.key)).collect();
         writeln!(
             out,
@@ -273,6 +274,60 @@ impl<'a> Emitter<'a> {
              }\n",
         );
         Ok(out)
+    }
+
+    /// Each component schema under its own name, and the values of each enum.
+    /// The names are exported from the `$` aliases rather than declared, so they
+    /// never shadow a global the runtime uses (`Response`, `Record`, ...).
+    fn exports(&self, out: &mut String) {
+        let mut taken: HashSet<String> = RESERVED.iter().map(|s| s.to_string()).collect();
+        taken.extend(runtime_exports());
+        let components: Vec<&NamedSchema> =
+            self.api.schemas.iter().filter(|s| !s.hoisted).collect();
+        // (alias, exported name, enum values); request shapes come after every
+        // schema's own name, so adding one never renames another schema.
+        let mut names = Vec::new();
+        for s in &components {
+            let values = match &s.schema {
+                Schema::Enum { values, .. } => Some(values),
+                _ => None,
+            };
+            let name = unique(export_name(&s.key), &mut taken);
+            names.push((self.reference(&s.key, View::Response), name, values));
+        }
+        for s in &components {
+            if self.request_variants.contains(s.key.as_str()) {
+                let name = unique(format!("{}Request", export_name(&s.key)), &mut taken);
+                names.push((self.reference(&s.key, View::Request), name, None));
+            }
+        }
+        let types: String = names
+            .iter()
+            .filter(|(.., values)| values.is_none())
+            .map(|(local, name, _)| format!("  {local} as {name},\n"))
+            .collect();
+        if !types.is_empty() {
+            out.push_str(
+                "// Each component schema under its own name; `<name>Request` is its request shape.\n",
+            );
+            writeln!(out, "export type {{\n{types}}};\n").unwrap();
+        }
+        let enums: Vec<_> = names
+            .iter()
+            .filter_map(|(local, name, values)| Some((local, name, (*values)?)))
+            .collect();
+        if !enums.is_empty() {
+            out.push_str("// The values of each enum schema, exported with its type.\n");
+            for (local, _, values) in &enums {
+                let items: Vec<String> = values.iter().map(literal).collect();
+                writeln!(out, "const {local} = [{}] as const;", items.join(", ")).unwrap();
+            }
+            let specifiers: String = enums
+                .iter()
+                .map(|(local, name, _)| format!("  {local} as {name},\n"))
+                .collect();
+            writeln!(out, "export {{\n{specifiers}}};\n").unwrap();
+        }
     }
 
     /// One `components` member: component or hoisted schemas, in one view.
@@ -1137,6 +1192,52 @@ fn jsdoc(meta: &Meta, extra: &[String], indent: usize) -> String {
 
 /// `key` as part of a TypeScript identifier: runs of other characters become
 /// `_`, so `schemas/pet.yaml#` gives `schemas_pet_yaml`.
+/// Names the emitter exports besides the runtime's and the schemas'.
+const RESERVED: &[&str] = &[
+    "paths",
+    "components",
+    "schemas",
+    "SecuritySchemeName",
+    "createClient",
+];
+
+/// The names the runtime exports.
+fn runtime_exports() -> impl Iterator<Item = String> {
+    RUNTIME.lines().filter_map(|line| {
+        let rest = line.strip_prefix("export ")?;
+        let name = rest
+            .split_whitespace()
+            .find(|w| !matches!(*w, "type" | "interface" | "class" | "function" | "const"))?;
+        Some(
+            name.chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect(),
+        )
+    })
+}
+
+/// The exported name of a schema: its key as an identifier.
+fn export_name(key: &str) -> String {
+    let name = identifier(key);
+    if name.starts_with(|c: char| c.is_ascii_digit()) {
+        format!("_{name}")
+    } else {
+        name
+    }
+}
+
+/// `base`, or `base_2`, `base_3`, ... when it is taken; the result is taken.
+fn unique(base: String, taken: &mut HashSet<String>) -> String {
+    let mut name = base.clone();
+    for n in 2.. {
+        if taken.insert(name.clone()) {
+            break;
+        }
+        name = format!("{base}_{n}");
+    }
+    name
+}
+
 fn identifier(key: &str) -> String {
     let mut out = String::new();
     for c in key.chars() {
@@ -1241,6 +1342,31 @@ mod tests {
                 .unwrap()
                 .contains("type $Json = string | $Json[];\n")
         );
+    }
+
+    #[test]
+    fn runtime_exports_are_reserved() {
+        let names: HashSet<String> = runtime_exports().collect();
+        for n in [
+            "ClientOptions",
+            "ApiResponse",
+            "Middleware",
+            "Client",
+            "DecodeError",
+            "auth",
+        ] {
+            assert!(names.contains(n), "{n} missing from {names:?}");
+        }
+        let out = generate(json!({
+            "Client": {"type": "string"},
+            "auth": {"enum": ["a"]},
+            "paths": {"type": "string"},
+            "2fa": {"type": "string"},
+        }))
+        .unwrap();
+        let has = |s: &str| assert!(out.contains(s), "missing {s:?} in\n{out}");
+        has("  $Client as Client_2,\n  $paths as paths_2,\n  $2fa as _2fa,\n");
+        has("const $auth = [\"a\"] as const;\nexport {\n  $auth as auth_2,\n};\n");
     }
 
     #[test]
