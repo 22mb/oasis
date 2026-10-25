@@ -50,3 +50,5 @@ updates:
       # Shiki's major version must match the one VitePress 1 bundles (2.x).
       - dependency-name: "@shikijs/*"
         update-types: ["version-update:semver-major"]
+      - dependency-name: shiki
+        update-types: ["version-update:semver-major"]
