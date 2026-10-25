@@ -116,6 +116,53 @@ paths:
           content:
             text/plain:
               schema: { type: string }
+  /notes:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: string }
+      responses:
+        "204":
+          description: Saved.
+    patch:
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+      responses:
+        "204":
+          description: Patched.
+  /lookup:
+    get:
+      parameters:
+        - name: q
+          in: querystring
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags: { type: array, items: { type: string } }
+      responses:
+        "204":
+          description: Found.
+    post:
+      parameters:
+        - name: q
+          in: querystring
+          content:
+            text/plain:
+              schema: { type: string }
+      responses:
+        "204":
+          description: Found.
 components:
   schemas:
     Account:
@@ -255,3 +302,23 @@ components:
         mapping:
           car: "#/components/schemas/Car"
         defaultMapping: OtherVehicle
+    # readOnly and writeOnly reach a property from the schema it references and
+    # from another allOf member, which often lists it only in `required`.
+    Serial: { type: integer, readOnly: true }
+    Entity:
+      type: object
+      properties:
+        serial: { $ref: "#/components/schemas/Serial" }
+        secret: { type: string, writeOnly: true }
+        label: { type: string }
+    Entry:
+      allOf:
+        - $ref: "#/components/schemas/Entity"
+        - required: [serial, secret, label]
+    Holder:
+      type: object
+      required: [serial]
+      properties:
+        serial: { $ref: "#/components/schemas/Serial" }
+    # Named like a runtime export, so exported as `Client_2`.
+    Client: { type: string }

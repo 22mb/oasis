@@ -74,6 +74,10 @@ await api.POST("/pets", {
 ```
 
 The init argument is optional only when the operation has no required inputs.
+`contentType` picks the request media type. It may be left out when the body
+has only one media type, or for its first `application/json` one, and the body
+is then sent as that media type, exactly as declared (a string is JSON when the
+operation takes JSON).
 Every call resolves to `{ ok, status, data, response }`, and `status` narrows
 `data` to the matching response type. A status code key covers that code, a
 range such as `4XX` the codes in it not declared on their own, and `default`
@@ -191,17 +195,30 @@ header, or the percent-encoded named query parameter or cookie, for `apiKey`.
 Operations with `security: []` get nothing. Required OAuth2 scopes are passed
 to the credential function.
 
-Component schemas are exported as `schemas`:
+Each component schema is exported under its name, and an enum schema also
+exports its values, in document order:
 
 ```ts
-import type { schemas } from "./api.ts";
-type Pet = schemas["Pet"];
+import { Kind, type Pet, type NewPet } from "./api.ts";
+
+const kinds: readonly Kind[] = Kind; // ["cat", "dog"]
 ```
 
-`schemas` describes responses. A schema with required `readOnly` or `writeOnly`
-properties also gets a request variant in `components["requestSchemas"]`, where
-`readOnly` properties are optional (and `writeOnly` ones keep their
-requiredness); in responses, required `writeOnly` properties are optional.
+A name is the schema's key with every run of other characters than letters,
+digits and `_` turned into one `_` (`Pet.Owner` is `Pet_Owner`). A name that is
+already taken, by the client's own exports (`Client`, `Middleware`, ...) or by
+an earlier schema, gets a number: a schema called `Client` is `Client_2`. The
+same types are also available as `schemas["Pet"]`.
+
+These types describe responses. A schema with `readOnly` or `writeOnly`
+properties also gets a request variant, exported as `PetRequest` and found in
+`components["requestSchemas"]`. As
+the specification says they should not be sent, `readOnly` properties are
+absent from requests (`id?: never`) and `writeOnly` ones from responses; the
+other side keeps the declared requiredness. A property is also `readOnly` when
+its `$ref` target is, or when another `allOf` member marks a property of the
+same name, so `allOf: [$ref Base, { required: [id] }]` keeps `id` out of
+requests when `Base` marks it `readOnly`.
 
 Each schema becomes a type alias named after it, `$Pet` (and `$Pet$Request`
 for the request variant); that is the name hovers and error messages show.
@@ -224,7 +241,7 @@ document is rejected, since the spec would have it silently ignored there.
 The 3.2 features oasis-gen supports:
 
 - `query` operations (the HTTP `QUERY` method) and `additionalOperations` with custom methods such as `LINK`
-- `in: querystring` parameters
+- `in: querystring` parameters: form fields, or a value of the parameter's schema serialized as its media type (JSON, for instance) and percent-encoded
 - `itemSchema` and sequential media types (JSON Lines, NDJSON, JSON text sequences, server-sent events), streamed as async iterables
 - `components.mediaTypes` and `$ref` to them
 - Multi-file documents: `$ref`s to other local files (whole documents or fragments), resolved against `$self` when present, with `$id` and `$anchor` in schemas. A `$self` URI such as `https://api.example.com/openapi/root.yaml` is mapped onto the file's own directory, so `schemas/pet.yaml` next to it is found locally. Schemas from other files appear in `components["refs"]` under keys like `schemas/pet.yaml#`

@@ -89,6 +89,52 @@ export interface paths {
       };
     };
   };
+  "/notes": {
+    POST: {
+      request: {
+        contentType?: "application/json";
+        body: string;
+      };
+      responses: {
+        /** Saved. */
+        "204": undefined;
+      };
+    };
+    PATCH: {
+      request: {
+        contentType?: "application/merge-patch+json";
+        body: {
+          text?: string;
+        };
+      };
+      responses: {
+        /** Patched. */
+        "204": undefined;
+      };
+    };
+  };
+  "/lookup": {
+    GET: {
+      request: {
+        querystring: {
+          tags?: string[];
+        };
+      };
+      responses: {
+        /** Found. */
+        "204": undefined;
+      };
+    };
+    POST: {
+      request: {
+        querystring?: string;
+      };
+      responses: {
+        /** Found. */
+        "204": undefined;
+      };
+    };
+  };
 }
 
 export interface components {
@@ -113,10 +159,18 @@ export interface components {
     Bike: $Bike;
     OtherVehicle: $OtherVehicle;
     Vehicle: $Vehicle;
+    Serial: $Serial;
+    Entity: $Entity;
+    Entry: $Entry;
+    Holder: $Holder;
+    Client: $Client;
   };
   requestSchemas: {
     Account: $Account$Request;
     Owner: $Owner$Request;
+    Entity: $Entity$Request;
+    Entry: $Entry$Request;
+    Holder: $Holder$Request;
   };
   refs: {
     "#/components/schemas/Tree/$defs/node": $components_schemas_Tree_defs_node;
@@ -136,7 +190,7 @@ type $Account = {
   id: number;
   /** @default "anonymous" */
   name: string;
-  password?: string;
+  password?: never;
   owner?: $Owner;
 };
 /**
@@ -144,7 +198,7 @@ type $Account = {
  * A user account.
  */
 type $Account$Request = {
-  id?: number;
+  id?: never;
   /** @default "anonymous" */
   name: string;
   password: string;
@@ -154,7 +208,7 @@ type $Owner = {
   ownerId: number;
 };
 type $Owner$Request = {
-  ownerId?: number;
+  ownerId?: never;
 };
 type $Base = {
   id?: number;
@@ -203,10 +257,78 @@ type $OtherVehicle = {
   kind: string;
 };
 type $Vehicle = ($Car & { kind: "car" | "Car" }) | ($Bike & { kind: "Bike" }) | ($OtherVehicle & { kind: string });
+type $Serial = number;
+type $Entity = {
+  serial?: $Serial;
+  secret?: never;
+  label?: string;
+};
+type $Entity$Request = {
+  serial?: never;
+  secret?: string;
+  label?: string;
+};
+type $Entry = $Entity & {
+  serial: {} | null;
+  secret?: never;
+  label: {} | null;
+};
+type $Entry$Request = $Entity$Request & {
+  serial?: never;
+  secret: {} | null;
+  label: {} | null;
+};
+type $Holder = {
+  serial: $Serial;
+};
+type $Holder$Request = {
+  serial?: never;
+};
+type $Client = string;
 type $components_schemas_Tree_defs_node = {
   value?: number;
   left?: $components_schemas_Tree_defs_node;
   right?: $components_schemas_Tree_defs_node;
+};
+
+// Each component schema under its own name; `<name>Request` is its request shape.
+export type {
+  $Account as Account,
+  $Owner as Owner,
+  $Base as Base,
+  $WithId as WithId,
+  $Circle as Circle,
+  $Square as Square,
+  $Shape as Shape,
+  $Tree as Tree,
+  $Json as Json,
+  $Animal as Animal,
+  $Dog as Dog,
+  $Cat as Cat,
+  $Tags as Tags,
+  $Tagged as Tagged,
+  $Car as Car,
+  $Bike as Bike,
+  $OtherVehicle as OtherVehicle,
+  $Vehicle as Vehicle,
+  $Serial as Serial,
+  $Entity as Entity,
+  $Entry as Entry,
+  $Holder as Holder,
+  $Client as Client_2,
+  $Account$Request as AccountRequest,
+  $Owner$Request as OwnerRequest,
+  $Entity$Request as EntityRequest,
+  $Entry$Request as EntryRequest,
+  $Holder$Request as HolderRequest,
+};
+
+// The values of each enum schema, exported with its type.
+const $Flag = ["N", "Y", "yes", "off", "A"] as const;
+const $Level = [1, 2, null] as const;
+export {
+  $Flag as Flag,
+  $Level as Level,
 };
 
 /** Security schemes declared in the document. */
@@ -354,7 +476,14 @@ type Spec = {
   styles: Record<string, Record<string, ParamStyle>>;
   security: SecurityRequirement[];
   securitySchemes: Record<string, SecuritySchemeSpec>;
-  operations: Record<string, { operationId?: string; security?: SecurityRequirement[] }>;
+  operations: Record<string, {
+    operationId?: string;
+    security?: SecurityRequirement[];
+    /** The media type a body is sent as when the call names none. */
+    contentType?: string;
+    /** The media type of the `querystring` parameter. */
+    querystring?: string;
+  }>;
 };
 
 type Init = RequestOptions & {
@@ -362,7 +491,7 @@ type Init = RequestOptions & {
   query?: Record<string, unknown>;
   header?: Record<string, unknown>;
   cookie?: Record<string, unknown>;
-  querystring?: string | Record<string, unknown>;
+  querystring?: unknown;
   contentType?: string;
   body?: unknown;
 };
@@ -374,6 +503,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     if (!path.startsWith("/")) {
       throw new TypeError(`${op}: the path must be a template from the document, starting with "/"`);
     }
+    const info = spec.operations[op];
     const styles = spec.styles[op] ?? {};
     const style = (location: string, name: string) => styles[`${location}:${name}`] ?? {};
 
@@ -389,9 +519,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       return value;
     }).join("/");
     const search = querystring !== undefined
-      ? typeof querystring === "string"
-        ? querystring.replace(/^\?/, "")
-        : formEncode(querystring)
+      ? encodeQuerystring(querystring, info?.querystring)
       : present(query).flatMap(([name, value]) => queryPairs(name, value, style("query", name))).join("&");
     if (search) url += `?${search}`;
 
@@ -412,7 +540,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     }
     new Headers(rest.headers).forEach((value, name) => headers.set(name, value));
 
-    const encoded = encodeBody(body, contentType, headers);
+    const encoded = encodeBody(body, contentType ?? info?.contentType, headers);
     const request = new Request(url, {
       ...rest,
       method,
@@ -421,7 +549,6 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       // Required by Node to send a stream.
       ...(encoded instanceof ReadableStream ? { duplex: "half" } : {}),
     } as RequestInit);
-    const info = spec.operations[op];
     const context: MiddlewareContext = {
       operation: {
         method,
@@ -467,6 +594,21 @@ function present(values: object | undefined): [string, unknown][] {
 type Encode = (s: string) => string;
 
 /** RFC 6570 reserved expansion: reserved characters and %XX triples pass through. */
+/**
+ * The whole query string from the value of a `querystring` parameter: form
+ * fields, or else the value serialized as its media type and percent-encoded.
+ */
+function encodeQuerystring(value: unknown, mediaType = "application/x-www-form-urlencoded"): string {
+  switch (mediaKind(mediaType)) {
+    case "form":
+      return typeof value === "string" ? value.replace(/^\?/, "") : formEncode(value as Record<string, unknown>);
+    case "json":
+      return encodeURIComponent(JSON.stringify(value));
+    default:
+      return encodeURIComponent(String(value));
+  }
+}
+
 function encodeReserved(s: string): string {
   return s.replace(
     /%[0-9A-Fa-f]{2}|[^A-Za-z0-9\-._~:/?@!$'()*,;=]/gu,
@@ -788,7 +930,7 @@ function setCookie(headers: Headers, name: string, value: string): void {
 
 const spec: Spec = {
   baseUrl: "https://api.example.com",
-  methods: ["GET", "DELETE", "POST"],
+  methods: ["GET", "DELETE", "POST", "PATCH"],
   servers: {
     "POST /upload": "https://upload.example.com",
     "GET /shapes": "https://shapes.example.com/v2",
@@ -800,6 +942,11 @@ const spec: Spec = {
   securitySchemes: {},
   operations: {
     "GET /items/{coords}": { operationId: "getItem" },
+    "POST /upload": { contentType: "application/json; charset=utf-8" },
+    "POST /notes": { contentType: "application/json" },
+    "PATCH /notes": { contentType: "application/merge-patch+json" },
+    "GET /lookup": { querystring: "application/json" },
+    "POST /lookup": { querystring: "text/plain" },
   },
 };
 

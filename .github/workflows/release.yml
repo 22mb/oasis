@@ -4,9 +4,11 @@ name: Release
 # binaries for every platform, attest them, publish the npm packages and
 # publish a GitHub release. The release is created as a draft and published
 # last, which works with immutable releases (assets cannot change afterwards).
+# Run it by hand (workflow_dispatch) to build every platform without publishing.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -39,6 +41,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Check that the tag matches Cargo.toml
+        if: github.event_name == 'push'
         run: test "v$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)" = "$GITHUB_REF_NAME"
       - run: rustup toolchain install stable --profile minimal --target "$TARGET"
       - if: contains(matrix.target, 'musl')
@@ -53,6 +56,8 @@ jobs:
   publish:
     name: Publish
     needs: build
+    # Only a pushed tag publishes; a manual run from any ref stops after the builds.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     # Protect with required reviewers and a `v*` tag rule in the repository settings.
     environment: release
@@ -86,11 +91,12 @@ jobs:
           mkdir release
           for dir in artifacts/*; do
             target=$(basename "$dir")
+            cp LICENSE-MIT LICENSE-APACHE "$dir/"
             if [[ "$target" == *windows* ]]; then
-              (cd "$dir" && zip -q "$GITHUB_WORKSPACE/release/oasis-gen-$target.zip" oasis-gen.exe)
+              (cd "$dir" && zip -q "$GITHUB_WORKSPACE/release/oasis-gen-$target.zip" oasis-gen.exe LICENSE-MIT LICENSE-APACHE)
             else
               chmod +x "$dir/oasis-gen"
-              tar -czf "release/oasis-gen-$target.tar.gz" -C "$dir" oasis-gen
+              tar -czf "release/oasis-gen-$target.tar.gz" -C "$dir" oasis-gen LICENSE-MIT LICENSE-APACHE
             fi
           done
           (cd release && sha256sum oasis-gen-* > SHA256SUMS)

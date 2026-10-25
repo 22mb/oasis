@@ -7,12 +7,15 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/22mb/oasis"
 keywords = ["openapi", "codegen", "typescript", "client"]
 categories = ["command-line-utilities", "development-tools"]
-exclude = ["tests/ts/node_modules", "npm"]
+exclude = ["tests/ts/node_modules", "npm", "site", "docs", "playground"]
 
 [dependencies]
 serde-saphyr = "2.0.0"
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
 url = "2.5.8"
+
+[lints.rust]
+unsafe_code = "forbid"
 
 [profile.release]
 lto = true

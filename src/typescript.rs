@@ -9,11 +9,140 @@ use std::fmt::Write;
 const RUNTIME: &str = include_str!("typescript/runtime.ts");
 
 pub fn emit(api: &Api) -> Result<String, Error> {
-    Emitter::new(api).emit()
+    let mut api = api.clone();
+    inherit_access(&mut api);
+    Emitter::new(&api).emit()
 }
 
-/// Which side of the wire a type describes. Required `readOnly` properties are
-/// optional in requests; required `writeOnly` properties are optional in responses.
+/// Copies `readOnly` and `writeOnly` onto every property they apply to, so that
+/// the emitter can read them off the property: one whose schema is a `$ref` to
+/// a flagged schema, and one that an `allOf` member names (often only in
+/// `required`) while another member flags it.
+fn inherit_access(api: &mut Api) {
+    let schemas: HashMap<String, NamedSchema> = api
+        .schemas
+        .iter()
+        .map(|s| (s.key.clone(), s.clone()))
+        .collect();
+    let mut fix = |s: &mut Schema| match s {
+        Schema::Object { properties, .. } => {
+            for p in properties {
+                let (r, w) = access(&p.schema, &schemas, &mut Vec::new());
+                p.meta.read_only |= r;
+                p.meta.write_only |= w;
+            }
+        }
+        Schema::Intersection(parts) => {
+            let mut flagged = (HashSet::new(), HashSet::new());
+            for p in parts.iter() {
+                flagged_properties(p, &schemas, &mut flagged, &mut Vec::new());
+            }
+            for p in parts {
+                mark(p, &flagged);
+            }
+        }
+        _ => {}
+    };
+    for s in &mut api.schemas {
+        walk_mut(&mut s.schema, &mut fix);
+    }
+    for op in api.paths.iter_mut().flat_map(|p| &mut p.operations) {
+        let mut contents: Vec<&mut Content> = Vec::new();
+        for p in &mut op.params {
+            match &mut p.value {
+                ParamValue::Schema { schema, .. } => walk_mut(schema, &mut fix),
+                ParamValue::Content(c) => contents.push(c),
+            }
+        }
+        contents.extend(op.querystring.as_mut().map(|q| &mut q.content));
+        contents.extend(op.body.iter_mut().flat_map(|b| &mut b.content));
+        contents.extend(op.responses.iter_mut().flat_map(|r| &mut r.content));
+        for c in contents {
+            for s in c.schema.iter_mut().chain(&mut c.item_schema) {
+                walk_mut(s, &mut fix);
+            }
+        }
+    }
+}
+
+/// Whether a value of `s` is `readOnly` and `writeOnly` through `$ref` and
+/// `allOf` alone; `visiting` guards against `$ref` cycles.
+fn access<'s>(
+    s: &'s Schema,
+    schemas: &'s HashMap<String, NamedSchema>,
+    visiting: &mut Vec<&'s str>,
+) -> (bool, bool) {
+    match s {
+        Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
+            let Some(n) = schemas.get(k) else {
+                return (false, false);
+            };
+            visiting.push(k);
+            let (r, w) = access(&n.schema, schemas, visiting);
+            visiting.pop();
+            (n.meta.read_only || r, n.meta.write_only || w)
+        }
+        Schema::Intersection(parts) => parts.iter().fold((false, false), |(r, w), p| {
+            let (pr, pw) = access(p, schemas, visiting);
+            (r || pr, w || pw)
+        }),
+        _ => (false, false),
+    }
+}
+
+/// Adds the names of the `readOnly` and `writeOnly` properties of `s`, with
+/// `allOf` members and `$ref` targets flattened, to `flagged`.
+fn flagged_properties<'s>(
+    s: &'s Schema,
+    schemas: &'s HashMap<String, NamedSchema>,
+    flagged: &mut (HashSet<String>, HashSet<String>),
+    visiting: &mut Vec<&'s str>,
+) {
+    match s {
+        Schema::Object { properties, .. } => {
+            for p in properties {
+                let (r, w) = access(&p.schema, schemas, &mut Vec::new());
+                if p.meta.read_only || r {
+                    flagged.0.insert(p.name.clone());
+                }
+                if p.meta.write_only || w {
+                    flagged.1.insert(p.name.clone());
+                }
+            }
+        }
+        Schema::Intersection(parts) => {
+            for p in parts {
+                flagged_properties(p, schemas, flagged, visiting);
+            }
+        }
+        Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
+            if let Some(n) = schemas.get(k) {
+                visiting.push(k);
+                flagged_properties(&n.schema, schemas, flagged, visiting);
+                visiting.pop();
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Flags the properties of the object members of `s` (an `allOf` member) that
+/// `flagged` names.
+fn mark(s: &mut Schema, flagged: &(HashSet<String>, HashSet<String>)) {
+    match s {
+        Schema::Object { properties, .. } => {
+            for p in properties {
+                p.meta.read_only |= flagged.0.contains(&p.name);
+                p.meta.write_only |= flagged.1.contains(&p.name);
+            }
+        }
+        Schema::Intersection(parts) => parts.iter_mut().for_each(|p| mark(p, flagged)),
+        _ => {}
+    }
+}
+
+/// Which side of the wire a type describes. `readOnly` properties are absent
+/// (`?: never`) from requests, and `writeOnly` properties from responses.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum View {
     Request,
@@ -50,8 +179,8 @@ impl<'a> Emitter<'a> {
             names.insert(s.key.as_str(), name);
         }
 
-        // A schema needs a request variant if it has a required readOnly or
-        // writeOnly property, or references a schema that does.
+        // A schema needs a request variant if it has a readOnly or writeOnly
+        // property, or references a schema that does.
         let mut direct = Vec::new();
         for s in &api.schemas {
             let mut flagged = false;
@@ -61,7 +190,7 @@ impl<'a> Emitter<'a> {
                 Schema::Object { properties, .. } => {
                     flagged |= properties
                         .iter()
-                        .any(|p| p.required && (p.meta.read_only || p.meta.write_only));
+                        .any(|p| p.meta.read_only || p.meta.write_only);
                 }
                 _ => {}
             });
@@ -127,6 +256,7 @@ impl<'a> Emitter<'a> {
         out.push_str("}\n\n");
         out.push_str("export type schemas = components[\"schemas\"];\n\n");
         self.definitions(&mut out)?;
+        self.exports(&mut out);
         let names: Vec<String> = api.security_schemes.iter().map(|s| quote(&s.key)).collect();
         writeln!(
             out,
@@ -144,6 +274,60 @@ impl<'a> Emitter<'a> {
              }\n",
         );
         Ok(out)
+    }
+
+    /// Each component schema under its own name, and the values of each enum.
+    /// The names are exported from the `$` aliases rather than declared, so they
+    /// never shadow a global the runtime uses (`Response`, `Record`, ...).
+    fn exports(&self, out: &mut String) {
+        let mut taken: HashSet<String> = RESERVED.iter().map(|s| s.to_string()).collect();
+        taken.extend(runtime_exports());
+        let components: Vec<&NamedSchema> =
+            self.api.schemas.iter().filter(|s| !s.hoisted).collect();
+        // (alias, exported name, enum values); request shapes come after every
+        // schema's own name, so adding one never renames another schema.
+        let mut names = Vec::new();
+        for s in &components {
+            let values = match &s.schema {
+                Schema::Enum { values, .. } => Some(values),
+                _ => None,
+            };
+            let name = unique(export_name(&s.key), &mut taken);
+            names.push((self.reference(&s.key, View::Response), name, values));
+        }
+        for s in &components {
+            if self.request_variants.contains(s.key.as_str()) {
+                let name = unique(format!("{}Request", export_name(&s.key)), &mut taken);
+                names.push((self.reference(&s.key, View::Request), name, None));
+            }
+        }
+        let types: String = names
+            .iter()
+            .filter(|(.., values)| values.is_none())
+            .map(|(local, name, _)| format!("  {local} as {name},\n"))
+            .collect();
+        if !types.is_empty() {
+            out.push_str(
+                "// Each component schema under its own name; `<name>Request` is its request shape.\n",
+            );
+            writeln!(out, "export type {{\n{types}}};\n").unwrap();
+        }
+        let enums: Vec<_> = names
+            .iter()
+            .filter_map(|(local, name, values)| Some((local, name, (*values)?)))
+            .collect();
+        if !enums.is_empty() {
+            out.push_str("// The values of each enum schema, exported with its type.\n");
+            for (local, _, values) in &enums {
+                let items: Vec<String> = values.iter().map(literal).collect();
+                writeln!(out, "const {local} = [{}] as const;", items.join(", ")).unwrap();
+            }
+            let specifiers: String = enums
+                .iter()
+                .map(|(local, name, _)| format!("  {local} as {name},\n"))
+                .collect();
+            writeln!(out, "export {{\n{specifiers}}};\n").unwrap();
+        }
     }
 
     /// One `components` member: component or hoisted schemas, in one view.
@@ -251,6 +435,12 @@ impl<'a> Emitter<'a> {
                 }
                 if let Some(security) = &op.security {
                     info.push(format!("security: {}", security_literal(security)));
+                }
+                if let Some(qs) = &op.querystring {
+                    info.push(format!("querystring: {}", quote(&qs.content.media_type)));
+                }
+                if let Some(ct) = op.body.as_ref().and_then(default_media_type) {
+                    info.push(format!("contentType: {}", quote(ct)));
                 }
                 if !info.is_empty() {
                     writeln!(operations, "    {op_key}: {{ {} }},", info.join(", ")).unwrap();
@@ -373,6 +563,7 @@ impl<'a> Emitter<'a> {
                     self.ty(s, 4, View::Request)
                 }
                 (MediaKind::FormUrlEncoded, _) => "Record<string, unknown>".to_string(),
+                (MediaKind::Json, s) => self.schema_or_unknown(s.as_ref(), 4, View::Request),
                 _ => "string".to_string(),
             };
             fields.push(format!("querystring{}: {}", opt(!qs.required), t));
@@ -385,10 +576,7 @@ impl<'a> Emitter<'a> {
                 let ct = if c.media_type.contains('*') {
                     "contentType?: string".to_string()
                 } else {
-                    let implied = matches!(
-                        essence(&c.media_type).as_str(),
-                        "application/json" | "multipart/form-data"
-                    );
+                    let implied = default_media_type(body) == Some(c.media_type.as_str());
                     format!("contentType{}: {}", opt(implied), quote(&c.media_type))
                 };
                 let body_field = format!("body{}: {}", opt(!body.required), self.request_body(c));
@@ -530,12 +718,15 @@ impl<'a> Emitter<'a> {
                 }
                 let mut out = String::from("{\n");
                 for p in properties {
-                    let optional = !p.required
-                        || (view == View::Request && p.meta.read_only)
+                    // A readOnly property should not be sent in a request, nor a
+                    // writeOnly one in a response.
+                    let absent = (view == View::Request && p.meta.read_only)
                         || (view == View::Response && p.meta.write_only);
+                    let optional = !p.required || absent;
                     // A required property can be anything but undefined; this also makes
                     // `{ id: {} | null } & Base` narrow `Base["id"]` instead of widening it.
                     let t = match &p.schema {
+                        _ if absent => "never".to_string(),
                         Schema::Any if p.required => "{} | null".to_string(),
                         s => self.ty(s, indent + 1, view),
                     };
@@ -830,6 +1021,54 @@ fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
     }
 }
 
+/// The media type a request body is sent as when the call names none: the
+/// only one declared, or else the first `application/json` one.
+fn default_media_type(body: &Body) -> Option<&str> {
+    let declared: Vec<&str> = body
+        .content
+        .iter()
+        .map(|c| c.media_type.as_str())
+        .filter(|m| !m.contains('*'))
+        .collect();
+    match declared.as_slice() {
+        [only] if body.content.len() == 1 => Some(only),
+        _ => declared
+            .into_iter()
+            .find(|m| essence(m) == "application/json"),
+    }
+}
+
+/// [`walk`], with each node mutable before its children are visited.
+fn walk_mut(s: &mut Schema, f: &mut dyn FnMut(&mut Schema)) {
+    f(s);
+    match s {
+        Schema::Array {
+            prefix_items,
+            items,
+        } => {
+            prefix_items.iter_mut().for_each(|c| walk_mut(c, f));
+            if let Some(c) = items {
+                walk_mut(c, f);
+            }
+        }
+        Schema::Object {
+            properties,
+            additional,
+        } => {
+            properties
+                .iter_mut()
+                .for_each(|p| walk_mut(&mut p.schema, f));
+            if let Some(c) = additional {
+                walk_mut(c, f);
+            }
+        }
+        Schema::Union { variants, .. } | Schema::Intersection(variants) => {
+            variants.iter_mut().for_each(|c| walk_mut(c, f))
+        }
+        _ => {}
+    }
+}
+
 /// A `security` list as a runtime `SecurityRequirement[]` literal.
 fn security_literal(security: &[SecurityRequirement]) -> String {
     let items: Vec<String> = security
@@ -953,6 +1192,52 @@ fn jsdoc(meta: &Meta, extra: &[String], indent: usize) -> String {
 
 /// `key` as part of a TypeScript identifier: runs of other characters become
 /// `_`, so `schemas/pet.yaml#` gives `schemas_pet_yaml`.
+/// Names the emitter exports besides the runtime's and the schemas'.
+const RESERVED: &[&str] = &[
+    "paths",
+    "components",
+    "schemas",
+    "SecuritySchemeName",
+    "createClient",
+];
+
+/// The names the runtime exports.
+fn runtime_exports() -> impl Iterator<Item = String> {
+    RUNTIME.lines().filter_map(|line| {
+        let rest = line.strip_prefix("export ")?;
+        let name = rest
+            .split_whitespace()
+            .find(|w| !matches!(*w, "type" | "interface" | "class" | "function" | "const"))?;
+        Some(
+            name.chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect(),
+        )
+    })
+}
+
+/// The exported name of a schema: its key as an identifier.
+fn export_name(key: &str) -> String {
+    let name = identifier(key);
+    if name.starts_with(|c: char| c.is_ascii_digit()) {
+        format!("_{name}")
+    } else {
+        name
+    }
+}
+
+/// `base`, or `base_2`, `base_3`, ... when it is taken; the result is taken.
+fn unique(base: String, taken: &mut HashSet<String>) -> String {
+    let mut name = base.clone();
+    for n in 2.. {
+        if taken.insert(name.clone()) {
+            break;
+        }
+        name = format!("{base}_{n}");
+    }
+    name
+}
+
 fn identifier(key: &str) -> String {
     let mut out = String::new();
     for c in key.chars() {
@@ -1060,6 +1345,31 @@ mod tests {
     }
 
     #[test]
+    fn runtime_exports_are_reserved() {
+        let names: HashSet<String> = runtime_exports().collect();
+        for n in [
+            "ClientOptions",
+            "ApiResponse",
+            "Middleware",
+            "Client",
+            "DecodeError",
+            "auth",
+        ] {
+            assert!(names.contains(n), "{n} missing from {names:?}");
+        }
+        let out = generate(json!({
+            "Client": {"type": "string"},
+            "auth": {"enum": ["a"]},
+            "paths": {"type": "string"},
+            "2fa": {"type": "string"},
+        }))
+        .unwrap();
+        let has = |s: &str| assert!(out.contains(s), "missing {s:?} in\n{out}");
+        has("  $Client as Client_2,\n  $paths as paths_2,\n  $2fa as _2fa,\n");
+        has("const $auth = [\"a\"] as const;\nexport {\n  $auth as auth_2,\n};\n");
+    }
+
+    #[test]
     fn alias_names_are_identifiers_and_unique() {
         let out = generate(json!({
             "Pet.Owner": {"type": "string"},
@@ -1073,6 +1383,6 @@ mod tests {
             "    \"Pet.Owner\": $Pet_Owner;\n    Pet_Owner: $Pet_Owner_2;\n    Pet$Request: $Pet_Request;\n    Pet: $Pet;\n",
         );
         has("  requestSchemas: {\n    Pet: $Pet$Request;\n");
-        has("type $Pet$Request = {\n  id?: number;\n};\n");
+        has("type $Pet$Request = {\n  id?: never;\n};\n");
     }
 }

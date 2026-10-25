@@ -1,14 +1,32 @@
 // Type-level tests for tests/fixtures/features.yaml: compiled by `tsc`, never run.
-import { createClient, type ApiResponse, type components, type schemas } from "../golden/features.ts";
+import {
+  Flag,
+  Level,
+  createClient,
+  type Account,
+  type AccountRequest,
+  type ApiResponse,
+  type Client_2,
+  type components,
+  type schemas,
+} from "../golden/features.ts";
 import type { Codes, Equal, Expect, Failure, Result, Success } from "./equal.ts";
 
-// readOnly and writeOnly give requests and responses different shapes.
+// An intersection as one object type, to compare its resulting properties.
+type Flat<T> = { [K in keyof T]: T[K] };
+
+// readOnly properties are absent from requests and writeOnly ones from responses.
 export type Exact = [
-  Expect<Equal<schemas["Account"], { id: number; name: string; password?: string; owner?: schemas["Owner"] }>>,
+  Expect<Equal<schemas["Account"], { id: number; name: string; password?: never; owner?: schemas["Owner"] }>>,
   Expect<Equal<
     components["requestSchemas"]["Account"],
-    { id?: number; name: string; password: string; owner?: components["requestSchemas"]["Owner"] }
+    { id?: never; name: string; password: string; owner?: components["requestSchemas"]["Owner"] }
   >>,
+  // ... also when they come from a referenced schema or another allOf member.
+  Expect<Equal<Flat<schemas["Entry"]>, { serial: number; secret?: never; label: string }>>,
+  Expect<Equal<Flat<components["requestSchemas"]["Entry"]>, { serial?: never; secret: string; label: string }>>,
+  Expect<Equal<schemas["Holder"], { serial: number }>>,
+  Expect<Equal<components["requestSchemas"]["Holder"], { serial?: never }>>,
   // Recursion through an array or index signature at the top of a schema.
   Expect<Equal<schemas["Json"], string | number | boolean | null | schemas["Json"][] | { [key: string]: schemas["Json"] }>>,
   // A parent listing its subtypes in `oneOf` while they extend it with `allOf`: the parent
@@ -97,4 +115,32 @@ export type Statuses = [
   Expect<Equal<ApiResponse<{ "2XX": number; default: string }>, Result<Success, true, number> | Result<Failure, false, string>>>,
   // `default` alone covers every status.
   Expect<Equal<ApiResponse<{ default: string }>, Result<Success, true, string> | Result<Failure, false, string>>>,
+];
+
+export async function access() {
+  await api.POST("/upload", { body: { name: "a", password: "p" } });
+  // @ts-expect-error readOnly properties are not sent
+  await api.POST("/upload", { body: { id: 1, name: "a", password: "p" } });
+  const res = await api.POST("/upload", { body: { name: "a", password: "p" } });
+  // @ts-expect-error writeOnly properties are not received
+  if (res.status === 201) res.data.password satisfies string;
+}
+
+export async function querystrings() {
+  // A JSON querystring takes its schema's type.
+  await api.GET("/lookup", { querystring: { tags: ["a"] } });
+  // @ts-expect-error not the schema's type
+  await api.GET("/lookup", { querystring: "tags=a" });
+}
+
+// Component schemas are exported under their names, request shapes as `<name>Request`,
+// and a name the runtime exports gets a number.
+export type Named = [
+  Expect<Equal<Account, schemas["Account"]>>,
+  Expect<Equal<AccountRequest, components["requestSchemas"]["Account"]>>,
+  Expect<Equal<Client_2, schemas["Client"]>>,
+  // Enums also export their values, in document order.
+  Expect<Equal<typeof Flag, readonly ["N", "Y", "yes", "off", "A"]>>,
+  Expect<Equal<Flag, schemas["Flag"]>>,
+  Expect<Equal<typeof Level, readonly [1, 2, null]>>,
 ];
