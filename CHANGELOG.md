@@ -7,9 +7,10 @@ change the generated code or the CLI in incompatible ways.
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-10-25
+## [0.1.1] - 2026-10-25
 
-The first release.
+The first release. 0.1.0 was tagged, but its release stopped before the
+`oasis-gen` package was published to npm.
 
 ### Added
 
@@ -33,5 +34,5 @@ The first release.
 - Prebuilt binaries for macOS, Linux and Windows on arm64 and x64, published
   to npm as `oasis-gen`.
 
-[Unreleased]: https://github.com/22mb/oasis/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/22mb/oasis/releases/tag/v0.1.0
+[Unreleased]: https://github.com/22mb/oasis/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/22mb/oasis/releases/tag/v0.1.1
