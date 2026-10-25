@@ -151,9 +151,19 @@ jobs:
             # Re-run: replace assets on a draft; a published release is final.
             if [[ "$(cat draft)" == true ]]; then gh release upload "$TAG" release/* --clobber; fi
           else
-            # The notes are the version's section of CHANGELOG.md, which must exist.
-            awk -v heading="## [$VERSION]" \
-              '/^## \[/ { if (found) exit; found = index($0, heading) == 1; next } found' CHANGELOG.md > notes.md
+            # The notes are the version's section of CHANGELOG.md, which must exist, with
+            # wrapped lines joined: GitHub shows every line break in release notes.
+            awk -v heading="## [$VERSION]" '
+              function flush() { if (have) print buf; have = 0 }
+              /^## \[/ { if (found) { flush(); exit } found = index($0, heading) == 1; next }
+              !found { next }
+              /^```/ { flush(); code = !code; print; next }
+              code { print; next }
+              /^$/ || /^#/ { flush(); print; next }
+              /^(- |\* |\| )/ { flush(); buf = $0; have = 1; next }
+              { line = $0; sub(/^ +/, "", line); if (have) buf = buf " " line; else { buf = $0; have = 1 } }
+              END { flush() }
+            ' CHANGELOG.md > notes.md
             test -s notes.md
             flags=()
             [[ "$VERSION" == *-* ]] && flags+=(--prerelease)
