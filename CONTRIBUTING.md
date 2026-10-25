@@ -49,10 +49,36 @@ translate the IR. Adding a target language means adding one emitter next to
 
 - Keep a pull request to one change, and add a test or a fixture for it.
 - Run `cargo fmt` and `cargo clippy --all-targets -- -D warnings`.
-- Add a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md) for
-  a change users will notice.
+- Title the pull request in [Conventional Commits](https://www.conventionalcommits.org/)
+  form. The title becomes the squashed commit and the changelog entry, so
+  write the description for users, such as `feat: support QUERY operations`.
+  - `feat:` a new feature, `fix:` a bug fix, `fix(security):` a security fix,
+    and `perf:` a performance change. These are listed in the changelog.
+  - `docs:`, `test:`, `ci:`, `refactor:` and `chore:` for changes users will
+    not notice. These are left out.
+  - Add `!` after the type for a breaking change, such as `feat!:`.
 - The generated code should stay dependency-free and type-check with
   TypeScript 5.0 or later. CI checks both.
+
+## Releasing
+
+1. Set `version` in `Cargo.toml`, and run `cargo check` and
+   `cargo check --manifest-path playground/Cargo.toml` to update the
+   lockfiles.
+2. Draft the changelog section from the pull requests merged since the last
+   release, then edit it for users: merge related entries and say what changes
+   for them.
+
+   ```sh
+   npx git-cliff@2.14.2 --unreleased --tag v<version> --prepend CHANGELOG.md
+   ```
+
+3. Merge the release pull request, then tag its commit on `main` and push the
+   tag, which runs the release workflow.
+
+   ```sh
+   git tag -a v<version> -m "oasis-gen <version>" && git push origin v<version>
+   ```
 
 By contributing, you agree that your contribution is licensed under the
 project's dual MIT and Apache-2.0 license.
