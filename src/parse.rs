@@ -693,9 +693,14 @@ impl<'a> Parser<'a> {
             Some(Value::String(t)) => vec![t],
             Some(Value::Array(ts)) => ts.iter().filter_map(Value::as_str).collect(),
             Some(_) => return Err(Error::new("`type` must be a string or array")),
-            None if ["properties", "additionalProperties", "required"]
-                .iter()
-                .any(|k| obj.contains_key(*k)) =>
+            None if [
+                "properties",
+                "patternProperties",
+                "additionalProperties",
+                "required",
+            ]
+            .iter()
+            .any(|k| obj.contains_key(*k)) =>
             {
                 vec!["object"]
             }
@@ -804,12 +809,19 @@ impl<'a> Parser<'a> {
                         });
                     }
                 }
+                let mut pattern_properties = Vec::new();
+                if let Some(patterns) = node.get("patternProperties") {
+                    for (pattern, s) in patterns.entries() {
+                        pattern_properties.push((pattern.clone(), self.schema(s, depth + 1)?));
+                    }
+                }
                 let additional = match node.get("additionalProperties") {
                     Some(s) => Some(Box::new(self.schema(s, depth + 1)?)),
                     None => None,
                 };
                 Schema::Object {
                     properties,
+                    pattern_properties,
                     additional,
                 }
             }

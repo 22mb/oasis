@@ -175,7 +175,15 @@ export type Nested = [
   Expect<Equal<schemas["Empty"], Record<string, never>>>,
   Expect<Equal<schemas["Constants"], { one: 1; yes: true; nothing: null }>>,
   Expect<Equal<schemas["Described"], { owner?: schemas["Owner"] }>>,
+  // `patternProperties` gives an index signature over every key.
+  Expect<Equal<schemas["Labels"], { [key: string]: string | number }>>,
+  Expect<Equal<schemas["LabeledPet"], { name: string; [key: string]: unknown }>>,
+  Expect<Equal<schemas["Counts"], { [key: string]: number | string }>>,
 ];
+
+// A property matching a pattern is a valid value, also with `additionalProperties: false`.
+export const labeled: schemas["LabeledPet"] = { name: "Tama", "x-id": "1" };
+export const labels: schemas["Labels"] = { "x-id": "1", "n-count": 2 };
 
 type Operation<P extends keyof paths, M extends keyof paths[P]> = paths[P][M] extends { request: infer R; responses: infer S }
   ? { request: R; responses: S }

@@ -248,6 +248,9 @@ export interface components {
     Empty: $Empty;
     Constants: $Constants;
     Described: $Described;
+    Labels: $Labels;
+    LabeledPet: $LabeledPet;
+    Counts: $Counts;
   };
   requestSchemas: {
     Account: $Account$Request;
@@ -417,6 +420,12 @@ type $Described$Request = {
   /** Who owns it. */
   owner?: $Owner$Request;
 };
+type $Labels = { [key: string]: string | number };
+type $LabeledPet = {
+  name: string;
+  [key: string]: unknown;
+};
+type $Counts = { [key: string]: number | string };
 type $components_schemas_Tree_defs_node = {
   value?: number;
   left?: $components_schemas_Tree_defs_node;
@@ -465,6 +474,9 @@ export type {
   $Empty as Empty,
   $Constants as Constants,
   $Described as Described,
+  $Labels as Labels,
+  $LabeledPet as LabeledPet,
+  $Counts as Counts,
   $Account$Request as AccountRequest,
   $Owner$Request as OwnerRequest,
   $Entity$Request as EntityRequest,
