@@ -48,15 +48,10 @@ translate the IR. Adding a target language means adding one emitter next to
 ## Pull requests
 
 - Keep a pull request to one change, and add a test or a fixture for it.
-- Run `cargo fmt` and `cargo clippy --all-targets -- -D warnings`.
-- Title the pull request in [Conventional Commits](https://www.conventionalcommits.org/)
-  form. The title becomes the squashed commit and the changelog entry, so
-  write the description for users, such as `feat: support QUERY operations`.
-  - `feat:` a new feature, `fix:` a bug fix, `fix(security):` a security fix,
-    and `perf:` a performance change. These are listed in the changelog.
-  - `docs:`, `test:`, `ci:`, `refactor:` and `chore:` for changes users will
-    not notice. These are left out.
-  - Add `!` after the type for a breaking change, such as `feat!:`.
+- Title it in [Conventional Commits](https://www.conventionalcommits.org/)
+  form, such as `feat: support QUERY operations`. CI checks the title, which
+  becomes the squashed commit and, for `feat`, `fix` and `perf`, the changelog
+  entry.
 - The generated code should stay dependency-free and type-check with
   TypeScript 5.0 or later. CI checks both.
 
@@ -73,7 +68,7 @@ translate the IR. Adding a target language means adding one emitter next to
    npx git-cliff@2.14.2 --unreleased --tag v<version> --prepend CHANGELOG.md
    ```
 
-3. Merge the release pull request, then tag its commit on `main` and push the
+3. Merge the release pull request, titled `release: <version>`, then tag its commit on `main` and push the
    tag, which runs the release workflow.
 
    ```sh
