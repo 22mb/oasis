@@ -2,3 +2,5 @@
 node_modules/
 site/.vitepress/cache/
 site/.vitepress/dist/
+/playground/target
+site/.vitepress/theme/oasis.wasm

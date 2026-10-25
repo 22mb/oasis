@@ -15,7 +15,7 @@
 use crate::Error;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use url::Url;
 
@@ -67,8 +67,7 @@ impl Documents {
     /// Like [`Documents::from_file`] for a document already in memory;
     /// relative references are resolved against the current directory.
     pub fn from_value(value: Value) -> Result<Documents, Error> {
-        let cwd = std::env::current_dir()
-            .and_then(|d| d.canonicalize())
+        let cwd = current_dir()
             .map_err(|e| Error::new(format!("cannot resolve the current directory: {e}")))?;
         Documents::new(value, file_url(&cwd.join("-"))?)
     }
@@ -172,9 +171,8 @@ impl Documents {
             self.failures.insert(key, reason);
             return;
         };
-        let loaded = file
-            .to_file_path()
-            .map_err(|()| format!("`{file}` is not a local file"))
+        let loaded = file_path(&file)
+            .ok_or_else(|| format!("`{file}` is not a local file"))
             .and_then(|path| {
                 let canonical = path
                     .canonicalize()
@@ -395,9 +393,41 @@ fn walk<'v>(value: &'v Value, base: &Rc<Url>, path: &mut Vec<Segment<'v>>, found
     }
 }
 
+#[cfg(any(unix, windows))]
+fn current_dir() -> std::io::Result<PathBuf> {
+    std::env::current_dir()?.canonicalize()
+}
+
+#[cfg(any(unix, windows))]
 fn file_url(path: &Path) -> Result<Url, Error> {
     Url::from_file_path(path)
         .map_err(|()| Error::new(format!("cannot use {} as a URI", path.display())))
+}
+
+#[cfg(any(unix, windows))]
+fn file_path(url: &Url) -> Option<PathBuf> {
+    url.to_file_path().ok()
+}
+
+// WebAssembly in a browser, where the documentation site's playground runs the
+// generator, has no file system: a document read from text is at `file:///-`,
+// and reading any other file fails.
+
+#[cfg(not(any(unix, windows)))]
+fn current_dir() -> std::io::Result<PathBuf> {
+    Ok(PathBuf::from("/"))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn file_url(path: &Path) -> Result<Url, Error> {
+    Url::parse("file:///")
+        .and_then(|root| root.join(&path.to_string_lossy()))
+        .map_err(|_| Error::new(format!("cannot use {} as a URI", path.display())))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn file_path(url: &Url) -> Option<PathBuf> {
+    Some(PathBuf::from(percent_decode(url.path())))
 }
 
 fn without_fragment(mut url: Url) -> Url {

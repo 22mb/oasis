@@ -104,6 +104,7 @@ export default defineConfig({
         nav: [
           { text: "Guide", link: "/getting-started" },
           { text: "Reference", link: "/reference" },
+          { text: "Playground", link: "/playground" },
         ],
         sidebar: [
           {
@@ -141,6 +142,7 @@ export default defineConfig({
         nav: [
           { text: "ガイド", link: "/ja/getting-started" },
           { text: "リファレンス", link: "/ja/reference" },
+          { text: "プレイグラウンド", link: "/ja/playground" },
         ],
         sidebar: [
           {

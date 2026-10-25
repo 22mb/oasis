@@ -1,0 +1,22 @@
+# The generator as a WebAssembly module for the playground on the documentation
+# site; `npm run wasm` in site/ builds it.
+[package]
+name = "oasis-playground"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+oasis-gen = { path = ".." }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "s"
+
+# Not a member of the generator's package.
+[workspace]

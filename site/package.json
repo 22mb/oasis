@@ -2,13 +2,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev",
-    "build": "vitepress build",
+    "wasm": "cargo build --release --locked --target wasm32-unknown-unknown --manifest-path ../playground/Cargo.toml && cp ../playground/target/wasm32-unknown-unknown/release/oasis_playground.wasm .vitepress/theme/oasis.wasm",
+    "dev": "npm run wasm && vitepress dev",
+    "build": "npm run wasm && vitepress build",
     "preview": "vitepress preview"
   },
   "devDependencies": {
     "@shikijs/vitepress-twoslash": "2.5.0",
     "@tanstack/react-query": "5.104.2",
+    "shiki": "2.5.0",
     "typescript": "6.0.3",
     "vitepress": "1.6.4"
   },
