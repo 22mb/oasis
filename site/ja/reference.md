@@ -20,9 +20,9 @@ oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
 
 ## 動作要件 {#requirements}
 
-- **Node.js** 24 以降が、CLI と生成されるクライアントの両方に必要です。クライアントは、ブラウザーと Bun でも動作します。
+- **Node.js** 22 以降が、CLI と生成されるクライアントの両方に必要です。クライアントは、ブラウザーと Bun でも動作します。
 - **TypeScript** 5.0 以降が必要です。生成されるファイルには、`lib` の ES2022 以降が必要です。さらに `fetch`、`Request`、`Response` の型のために、`lib` の `dom` か `@types/node` のどちらかが必要です。
-- 生成されるファイルは TypeScript の消去可能な構文（erasable syntax）だけを使っているため、Node.js の Type Stripping でもそのまま実行できます。
+- 生成されるファイルは TypeScript の消去可能な構文（erasable syntax）だけを使っているため、Node.js の Type Stripping（Node.js 22.18 以降では既定で有効）でもそのまま実行できます。
 
 このサイトのコード例は `./api.ts` をインポートしています。このインポートには、`allowImportingTsExtensions`（Vite のテンプレートでは設定済み）か Node.js の Type Stripping が必要です。どちらも使わないときは、モジュール解決の方式に合わせて `./api.js` か `./api` をインポートしてください。
 

@@ -128,6 +128,12 @@ jobs:
       - run: npm run check:no-dom
       # Without Node's types, as browser projects are set up.
       - run: npm run check:browser
+      # The oldest supported Node.js.
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - run: npm test
       # The generated client also runs in Bun.
       - uses: oven-sh/setup-bun@v2.2.0
         with:

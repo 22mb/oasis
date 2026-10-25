@@ -2,7 +2,7 @@
 
 このページでは、OpenAPI ドキュメントから型付きの API 呼び出しまでの手順を説明します。
 
-Node.js 24 以降と TypeScript プロジェクトが必要です。生成されるファイルに必要な TypeScript の設定は、[動作要件](./reference#requirements)をご覧ください。
+Node.js 22 以降と TypeScript プロジェクトが必要です。生成されるファイルに必要な TypeScript の設定は、[動作要件](./reference#requirements)をご覧ください。
 
 ## oasis-gen のインストール {#install-oasis-gen}
 

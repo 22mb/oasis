@@ -2,7 +2,7 @@
 
 This page takes you from an OpenAPI document to a typed API call.
 
-You need Node.js 24 or later and a TypeScript project. See
+You need Node.js 22 or later and a TypeScript project. See
 [Requirements](./reference#requirements) for the TypeScript settings that the
 generated file needs.
 
