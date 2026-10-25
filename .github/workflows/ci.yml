@@ -8,8 +8,11 @@ on:
 permissions: {}
 
 # Incremental builds only add to the cache; CI always starts from scratch.
+# Line tables keep test backtraces readable at a fraction of the full debug info,
+# which is slow to write on Windows. Changing this needs a new cache key prefix.
 env:
   CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 # One run per branch or pull request; a new push cancels the previous one.
 concurrency:
@@ -35,8 +38,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             target/
-          key: cargo-rust-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-rust-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
+          key: cargo-rust-v2-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-rust-v2-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
@@ -67,8 +70,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             target/
-          key: cargo-test-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-test-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
+          key: cargo-test-v2-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-test-v2-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
       - run: cargo test --locked
 
   typescript:
@@ -113,7 +116,6 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - run: rustup toolchain install stable --profile minimal --target x86_64-unknown-linux-musl
-      - run: sudo apt-get update && sudo apt-get install -y musl-tools
       - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
       - uses: actions/cache@v6.1.0
         with:
