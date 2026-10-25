@@ -11,6 +11,8 @@ file, with types for every operation and a small `fetch`-based runtime.
 **[Playground](https://22mb.github.io/oasis/playground)** ·
 [日本語](https://22mb.github.io/oasis/ja/)
 
+<img src="https://raw.githubusercontent.com/22mb/oasis/main/site/public/strict-types.png" alt="In the generated client, res.data has the type $Pet when res.status is 200, $Error when it is 404, and unknown for any other status">
+
 - **OpenAPI 3.2**: `QUERY` operations, sequential media types (JSON Lines,
   server-sent events), multi-file documents, and JSON Schema 2020-12.
   OpenAPI 3.0 and 3.1 documents are accepted too.
