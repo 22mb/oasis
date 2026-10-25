@@ -66,7 +66,7 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 1. クライアントの `headers`
 2. `header` パラメーター
 3. `cookie` パラメーター（すでに設定されている `Cookie` ヘッダーに追加）
-4. 呼び出し自体の `headers` オプション
+4. 呼び出し自体の `headers` オプション（`Cookie` ヘッダーは、それまでに設定された cookie に結合され、同名の cookie だけを置き換える）
 
 ### リクエスト本体 {#request-bodies}
 

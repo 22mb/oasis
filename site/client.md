@@ -77,7 +77,8 @@ ones.
 1. The client's `headers`
 2. `header` parameters
 3. `cookie` parameters, added to any `Cookie` header that is already set
-4. The call's own `headers` option
+4. The call's own `headers` option. Its `Cookie` header joins the cookies set
+   so far, replacing only those of the same name
 
 ### Request bodies
 

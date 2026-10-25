@@ -256,3 +256,22 @@ test("an optional body can be left out without a media type", async () => {
     ["image/png", 1],
   ]);
 });
+
+test("a call's Cookie header joins the cookie parameters", async () => {
+  const sent: Headers[] = [];
+  const api = createClient({
+    headers: { cookie: "theme=dark" },
+    fetch: async (request: Request) => {
+      sent.push(request.headers);
+      return new Response(null, { status: 204 });
+    },
+  });
+  const path = { list: ["a"], pair: { x: 1 } };
+  await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "lang=ja; token=a=b" } });
+  // A cookie of the same name is replaced; other headers of the same name still replace.
+  await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "theme=light", "x-ids": "9" }, header: { "X-Ids": [1] } });
+  assert.deepEqual(sent.map((h) => [h.get("cookie"), h.get("x-ids")]), [
+    ["theme=dark; multi=x; lang=ja; token=a=b", null],
+    ["multi=x; theme=light", "9"],
+  ]);
+});

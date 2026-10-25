@@ -360,7 +360,14 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     if (cookies.length) {
       headers.set("cookie", [headers.get("cookie"), ...cookies].filter(Boolean).join("; "));
     }
-    new Headers(rest.headers).forEach((value, name) => headers.set(name, value));
+    new Headers(rest.headers).forEach((value, name) => {
+      if (name !== "cookie") return headers.set(name, value);
+      // The call's cookies join the ones set so far, replacing those of the same name.
+      for (const pair of value.split(";")) {
+        const [cookie = "", ...parts] = pair.split("=");
+        if (cookie.trim()) setCookie(headers, cookie.trim(), parts.join("=").trim());
+      }
+    });
 
     const encoded = encodeBody(body, contentType ?? info.contentType, headers);
     const request = new Request(url, {
