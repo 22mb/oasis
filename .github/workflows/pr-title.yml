@@ -31,7 +31,7 @@ jobs:
             exit 1
           fi
       # A release pull request must set the version in Cargo.toml and add its
-      # section to CHANGELOG.md, which the release workflow reads only after the tag is pushed.
+      # section to CHANGELOG.md, which the release workflow reads only after it is merged.
       - if: "startsWith(github.event.pull_request.title, 'release: ')"
         uses: actions/checkout@v7.0.1
         with:

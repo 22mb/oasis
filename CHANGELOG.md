@@ -5,9 +5,7 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
-## [Unreleased]
-
-## [0.2.0] - 2026-10-25
+## [0.2.0](https://github.com/22mb/oasis/compare/v0.1.2...v0.2.0) - 2026-10-25
 
 ### Removed
 
@@ -46,14 +44,14 @@ change the generated code or the CLI in incompatible ways.
   `TypeError`. With no server URL and no `baseUrl`, browsers resolved such a
   path as a URL on another host, and `auth()` sent credentials there.
 
-## [0.1.2] - 2026-10-25
+## [0.1.2](https://github.com/22mb/oasis/compare/v0.1.1...v0.1.2) - 2026-10-25
 
 ### Changed
 
 - The documentation no longer lists Deno as a supported runtime for the
   generated client, since CI tests the client only in Node.js and Bun.
 
-## [0.1.1] - 2026-10-25
+## [0.1.1](https://github.com/22mb/oasis/releases/tag/v0.1.1) - 2026-10-25
 
 The first release. 0.1.0 was tagged, but its release stopped before the
 `oasis-gen` package was published to npm.
@@ -79,8 +77,3 @@ The first release. 0.1.0 was tagged, but its release stopped before the
   `$self`.
 - Prebuilt binaries for macOS, Linux and Windows on arm64 and x64, published
   to npm as `oasis-gen`.
-
-[Unreleased]: https://github.com/22mb/oasis/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/22mb/oasis/compare/v0.1.2...v0.2.0
-[0.1.2]: https://github.com/22mb/oasis/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/22mb/oasis/releases/tag/v0.1.1

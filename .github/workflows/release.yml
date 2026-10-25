@@ -1,24 +1,46 @@
 name: Release
 
-# Push a tag `v<version>` matching Cargo.toml to build
-# binaries for every platform, attest them, publish the npm packages and
-# publish a GitHub release. The release is created as a draft and published
-# last, which works with immutable releases (assets cannot change afterwards).
+# Merging a release pull request (`release: <version>`, from prepare-release.yml)
+# tags its commit `v<version>`, builds binaries for every platform, attests them,
+# publishes the npm packages and publishes a GitHub release. Other pushes to main
+# stop after the first job. Pushing the tag `v<version>` on a release commit by
+# hand runs the same steps, to retry a release; steps already done are skipped.
+# The release is created as a draft and published last, which works with
+# immutable releases (assets cannot change afterwards).
 # Run it by hand (workflow_dispatch) to build every platform without publishing.
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
 permissions: {}
 
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.title.outputs.release }}
+      version: ${{ steps.title.outputs.version }}
+    steps:
+      - id: title
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          # The squashed commit's title is the pull request's, with ` (#<number>)` appended.
+          title=${MESSAGE%%$'\n'*}
+          if [[ "$GITHUB_EVENT_NAME" == push && "$title" =~ ^release:\ ([0-9][^ ]*)( \(#[0-9]+\))?$ ]]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build ${{ matrix.target }}
+    needs: version
+    if: needs.version.outputs.release == 'true' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         include:
@@ -33,6 +55,7 @@ jobs:
       contents: read # checkout
     env:
       TARGET: ${{ matrix.target }}
+      VERSION: ${{ needs.version.outputs.version }}
     defaults:
       run:
         shell: bash
@@ -40,9 +63,9 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - name: Check that the tag matches Cargo.toml
-        if: github.event_name == 'push'
-        run: test "v$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)" = "$GITHUB_REF_NAME"
+      - name: Check that the release's version matches Cargo.toml
+        if: needs.version.outputs.release == 'true'
+        run: test "$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)" = "$VERSION"
       - run: rustup toolchain install stable --profile minimal --target "$TARGET"
       - run: cargo build --release --locked --target "$TARGET"
       - uses: actions/upload-artifact@v7.0.2
@@ -53,12 +76,19 @@ jobs:
 
   publish:
     name: Publish
-    needs: build
-    # Only a pushed tag publishes; a manual run from any ref stops after the builds.
-    if: github.event_name == 'push'
+    needs: [version, build]
+    # Only a release commit on main publishes; a manual run stops after the builds.
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
-    # The environment accepts only `v*` tags, and the `release tags` ruleset lets only admins create them.
+    # The environment accepts only main, where only merged pull requests land,
+    # and `v*` tags, which only admins and this workflow can create.
     environment: release
+    concurrency:
+      group: release-publish
+      cancel-in-progress: false
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: v${{ needs.version.outputs.version }}
     permissions:
       contents: write # create and publish the GitHub release
       id-token: write # OIDC for npm trusted publishing, npm provenance and attestations
@@ -83,7 +113,7 @@ jobs:
         run: |
           chmod +x artifacts/x86_64-unknown-linux-musl/oasis-gen
           artifacts/x86_64-unknown-linux-musl/oasis-gen tests/fixtures/petstore.yaml > /dev/null
-      - run: node npm/build.mjs "${GITHUB_REF_NAME#v}" artifacts npm-dist
+      - run: node npm/build.mjs "$VERSION" artifacts npm-dist
       - name: Package release archives
         run: |
           mkdir release
@@ -101,27 +131,40 @@ jobs:
       - uses: actions/attest-build-provenance@v4.2.2
         with:
           subject-path: release/oasis-gen-*
+      # The `release tags` ruleset lets only admins and this workflow create `v*` tags.
+      - name: Tag the release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha 2>/dev/null); then
+            # Re-run: the tag exists, and must be on this commit.
+            test "$commit" = "$GITHUB_SHA"
+          else
+            object=$(gh api "repos/$GITHUB_REPOSITORY/git/tags" -f tag="$TAG" -f message="oasis-gen $VERSION" \
+              -f object="$GITHUB_SHA" -f type=commit --jq .sha)
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$object" > /dev/null
+          fi
       - name: Create the draft GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft > draft 2>/dev/null; then
+          if gh release view "$TAG" --json isDraft --jq .isDraft > draft 2>/dev/null; then
             # Re-run: replace assets on a draft; a published release is final.
-            if [[ "$(cat draft)" == true ]]; then gh release upload "$GITHUB_REF_NAME" release/* --clobber; fi
+            if [[ "$(cat draft)" == true ]]; then gh release upload "$TAG" release/* --clobber; fi
           else
             # The notes are the version's section of CHANGELOG.md, which must exist.
-            awk -v heading="## [${GITHUB_REF_NAME#v}]" \
+            awk -v heading="## [$VERSION]" \
               '/^## \[/ { if (found) exit; found = index($0, heading) == 1; next } found' CHANGELOG.md > notes.md
             test -s notes.md
             flags=()
-            [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)
-            gh release create "$GITHUB_REF_NAME" release/* --draft --notes-file notes.md --verify-tag "${flags[@]}"
+            [[ "$VERSION" == *-* ]] && flags+=(--prerelease)
+            gh release create "$TAG" release/* --draft --notes-file notes.md --verify-tag "${flags[@]}"
           fi
       # npm authenticates with OIDC: every package trusts this workflow's `release`
       # environment as its trusted publisher (`npm trust github`).
       - name: Publish to npm
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="$VERSION"
           tag=latest
           [[ "$version" == *-* ]] && tag=next
           # Platform packages first, so the main package's optional dependencies resolve.
@@ -138,6 +181,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)" == true ]]; then
-            gh release edit "$GITHUB_REF_NAME" --draft=false
+          if [[ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" == true ]]; then
+            gh release edit "$TAG" --draft=false
           fi

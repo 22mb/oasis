@@ -74,24 +74,18 @@ translate the IR. Adding a target language means adding one emitter next to
 
 ## Releasing
 
-1. Set `version` in `Cargo.toml`, and run `cargo check` and
-   `cargo check --manifest-path playground/Cargo.toml` to update the
-   lockfiles.
-2. Draft the changelog section from the pull requests merged since the last
-   release, then edit it for users: merge related entries and say what changes
-   for them.
-
-   ```sh
-   npx git-cliff@2.14.2 --unreleased --tag v<version> --prepend CHANGELOG.md
-   ```
-
-3. Merge the release pull request, titled `release: <version>`, then tag its commit on `main` and push the
-   tag, which runs the release workflow. CI checks that `Cargo.toml` and
-   `CHANGELOG.md` match the title.
-
-   ```sh
-   git tag -a v<version> -m "oasis-gen <version>" && git push origin v<version>
-   ```
+1. Run the **Prepare release** workflow from the Actions tab. It picks the
+   next version from the pull requests merged since the last release (until
+   1.0.0, a breaking change bumps the minor version and anything else the
+   patch version), sets it in `Cargo.toml` and both lockfiles, adds its section
+   to `CHANGELOG.md` from their titles, and pushes the branch
+   `release/<version>`.
+2. Open the pull request from the link in the run's summary. Its title is
+   `release: <version>`, and CI checks that `Cargo.toml` and `CHANGELOG.md`
+   match it. Edit the changelog on the branch if an entry needs more than its
+   title, such as how to migrate from a breaking change.
+3. Merge it. The release workflow tags the commit `v<version>`, builds every
+   platform, and publishes the npm packages and the GitHub release.
 
 By contributing, you agree that your contribution is licensed under the
 project's dual MIT and Apache-2.0 license.
