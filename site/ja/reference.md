@@ -44,9 +44,9 @@ cargo install --git https://github.com/22mb/oasis
 | `auth(credentials)` | ドキュメントの `security` の指定どおりに資格情報を送信するミドルウェア。[認証](./authentication)を参照 |
 | `DecodeError` | 本体が `Content-Type` と一致しないときに投げられるエラー。[エラー](./client#decodeerror)を参照 |
 | `Pet` や `AccountRequest` などのスキーマの型と、`Kind` などの列挙値 | [スキーマ](./schemas)を参照 |
-| `paths` | すべての操作の入力とレスポンス（パスとメソッドごと） |
+| `paths` | すべての操作の入力、レスポンス、各レスポンスが対象とするステータス（パスとメソッドごと） |
 | `schemas`、`components` | ドキュメントのスキーマ（名前ごと）。[スキーマ](./schemas#type-aliases-and-components)を参照 |
-| `ApiResponse<Responses>` | 呼び出しの結果の型（操作の `responses` から作成） |
+| `ApiResponse<Operation>` | 呼び出しの結果の型（`paths` の操作から作成） |
 | `Client<Paths>`、`ClientOptions`、`RequestOptions` | クライアント、そのオプション、呼び出しごとの fetch オプション |
 | `Middleware`、`MiddlewareContext`、`OperationInfo` | ミドルウェアと、ミドルウェアが受け取る情報。[ミドルウェア](./middleware)を参照 |
 | `Credential`、`SecurityRequirement`、`SecuritySchemeName` | `auth` が使う型 |
@@ -93,10 +93,10 @@ type Credential =
 
 ### 結果の型付け {#typing-results}
 
-`ApiResponse` には、`paths` から取り出した操作の `responses` を渡します。
+`ApiResponse` には、`paths` から取り出した操作を渡します。
 
 ```ts twoslash
 import type { ApiResponse, paths } from "./api.ts";
 
-type GetPet = ApiResponse<paths["/pets/{petId}"]["GET"]["responses"]>;
+type GetPet = ApiResponse<paths["/pets/{petId}"]["GET"]>;
 ```

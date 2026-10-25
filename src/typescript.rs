@@ -3,7 +3,7 @@
 use crate::Error;
 use crate::ir::*;
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write;
 
 const RUNTIME: &str = include_str!("typescript/runtime.ts");
@@ -232,14 +232,25 @@ impl<'a> Emitter<'a> {
         out.push('\n');
 
         out.push_str("export interface paths {\n");
+        let mut statuses = BTreeMap::new();
         for item in &api.paths {
             writeln!(out, "  {}: {{", quote(&item.path)).unwrap();
             for op in &item.operations {
-                self.operation(&mut out, op);
+                self.operation(&mut out, op, &mut statuses);
             }
             out.push_str("  };\n");
         }
         out.push_str("}\n\n");
+        if !statuses.is_empty() {
+            out.push_str(
+                "// The statuses each response key covers, as `[successes, failures]`; the\n\
+                 // operations with the same keys share one.\n",
+            );
+            for (name, body) in &statuses {
+                writeln!(out, "type {name} = {{\n{body}}};").unwrap();
+            }
+            out.push('\n');
+        }
 
         out.push_str("export interface components {\n");
         self.schema_group(&mut out, "schemas", View::Response);
@@ -493,7 +504,8 @@ impl<'a> Emitter<'a> {
         .unwrap();
     }
 
-    fn operation(&self, out: &mut String, op: &Operation) {
+    /// One `paths` member; its `statuses` alias goes to `statuses` (name -> body).
+    fn operation(&self, out: &mut String, op: &Operation, statuses: &mut BTreeMap<String, String>) {
         let mut extra = Vec::new();
         if let Some(id) = &op.operation_id {
             extra.push(format!("operationId: {id}"));
@@ -516,7 +528,9 @@ impl<'a> Emitter<'a> {
             out.push_str(&jsdoc(&r.meta, &[], 4));
             writeln!(out, "        {}: {};", quote(&r.status.key()), data).unwrap();
         }
-        out.push_str("      };\n    };\n");
+        let (name, body) = status_alias(op);
+        writeln!(out, "      }};\n      statuses: {name};\n    }};").unwrap();
+        statuses.entry(name).or_insert(body);
     }
 
     fn request(&self, op: &Operation) -> String {
@@ -1302,6 +1316,59 @@ fn compound(s: &Schema) -> bool {
         Schema::Intersection(_) => true,
         _ => false,
     }
+}
+
+/// The name and body of the type alias for an operation's `statuses`: each
+/// response key with the statuses it covers, as `[successes, failures]`. These
+/// are computed here rather than by conditional types in the runtime, which
+/// would cost every call site; they depend only on the keys, which name the alias.
+fn status_alias(op: &Operation) -> (String, String) {
+    let mut entries: Vec<(String, Vec<u16>)> = op
+        .coverage()
+        .into_iter()
+        .filter(|(_, codes)| !codes.is_empty())
+        .map(|(r, codes)| (r.map_or(Status::Default, |r| r.status).key(), codes))
+        .collect();
+    entries.sort();
+    let mut name = String::from("Statuses");
+    let mut body = String::new();
+    for (key, codes) in entries {
+        let (ok, failed): (Vec<u16>, Vec<u16>) =
+            codes.into_iter().partition(|s| (200..300).contains(s));
+        write!(name, "_{key}").unwrap();
+        writeln!(
+            body,
+            "  {}: [{}, {}];",
+            quote(&key),
+            statuses(&ok),
+            statuses(&failed)
+        )
+        .unwrap();
+    }
+    (name, body)
+}
+
+/// Ascending statuses as a type: the runtime's `Status2xx` for a whole hundred,
+/// `Status20x` for a whole ten, and literals for the rest.
+fn statuses(codes: &[u16]) -> String {
+    let mut parts = Vec::new();
+    let mut i = 0;
+    while i < codes.len() {
+        let s = codes[i];
+        let run =
+            |n: u16| s.is_multiple_of(n) && codes.get(i + usize::from(n) - 1) == Some(&(s + n - 1));
+        if run(100) {
+            parts.push(format!("Status{}xx", s / 100));
+            i += 100;
+        } else if run(10) {
+            parts.push(format!("Status{}x", s / 10));
+            i += 10;
+        } else {
+            parts.push(s.to_string());
+            i += 1;
+        }
+    }
+    union(parts)
 }
 
 fn union(types: Vec<String>) -> String {
