@@ -119,12 +119,9 @@ jobs:
             [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)
             gh release create "$GITHUB_REF_NAME" release/* --draft --notes-file notes.md --verify-tag "${flags[@]}"
           fi
+      # npm authenticates with OIDC: every package trusts this workflow's `release`
+      # environment as its trusted publisher (`npm trust github`).
       - name: Publish to npm
-        env:
-          # Only for the first publish of each package. Afterwards, configure trusted
-          # publishing for every package on npmjs.com, then remove this `env` entry
-          # (npm then authenticates with OIDC) and delete the NPM_TOKEN secret.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           tag=latest
