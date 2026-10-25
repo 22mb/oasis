@@ -49,6 +49,8 @@ jobs:
             playground/target/
           key: cargo-wasm-${{ env.RUSTC_VERSION }}-${{ hashFiles('playground/Cargo.lock') }}
           restore-keys: cargo-wasm-${{ env.RUSTC_VERSION }}-
+      # Every English page has a Japanese translation, and the other way around.
+      - run: diff <(ls *.md) <(cd ja && ls *.md)
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v5.0.0
