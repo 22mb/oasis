@@ -152,17 +152,19 @@ test("auth follows the document's security requirements", async () => {
 
   await api.GET("/mtls"); // satisfied by the TLS configuration: nothing to add
   assert.equal(header(10, "authorization"), null);
+  await api.GET("/mtls-or-bearer"); // `mutualTLS` alone adds nothing: the bearer alternative wins
+  assert.equal(header(11, "authorization"), "Bearer t0k3n");
 
   await api.GET("/by-uri"); // a requirement naming the scheme by its URI
-  assert.equal(header(11, "authorization"), "Bearer t0k3n");
+  assert.equal(header(12, "authorization"), "Bearer t0k3n");
 
   // With no satisfiable alternative, the request goes out unauthenticated.
   token = undefined;
   await api.GET("/me");
-  assert.equal(header(12, "authorization"), null);
+  assert.equal(header(13, "authorization"), null);
   token = ""; // an empty credential counts as unavailable
   await api.GET("/me");
-  assert.equal(header(13, "authorization"), null);
+  assert.equal(header(14, "authorization"), null);
 });
 
 test("auth treats an undefined credential as unavailable", async () => {
@@ -192,17 +194,6 @@ test("auth appends query API keys without rewriting the rest of the request", as
   assert.equal(s.requests[1]!.method, "POST");
   assert.equal(s.requests[1]!.headers.get("content-type"), "application/json");
   assert.equal(s.bodies[1], '{"q":"x"}');
-});
-
-test("auth prefers alternatives that add credentials", async () => {
-  const s = server(noContent);
-  let token: string | undefined = "t";
-  const api = createClient({ fetch: s.fetch, middleware: [auth({ bearer: () => token })] });
-  await api.GET("/mtls-or-bearer"); // `mutualTLS` alone adds nothing: the bearer alternative wins
-  assert.equal(s.requests[0]!.headers.get("authorization"), "Bearer t");
-  token = undefined;
-  await api.GET("/mtls-or-bearer");
-  assert.equal(s.requests[1]!.headers.get("authorization"), null);
 });
 
 test("auth sets cookie API keys once, encoded, replacing an existing cookie", async () => {

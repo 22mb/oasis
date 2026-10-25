@@ -31,7 +31,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         ? json(201, { id: 2, ...JSON.parse(last.body.toString()) })
         : json(201, { id: 3 });
     case "QUERY /v1/pets": return json(200, [tama]);
-    case "HEAD /v1/pets": return res.writeHead(200, { "content-type": "application/json", "x-total": "1" }).end();
+    // A type whose empty body would decode as "", so that only the method leaves `data` undefined.
+    case "HEAD /v1/pets": return res.writeHead(200, { "content-type": "text/plain", "x-total": "1" }).end();
     case "GET /v1/pets/1": return json(200, tama);
     case "GET /v1/pets/2": return json(404, { title: "Not Found" }, "application/problem+json");
     case "DELETE /v1/pets/1":
