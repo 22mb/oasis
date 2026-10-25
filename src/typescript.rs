@@ -168,14 +168,7 @@ impl<'a> Emitter<'a> {
         let mut names = HashMap::new();
         let mut taken = HashSet::new();
         for s in &api.schemas {
-            let base = format!("${}", identifier(&s.key));
-            let mut name = base.clone();
-            for n in 2.. {
-                if taken.insert(name.clone()) {
-                    break;
-                }
-                name = format!("{base}_{n}");
-            }
+            let name = unique(format!("${}", identifier(&s.key)), &mut taken);
             names.insert(s.key.as_str(), name);
         }
 
@@ -249,10 +242,8 @@ impl<'a> Emitter<'a> {
         out.push_str("}\n\n");
 
         out.push_str("export interface components {\n");
-        self.schema_group(&mut out, "schemas", false, View::Response);
-        self.schema_group(&mut out, "requestSchemas", false, View::Request);
-        self.schema_group(&mut out, "refs", true, View::Response);
-        self.schema_group(&mut out, "requestRefs", true, View::Request);
+        self.schema_group(&mut out, "schemas", View::Response);
+        self.schema_group(&mut out, "requestSchemas", View::Request);
         out.push_str("}\n\n");
         out.push_str("export type schemas = components[\"schemas\"];\n\n");
         self.definitions(&mut out)?;
@@ -330,13 +321,13 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// One `components` member: component or hoisted schemas, in one view.
-    fn schema_group(&self, out: &mut String, name: &str, hoisted: bool, view: View) {
+    /// One `components` member: the component schemas, in one view.
+    fn schema_group(&self, out: &mut String, name: &str, view: View) {
         let schemas: Vec<&NamedSchema> = self
             .api
             .schemas
             .iter()
-            .filter(|s| s.hoisted == hoisted)
+            .filter(|s| !s.hoisted)
             .filter(|s| view == View::Response || self.request_variants.contains(s.key.as_str()))
             .collect();
         if schemas.is_empty() {
@@ -392,8 +383,8 @@ impl<'a> Emitter<'a> {
         check_cycles(self.api, &edges)
     }
 
-    /// Runtime data: default base URL, the document's methods, per-operation
-    /// servers and non-default parameter styles.
+    /// Runtime data: default base URL, the document's methods and security, and
+    /// what each operation needs beyond the defaults.
     fn spec(&self, out: &mut String) {
         let api = self.api;
         let base_url = api
@@ -408,16 +399,18 @@ impl<'a> Emitter<'a> {
             }
         }
         let methods = methods.iter().map(|m| quote(m)).collect::<Vec<_>>();
-        let mut servers = String::new();
-        let mut styles = String::new();
         let mut operations = String::new();
         for item in &api.paths {
             for op in &item.operations {
                 let op_key = quote(&format!("{} {}", op.method, item.path));
-                if let Some(s) = op.servers.first().or(item.servers.first()) {
-                    writeln!(servers, "    {op_key}: {},", quote(&s.default_url())).unwrap();
+                let mut info = Vec::new();
+                if let Some(id) = &op.operation_id {
+                    info.push(format!("operationId: {}", quote(id)));
                 }
-                let entries: Vec<String> = op
+                if let Some(s) = op.servers.first().or(item.servers.first()) {
+                    info.push(format!("server: {}", quote(&s.default_url())));
+                }
+                let styles: Vec<String> = op
                     .params
                     .iter()
                     .filter_map(|p| {
@@ -426,12 +419,8 @@ impl<'a> Emitter<'a> {
                         Some(format!("{}: {style}", quote(&name)))
                     })
                     .collect();
-                if !entries.is_empty() {
-                    writeln!(styles, "    {op_key}: {{ {} }},", entries.join(", ")).unwrap();
-                }
-                let mut info = Vec::new();
-                if let Some(id) = &op.operation_id {
-                    info.push(format!("operationId: {}", quote(id)));
+                if !styles.is_empty() {
+                    info.push(format!("styles: {{ {} }}", styles.join(", ")));
                 }
                 if let Some(security) = &op.security {
                     info.push(format!("security: {}", security_literal(security)));
@@ -479,11 +468,9 @@ impl<'a> Emitter<'a> {
         }
         writeln!(
             out,
-            "const spec: Spec = {{\n  baseUrl: {},\n  methods: [{}],\n  servers: {},\n  styles: {},\n  security: {},\n  securitySchemes: {},\n  operations: {},\n}};\n",
+            "const spec: Spec = {{\n  baseUrl: {},\n  methods: [{}],\n  security: {},\n  securitySchemes: {},\n  operations: {},\n}};\n",
             quote(&base_url),
             methods.join(", "),
-            block(servers),
-            block(styles),
             security_literal(&api.security),
             block(schemes),
             block(operations)
@@ -700,9 +687,24 @@ impl<'a> Emitter<'a> {
             }
             Schema::Object {
                 properties,
+                pattern_properties,
                 additional,
             } => {
                 let index = match (properties.is_empty(), additional.as_deref()) {
+                    // TypeScript cannot restrict keys to a pattern, so the index
+                    // covers every key, with the types of the patterns and of
+                    // `additionalProperties` that are not closed.
+                    (true, Some(s)) if !pattern_properties.is_empty() => {
+                        let mut types: Vec<String> = pattern_properties
+                            .iter()
+                            .map(|(_, p)| self.ty(p, indent + 1, view))
+                            .collect();
+                        if *s != Schema::Never {
+                            types.push(self.ty(s, indent + 1, view));
+                        }
+                        Some(union(types))
+                    }
+                    (false, _) if !pattern_properties.is_empty() => Some("unknown".to_string()),
                     (_, Some(Schema::Never)) => None,
                     (true, Some(s)) => Some(self.ty(s, indent + 1, view)),
                     (true, None) => Some("unknown".to_string()),
@@ -1008,9 +1010,11 @@ fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
         }
         Schema::Object {
             properties,
+            pattern_properties,
             additional,
         } => {
             properties.iter().for_each(|p| walk(&p.schema, f));
+            pattern_properties.iter().for_each(|(_, c)| walk(c, f));
             if let Some(c) = additional {
                 walk(c, f);
             }
@@ -1054,11 +1058,15 @@ fn walk_mut(s: &mut Schema, f: &mut dyn FnMut(&mut Schema)) {
         }
         Schema::Object {
             properties,
+            pattern_properties,
             additional,
         } => {
             properties
                 .iter_mut()
                 .for_each(|p| walk_mut(&mut p.schema, f));
+            pattern_properties
+                .iter_mut()
+                .for_each(|(_, c)| walk_mut(c, f));
             if let Some(c) = additional {
                 walk_mut(c, f);
             }
@@ -1191,8 +1199,6 @@ fn jsdoc(meta: &Meta, extra: &[String], indent: usize) -> String {
     out
 }
 
-/// `key` as part of a TypeScript identifier: runs of other characters become
-/// `_`, so `schemas/pet.yaml#` gives `schemas_pet_yaml`.
 /// Names the emitter exports besides the runtime's and the schemas'.
 const RESERVED: &[&str] = &[
     "paths",
@@ -1239,6 +1245,8 @@ fn unique(base: String, taken: &mut HashSet<String>) -> String {
     name
 }
 
+/// `key` as part of a TypeScript identifier: runs of other characters become
+/// `_`, so `schemas/pet.yaml#` gives `schemas_pet_yaml`.
 fn identifier(key: &str) -> String {
     let mut out = String::new();
     for c in key.chars() {

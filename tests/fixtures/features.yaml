@@ -457,3 +457,24 @@ components:
         owner:
           $ref: "#/components/schemas/Owner"
           description: Who owns it.
+    # `patternProperties`: TypeScript cannot restrict keys to a pattern, so the index
+    # signature covers every key, with the types the patterns and
+    # `additionalProperties` allow.
+    Labels:
+      type: object
+      patternProperties:
+        "^x-": { type: string }
+        "^n-": { type: integer }
+      additionalProperties: false
+    LabeledPet:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+      patternProperties:
+        "^x-": { type: string }
+      additionalProperties: false
+    Counts:
+      patternProperties:
+        "^[a-z]+$": { type: integer }
+      additionalProperties: { type: string }

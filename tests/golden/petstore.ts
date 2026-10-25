@@ -232,8 +232,6 @@ export interface components {
     Category: $Category;
   };
   requestSchemas: {};
-  refs: {};
-  requestRefs: {};
 }
 
 export type schemas = components["schemas"];
@@ -420,20 +418,22 @@ type ParamStyle = { style?: "deepObject" | "cookie" | "json"; explode?: boolean;
 
 type SecuritySchemeSpec =
   | { type: "apiKey"; in: "query" | "header" | "cookie"; name: string }
-  | { type: "http"; scheme: string }
+  | { type: "http"; /** Lowercased, e.g. `bearer`. */ scheme: string }
   | { type: "oauth2" | "openIdConnect" | "mutualTLS" };
 
-/** Data from the document that the runtime needs; per-operation tables are keyed by `METHOD path`. */
+/** Data from the document that the runtime needs; `operations` is keyed by `METHOD path`. */
 type Spec = {
   baseUrl: string;
   /** Every HTTP method the document uses, as written: the client's callable properties. */
   methods: string[];
-  servers: Record<string, string>;
-  styles: Record<string, Record<string, ParamStyle>>;
   security: SecurityRequirement[];
   securitySchemes: Record<string, SecuritySchemeSpec>;
   operations: Record<string, {
     operationId?: string;
+    /** The operation's own server, used instead of `baseUrl`. */
+    server?: string;
+    /** Parameters with a non-default serialization, keyed by `location:name`. */
+    styles?: Record<string, ParamStyle>;
     security?: SecurityRequirement[];
     /** The media type a body is sent as when the call names none. */
     contentType?: string;
@@ -460,11 +460,10 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     if (!path.startsWith("/") || path.startsWith("//")) {
       throw new TypeError(`${op}: the path must be a template from the document, starting with one "/"`);
     }
-    const info = spec.operations[op];
-    const styles = spec.styles[op] ?? {};
-    const style = (location: string, name: string) => styles[`${location}:${name}`] ?? {};
+    const info = spec.operations[op] ?? {};
+    const style = (location: string, name: string) => info.styles?.[`${location}:${name}`] ?? {};
 
-    const base = options.baseUrl ?? spec.servers[op] ?? spec.baseUrl;
+    const base = options.baseUrl ?? info.server ?? spec.baseUrl;
     let url = base.replace(/\/+$/, "") + path.split("/").map((segment) => {
       if (!segment.includes("{")) return segment;
       const value = segment.replace(/\{([^}]+)\}/g, (_, name: string) =>
@@ -476,7 +475,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       return value;
     }).join("/");
     const search = querystring !== undefined
-      ? encodeQuerystring(querystring, info?.querystring)
+      ? encodeQuerystring(querystring, info.querystring)
       : present(query).flatMap(([name, value]) => queryPairs(name, value, style("query", name))).join("&");
     if (search) url += `?${search}`;
 
@@ -497,7 +496,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     }
     new Headers(rest.headers).forEach((value, name) => headers.set(name, value));
 
-    const encoded = encodeBody(body, contentType ?? info?.contentType, headers);
+    const encoded = encodeBody(body, contentType ?? info.contentType, headers);
     const request = new Request(url, {
       ...rest,
       method,
@@ -510,8 +509,8 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       operation: {
         method,
         path,
-        ...(info?.operationId ? { operationId: info.operationId } : {}),
-        security: info?.security ?? spec.security,
+        ...(info.operationId ? { operationId: info.operationId } : {}),
+        security: info.security ?? spec.security,
       },
     };
     const chain = [...(options.middleware ?? []), ...(middleware ?? [])];
@@ -550,7 +549,6 @@ function present(values: object | undefined): [string, unknown][] {
 
 type Encode = (s: string) => string;
 
-/** RFC 6570 reserved expansion: reserved characters and %XX triples pass through. */
 /**
  * The whole query string from the value of a `querystring` parameter: form
  * fields, or else the value serialized as its media type and percent-encoded.
@@ -566,6 +564,7 @@ function encodeQuerystring(value: unknown, mediaType = "application/x-www-form-u
   }
 }
 
+/** RFC 6570 reserved expansion: reserved characters and %XX triples pass through. */
 function encodeReserved(s: string): string {
   return s.replace(
     /%[0-9A-Fa-f]{2}|[^A-Za-z0-9\-._~:/?@!$'()*,;=]/gu,
@@ -835,12 +834,11 @@ async function authenticate(request: Request, scheme: SecuritySchemeSpec, value:
       else request.headers.set(scheme.name, value);
       return request;
     case "http": {
-      const name = scheme.scheme.toLowerCase();
-      if (name === "basic") {
+      if (scheme.scheme === "basic") {
         const bytes = new TextEncoder().encode(value);
         request.headers.set("authorization", `Basic ${btoa(String.fromCharCode(...bytes))}`);
       } else {
-        request.headers.set("authorization", `${name === "bearer" ? "Bearer" : scheme.scheme} ${value}`);
+        request.headers.set("authorization", `${scheme.scheme === "bearer" ? "Bearer" : scheme.scheme} ${value}`);
       }
       return request;
     }
@@ -889,14 +887,10 @@ function setCookie(headers: Headers, name: string, value: string): void {
 const spec: Spec = {
   baseUrl: "https://api.example.com/v1",
   methods: ["GET", "POST", "HEAD", "QUERY", "DELETE", "LINK", "PUT"],
-  servers: {},
-  styles: {
-    "GET /pets": { "query:ids": { explode: false }, "query:filter": { style: "deepObject" } },
-  },
   security: [],
   securitySchemes: {},
   operations: {
-    "GET /pets": { operationId: "listPets" },
+    "GET /pets": { operationId: "listPets", styles: { "query:ids": { explode: false }, "query:filter": { style: "deepObject" } } },
     "POST /pets": { operationId: "createPet", contentType: "application/json" },
     "HEAD /pets": { operationId: "countPets" },
     "QUERY /pets": { operationId: "searchPets", contentType: "application/json" },

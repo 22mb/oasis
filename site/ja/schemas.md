@@ -31,6 +31,7 @@ type PetKind = Pet["kind"];
 | `type: array` | `T[]`。`prefixItems` があるときはタプル型 |
 | `properties` を持つ `type: object` | オブジェクト型。`required` にないプロパティは省略可能 |
 | `additionalProperties` | インデックスシグネチャ（オブジェクトが `properties` も持つときは `unknown`） |
+| `patternProperties` | すべてのキーを対象とするインデックスシグネチャ（TypeScript ではキーをパターンで絞れないため）。値の型は、各パターンと `additionalProperties` の型のユニオン型（オブジェクトが `properties` も持つとき、または `additionalProperties` がないときは `unknown`） |
 | `oneOf`、`anyOf` | ユニオン型。`discriminator` があるときは、各メンバーにその値のタグを付与 |
 | `allOf` | インターセクション型 |
 | コンポーネントへの `$ref` | そのスキーマの型 |
@@ -85,5 +86,3 @@ oasis-gen は、`oneOf` を持たず、サブタイプから `allOf` で参照�
 | --- | --- |
 | `schemas["Pet"]` または `components["schemas"]["Pet"]` | `Pet` と同じ型 |
 | `components["requestSchemas"]` | コンポーネントのスキーマのリクエスト用の型 |
-| `components["refs"]` | ほかのファイルやほかの場所にあるスキーマ。`schemas/pet.yaml#` のようなキーで格納 |
-| `components["requestRefs"]` | `components["refs"]` にあるスキーマのリクエスト用の型 |

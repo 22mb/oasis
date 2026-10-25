@@ -39,7 +39,8 @@ instead.
 | `components.mediaTypes` and `$ref`s to them | Supported | |
 | Remote `$ref`s, and URLs as input | Not supported | `https://...` URIs that do not map onto a local file |
 
-Schemas from other files appear in `components["refs"]` (see
+Schemas from other files get type aliases of their own, but only component
+schemas are exported and listed in `components` (see
 [Schemas](./schemas#type-aliases-and-components)).
 
 ## Schemas
@@ -48,7 +49,7 @@ See [Schemas](./schemas) for the TypeScript type that each keyword becomes.
 
 | Feature | Support | Notes |
 | --- | --- | --- |
-| JSON Schema 2020-12 | Supported | `type` arrays, `const`, `enum`, `allOf`, `oneOf`, `anyOf`, `prefixItems`, `additionalProperties`, `$ref` with sibling keywords, and `readOnly` and `writeOnly` (see [Strict types](./strict-types#requests-and-responses-have-separate-types)) |
+| JSON Schema 2020-12 | Supported | `type` arrays, `const`, `enum`, `allOf`, `oneOf`, `anyOf`, `prefixItems`, `additionalProperties`, `patternProperties`, `$ref` with sibling keywords, and `readOnly` and `writeOnly` (see [Strict types](./strict-types#requests-and-responses-have-separate-types)) |
 | Recursive schemas | Supported | Through properties, arrays, and `additionalProperties`, including `$ref`s into `$defs` and other locations outside `components.schemas` |
 | `discriminator` on `oneOf` or `anyOf` | Supported | Explicit and implicit mappings, and `defaultMapping` |
 | Subtypes listed in the parent's `oneOf`, each extending it with `allOf` | Supported | See [Subtypes](./schemas#subtypes) |

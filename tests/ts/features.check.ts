@@ -165,8 +165,7 @@ export type Nested = [
   // ... and a property named only in a nested `allOf`.
   Expect<Equal<Flat<components["requestSchemas"]["Nested"]>, { serial?: never; secret?: string; label?: string; extra?: string }>>,
   // A schema hoisted from `$defs` has a request shape too.
-  Expect<Equal<components["requestRefs"]["#/components/schemas/Doc/$defs/meta"], { rev?: never }>>,
-  Expect<Equal<components["requestSchemas"]["Doc"], { meta?: components["requestRefs"]["#/components/schemas/Doc/$defs/meta"] }>>,
+  Expect<Equal<components["requestSchemas"]["Doc"], { meta?: { rev?: never } }>>,
   // `items` without `type` is an array; tuples with and without `items`.
   Expect<Equal<schemas["Words"], string[]>>,
   Expect<Equal<schemas["Tuple"], [string, ...number[]]>>,
@@ -176,7 +175,15 @@ export type Nested = [
   Expect<Equal<schemas["Empty"], Record<string, never>>>,
   Expect<Equal<schemas["Constants"], { one: 1; yes: true; nothing: null }>>,
   Expect<Equal<schemas["Described"], { owner?: schemas["Owner"] }>>,
+  // `patternProperties` gives an index signature over every key.
+  Expect<Equal<schemas["Labels"], { [key: string]: string | number }>>,
+  Expect<Equal<schemas["LabeledPet"], { name: string; [key: string]: unknown }>>,
+  Expect<Equal<schemas["Counts"], { [key: string]: number | string }>>,
 ];
+
+// A property matching a pattern is a valid value, also with `additionalProperties: false`.
+export const labeled: schemas["LabeledPet"] = { name: "Tama", "x-id": "1" };
+export const labels: schemas["Labels"] = { "x-id": "1", "n-count": 2 };
 
 type Operation<P extends keyof paths, M extends keyof paths[P]> = paths[P][M] extends { request: infer R; responses: infer S }
   ? { request: R; responses: S }
