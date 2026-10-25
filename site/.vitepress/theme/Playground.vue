@@ -1,32 +1,15 @@
 <script setup lang="ts">
+import type { HighlighterCore } from "shiki/core";
 import { useData } from "vitepress";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import exampleSpec from "../../../tests/fixtures/petstore.yaml?raw";
-import type { Editors } from "./monaco";
 // Built by `npm run wasm` from playground/ at the repository root.
 import wasmUrl from "./oasis.wasm?url";
-
-const exampleMain = `import { createClient } from "./api.ts";
-
-const api = createClient();
-
-const res = await api.GET("/pets/{petId}", { path: { petId: 1 } });
-switch (res.status) {
-  case 200:
-    console.log(res.data.name, res.data.kind);
-    break;
-  case 404:
-    console.log(res.data.title);
-    break;
-  default:
-    console.error(res.status, res.data);
-}
-`;
 
 const labels = {
   en: {
     title: "Playground",
-    lead: "Edit an OpenAPI 3.0, 3.1 or 3.2 document in JSON or YAML to see the TypeScript client that oasis-gen generates from it. Write code that uses the client in main.ts to see how it type-checks. The generator and TypeScript run in your browser, so nothing you enter is sent anywhere. The page URL holds the document and main.ts, so you can share them as a link. References to other files are not supported.",
+    lead: "Edit an OpenAPI 3.0, 3.1 or 3.2 document in JSON or YAML to see the TypeScript client that oasis-gen generates from it. The generator runs in your browser, so nothing you enter is sent anywhere. The page URL holds the document, so you can share it as a link. References to other files are not supported.",
     spec: "OpenAPI document",
     api: "api.ts (generated)",
     copy: "Copy link",
@@ -36,7 +19,7 @@ const labels = {
   },
   ja: {
     title: "プレイグラウンド",
-    lead: "JSON または YAML の OpenAPI 3.0・3.1・3.2 ドキュメントを編集すると、oasis-gen が生成する TypeScript クライアントを確認できます。main.ts にクライアントを使うコードを書くと、その型チェックの結果も確認できます。生成ツールと TypeScript はブラウザー内で動作するため、入力した内容が外部に送信されることはありません。ページの URL にはドキュメントと main.ts の内容が含まれており、そのままリンクとして共有できます。外部ファイルへの参照には対応していません。",
+    lead: "JSON または YAML の OpenAPI 3.0・3.1・3.2 ドキュメントを編集すると、oasis-gen が生成する TypeScript クライアントを確認できます。生成ツールはブラウザー内で動作するため、入力した内容が外部に送信されることはありません。ページの URL にはドキュメントの内容が含まれており、そのままリンクとして共有できます。外部ファイルへの参照には対応していません。",
     spec: "OpenAPI ドキュメント",
     api: "api.ts（生成結果）",
     copy: "リンクをコピー",
@@ -49,20 +32,19 @@ const labels = {
 const { lang } = useData();
 const t = computed(() => (lang.value === "ja" ? labels.ja : labels.en));
 
-const specPane = ref<HTMLElement>();
-const mainPane = ref<HTMLElement>();
-const apiPane = ref<HTMLElement>();
+const spec = ref("");
+const api = ref("");
 const loaded = ref(false);
 const error = ref("");
 const copied = ref(false);
-const typescript = ref("");
 
-let editors: Editors | undefined;
 let unmounted = false;
+let generateTimer: ReturnType<typeof setTimeout> | undefined;
+let hashTimer: ReturnType<typeof setTimeout> | undefined;
 
-// The share link carries each file that differs from the example as
-// `#spec=…&main=…`: its UTF-8, compressed with raw DEFLATE and encoded as
-// unpadded base64url.
+// The share link carries the document, if it differs from the example, as
+// `#spec=…`: its UTF-8, compressed with raw DEFLATE and encoded as unpadded
+// base64url.
 async function encode(text: string): Promise<string> {
   const stream = new Blob([text]).stream().pipeThrough(new CompressionStream("deflate-raw"));
   const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
@@ -78,24 +60,19 @@ async function decode(code: string): Promise<string> {
   return new Response(stream).text();
 }
 
-async function fromHash(key: string, example: string): Promise<string> {
-  const code = new URLSearchParams(location.hash.slice(1)).get(key);
-  if (code === null) return example;
+async function fromHash(): Promise<string> {
+  const code = new URLSearchParams(location.hash.slice(1)).get("spec");
+  if (code === null) return exampleSpec;
   try {
     return await decode(code);
   } catch {
     // A truncated or edited link: keep the example.
-    return example;
+    return exampleSpec;
   }
 }
 
-async function toHash(files: [key: string, text: string, example: string][]): Promise<string> {
-  const params = new URLSearchParams();
-  for (const [key, text, example] of files) {
-    if (text !== example) params.set(key, await encode(text));
-  }
-  const hash = params.toString();
-  return hash ? `#${hash}` : "";
+async function toHash(text: string): Promise<string> {
+  return text === exampleSpec ? "" : `#${new URLSearchParams({ spec: await encode(text) })}`;
 }
 
 // Each run gets a fresh instance, so a trap in one cannot affect the next.
@@ -117,67 +94,74 @@ function generate(module: WebAssembly.Module, text: string): { ok: boolean; text
   return { ok, text: new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, ptr, len)) };
 }
 
+// The site's code block themes, with the JavaScript regex engine instead of
+// Oniguruma's WebAssembly.
+async function createHighlighter(): Promise<HighlighterCore> {
+  const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([
+    import("shiki/core"),
+    import("shiki/engine/javascript"),
+  ]);
+  return createHighlighterCore({
+    engine: createJavaScriptRegexEngine(),
+    langs: [import("shiki/langs/typescript.mjs")],
+    themes: [
+      import("shiki/themes/github-light-high-contrast.mjs"),
+      import("shiki/themes/github-dark-high-contrast.mjs"),
+    ],
+  });
+}
+
 onMounted(async () => {
-  const [spec, main, module, { createEditors, typescriptVersion }] = await Promise.all([
-    fromHash("spec", exampleSpec),
-    fromHash("main", exampleMain),
+  const [text, module, highlighter] = await Promise.all([
+    fromHash(),
     WebAssembly.compileStreaming(fetch(wasmUrl)),
-    import("./monaco"),
+    createHighlighter(),
   ]);
   if (unmounted) return;
-  typescript.value = `TypeScript ${typescriptVersion}`;
-  loaded.value = true;
-  const current = createEditors(
-    { spec: specPane.value!, main: mainPane.value!, api: apiPane.value! },
-    { spec, main },
-  );
-  editors = current;
 
   const regenerate = () => {
     try {
-      const result = generate(module, current.spec.getValue());
+      const result = generate(module, spec.value);
       error.value = result.ok ? "" : result.text;
-      // On an error, main.ts keeps checking against the last generated client.
-      if (result.ok) current.api.setValue(result.text);
+      if (result.ok) {
+        // VitePress colors `.vp-code` spans from these variables, by the color scheme.
+        api.value = highlighter.codeToHtml(result.text, {
+          lang: "typescript",
+          themes: { light: "github-light-high-contrast", dark: "github-dark-high-contrast" },
+          defaultColor: false,
+        });
+      }
     } catch (e) {
       error.value = String(e);
     }
   };
   const updateHash = async () => {
-    const spec = current.spec.getValue();
-    const main = current.main.getValue();
-    const hash = await toHash([
-      ["spec", spec, exampleSpec],
-      ["main", main, exampleMain],
-    ]);
+    const text = spec.value;
+    const hash = await toHash(text);
     // A later edit has scheduled its own update.
-    if (unmounted || spec !== current.spec.getValue() || main !== current.main.getValue()) return;
+    if (unmounted || text !== spec.value) return;
     history.replaceState(history.state, "", location.pathname + location.search + hash);
   };
 
-  let generateTimer: ReturnType<typeof setTimeout> | undefined;
-  let hashTimer: ReturnType<typeof setTimeout> | undefined;
-  const scheduleHash = () => {
-    clearTimeout(hashTimer);
-    hashTimer = setTimeout(updateHash, 300);
-  };
-  current.spec.onDidChangeContent(() => {
+  spec.value = text;
+  regenerate();
+  loaded.value = true;
+  watch(spec, () => {
     clearTimeout(generateTimer);
     generateTimer = setTimeout(regenerate, 300);
-    scheduleHash();
+    clearTimeout(hashTimer);
+    hashTimer = setTimeout(updateHash, 300);
   });
-  current.main.onDidChangeContent(scheduleHash);
-  regenerate();
 });
 
 onBeforeUnmount(() => {
   unmounted = true;
-  editors?.dispose();
+  clearTimeout(generateTimer);
+  clearTimeout(hashTimer);
 });
 
 function reset() {
-  editors?.spec.setValue(exampleSpec);
-  editors?.main.setValue(exampleMain);
+  spec.value = exampleSpec;
 }
 
 async function copyLink() {
@@ -199,21 +183,24 @@ async function copyLink() {
       </button>
     </div>
     <div class="panes">
-      <section class="pane spec">
+      <section class="pane">
         <div class="bar">{{ t.spec }}</div>
-        <div ref="specPane" class="editor"></div>
+        <textarea
+          v-model="spec"
+          class="code"
+          :aria-label="t.spec"
+          :disabled="!loaded"
+          spellcheck="false"
+          autocapitalize="off"
+          autocomplete="off"
+          wrap="off"
+        ></textarea>
       </section>
-      <section class="pane main">
-        <div class="bar">
-          main.ts
-          <span class="note">{{ typescript }}</span>
-        </div>
-        <div ref="mainPane" class="editor"></div>
-      </section>
-      <section class="pane api">
+      <section class="pane">
         <div class="bar">{{ t.api }}</div>
         <pre v-if="error" class="error" role="alert">{{ error }}</pre>
-        <div v-show="!error" ref="apiPane" class="editor"></div>
+        <!-- Shiki escapes the generated text. -->
+        <div v-show="!error" class="code vp-code" v-html="api"></div>
       </section>
     </div>
   </div>
@@ -270,8 +257,7 @@ button:disabled {
   color: var(--vp-c-text-3);
 }
 
-/* One column of the document, main.ts and api.ts; on wide screens, the two
-   inputs on the left and the generated file on the right. */
+/* The document above the generated file; on wide screens, side by side. */
 .panes {
   display: grid;
   grid-template-columns: 1fr;
@@ -282,13 +268,7 @@ button:disabled {
 @media (min-width: 960px) {
   .panes {
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 3fr 2fr;
-    height: max(80vh, 640px);
-  }
-
-  .api {
-    grid-column: 2;
-    grid-row: 1 / 3;
+    grid-auto-rows: max(80vh, 640px);
   }
 }
 
@@ -314,18 +294,7 @@ button:disabled {
   font-weight: 500;
 }
 
-.note {
-  margin-left: auto;
-  font-weight: 400;
-  color: var(--vp-c-text-2);
-}
-
-.editor,
-.error {
-  flex: 1;
-  min-height: 0;
-}
-
+.code,
 .error {
   margin: 0;
   padding: 16px 20px;
@@ -334,6 +303,28 @@ button:disabled {
   font-size: var(--vp-code-font-size);
   line-height: var(--vp-code-line-height);
   white-space: pre;
+}
+
+.code,
+.error {
+  flex: 1;
+  min-height: 0;
+}
+
+textarea.code {
+  border: 0;
+  resize: none;
+  color: var(--vp-c-text-1);
+  background: transparent;
+  tab-size: 2;
+}
+
+.code :deep(pre) {
+  margin: 0;
+  background: transparent !important;
+}
+
+.error {
   color: var(--vp-c-danger-1);
 }
 </style>

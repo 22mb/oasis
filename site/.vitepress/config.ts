@@ -1,7 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { transformerTwoslash } from "@shikijs/vitepress-twoslash";
 import { defineConfig } from "vitepress";
-import type { Plugin } from "vite";
 
 const repository = "https://github.com/22mb/oasis";
 
@@ -10,69 +9,6 @@ const repository = "https://github.com/22mb/oasis";
 // and a block can import `./features.ts` or `./security.ts` before `// ---cut---`.
 const golden = (name: string) =>
   readFileSync(new URL(`../../tests/golden/${name}.ts`, import.meta.url), "utf8");
-
-// VitePress puts all CSS into the one stylesheet that every page loads. Monaco's
-// CSS, which only the playground needs, is instead inlined into Monaco's chunk
-// and added to the document when the playground loads it.
-const monacoStyles: Plugin = {
-  name: "oasis:monaco-styles",
-  apply: "build",
-  enforce: "pre",
-  resolveId: (id) => (id === "virtual:monaco-styles" ? "\0monaco-styles" : undefined),
-  load: (id) =>
-    id === "\0monaco-styles"
-      ? `const added = new Set();
-export function add(css) {
-  if (typeof document === "undefined" || added.has(css)) return;
-  added.add(css);
-  document.head.append(Object.assign(document.createElement("style"), { textContent: css }));
-}`
-      : undefined,
-  transform(code, id) {
-    if (!id.includes("/node_modules/monaco-editor/esm/")) return;
-    let count = 0;
-    const result = code.replace(/^import '([^']+\.css)';$/gm, (_, path) => {
-      const name = `__monacoStyle${count++}`;
-      return `import ${name} from '${path}?inline'; __addMonacoStyle(${name});`;
-    });
-    return count ? `import { add as __addMonacoStyle } from "virtual:monaco-styles";\n${result}` : undefined;
-  },
-};
-
-// Monaco's TypeScript worker bundles TypeScript 5.9. The playground checks with
-// the site's TypeScript instead, the one that the twoslash blocks use, by
-// replacing the modules that provide TypeScript and its lib files.
-const typescriptLib = new URL("../node_modules/typescript/lib/", import.meta.url);
-const monacoTypescript: Plugin = {
-  name: "oasis:monaco-typescript",
-  enforce: "pre",
-  resolveId(id, importer) {
-    if (importer?.includes("/monaco-editor/esm/vs/languages/features/typescript/") && id.startsWith("./lib/")) {
-      return `\0monaco-typescript/${id.slice("./lib/".length)}`;
-    }
-  },
-  load(id) {
-    if (!id.startsWith("\0monaco-typescript/")) return;
-    const libs = readdirSync(typescriptLib).filter((f) => /^lib\..*\.d\.ts$/.test(f));
-    switch (id.slice("\0monaco-typescript/".length)) {
-      case "typescriptServices.js":
-        return `import ts from "typescript";
-export const typescript = ts;
-export const { EndOfLineState, IndentStyle, ScriptKind, ScriptTarget, TokenClass, createClassifier,
-  createLanguageService, displayPartsToString, flattenDiagnosticMessageText } = ts;`;
-      case "typescriptServicesMetadata.js":
-        return `export { version as typescriptVersion } from "typescript/package.json";`;
-      case "lib.js":
-        return `export const libFileMap = ${JSON.stringify(
-          Object.fromEntries(libs.map((f) => [f, readFileSync(new URL(f, typescriptLib), "utf8")])),
-        )};`;
-      case "lib.index.js":
-        return `export const libFileSet = ${JSON.stringify(Object.fromEntries(libs.map((f) => [f, true])))};`;
-      default:
-        throw new Error(`unexpected Monaco TypeScript module ${id}`);
-    }
-  },
-};
 
 export default defineConfig({
   title: "oasis-gen",
@@ -89,13 +25,6 @@ export default defineConfig({
   // Served from GitHub Pages at https://22mb.github.io/oasis/.
   base: "/oasis/",
   cleanUrls: true,
-  vite: {
-    plugins: [monacoStyles, monacoTypescript],
-    // The TypeScript worker is bundled on its own.
-    worker: { format: "es", plugins: () => [monacoTypescript] },
-    // Pre-bundling would skip the plugins in `vitepress dev`.
-    optimizeDeps: { exclude: ["monaco-editor"], include: ["typescript"] },
-  },
   lastUpdated: false,
   markdown: {
     // The default GitHub themes leave some tokens, such as comments, below 4.5:1.
