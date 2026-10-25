@@ -1,0 +1,7 @@
+contact_links:
+  - name: Documentation
+    url: https://22mb.github.io/oasis/
+    about: Guides, recipes and the CLI reference.
+  - name: Playground
+    url: https://22mb.github.io/oasis/playground
+    about: Try a document in the browser and see the generated client.
