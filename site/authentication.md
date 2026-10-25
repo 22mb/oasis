@@ -51,7 +51,7 @@ to respond.
 | `mutualTLS` | Nothing; configure TLS on the `fetch` implementation |
 
 Browsers ignore a `Cookie` header set in `fetch`, so cookie API keys work only
-in Node, Deno, and Bun.
+in Node and Bun.
 
 ## When no credentials are sent {#when-nothing-is-sent}
 

@@ -46,7 +46,7 @@ npm install --save-dev oasis-gen
 ```
 
 The CLI and the generated client need Node.js 24 or later. The client also
-runs in browsers, Deno, and Bun, and type-checks with TypeScript 5.0 or later.
+runs in browsers and Bun, and type-checks with TypeScript 5.0 or later.
 
 The package ships prebuilt binaries for macOS, Linux, and Windows, on arm64
 and x64. npm installs only the one for your platform. Archives are also
