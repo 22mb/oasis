@@ -213,7 +213,7 @@ async function handle(incoming: Request): Promise<Response> {
 }
 ```
 
-## Keeping the generated file in your project
+## Managing the generated file {#keeping-the-generated-file-in-your-project}
 
 If you commit the generated file, the project can type-check without running
 oasis-gen. If you generate it in a build step instead, it stays in sync with
@@ -230,7 +230,7 @@ export default [
 ];
 ```
 
-## Common problems
+## Troubleshooting {#common-problems}
 
 | Problem | Cause | Solution |
 | --- | --- | --- |

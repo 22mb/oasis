@@ -164,11 +164,11 @@ export default defineConfig({
             items: [
               { text: "CLI と API", link: "/ja/reference" },
               { text: "スキーマ", link: "/ja/schemas" },
-              { text: "OpenAPI への対応", link: "/ja/openapi-support" },
+              { text: "OpenAPI の対応状況", link: "/ja/openapi-support" },
             ],
           },
         ],
-        outline: { label: "このページの内容" },
+        outline: { label: "目次" },
         docFooter: { prev: "前のページ", next: "次のページ" },
         darkModeSwitchLabel: "外観",
         lightModeSwitchTitle: "ライトモードに切り替える",

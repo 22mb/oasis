@@ -17,7 +17,7 @@ const api = createClient({
 | Option | Description |
 | --- | --- |
 | `baseUrl` | Replaces every server in the document |
-| `headers` | Headers sent with every request; a function, possibly async, is called for each request |
+| `headers` | Headers sent with every request; a function (which can be async) is called for each request |
 | `middleware` | Middleware that wraps every request, outermost first; see [Middleware](./middleware) |
 | `fetch` | Called with the final `Request` instead of the global `fetch` |
 
@@ -40,8 +40,8 @@ To use a different server for each environment, see the
 
 ## Calling an operation
 
-You select an operation by its HTTP method and path template, exactly as the
-document writes them. The second argument groups the inputs by where they go
+You select an operation by its HTTP method and path template, exactly as they
+are written in the document. The second argument groups the inputs by where they go
 in the request:
 
 ```ts twoslash
@@ -96,7 +96,7 @@ The type of `body` depends on the media type of the request:
 can omit `contentType` when the operation declares only one media type. When
 the operation declares several, you can omit `contentType` to use its first
 `application/json` media type. The body is then sent as that media type,
-exactly as declared, including its parameters (such as `charset`). For a range such as `*/*`, `contentType` accepts any string.
+exactly as the document declares it, including its parameters (such as `charset`). For a range such as `*/*`, `contentType` accepts any string.
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -127,7 +127,7 @@ follow its media type:
 
 ## Responses
 
-Every call resolves to `{ ok, status, data, response }`. Comparing `status`
+Every call resolves to `{ ok, status, data, response }`. Checking `status`
 narrows `data` to the matching response type, and `ok` is `response.ok`. See
 [Strict types](./strict-types#responses-are-typed-by-status) for the rules.
 
@@ -159,13 +159,13 @@ following cases.
 ### Network errors
 
 Errors that `fetch` throws, such as a failed connection or an aborted request,
-are thrown from the call as they are.
+propagate from the call unchanged.
 
 ### `DecodeError`
 
 A `DecodeError` is thrown when a body does not match its `Content-Type`, for
 example when an HTML error page is served as `application/json`. Its `response`
-property holds the response, whose body is already consumed. Its `text`
+property holds the response, whose body has already been consumed. Its `text`
 property holds the text that failed to decode. For sequential media types, it is thrown during iteration, and `text`
 is the item that failed to decode.
 

@@ -24,16 +24,16 @@ const api = createClient({
 
 ### サーバーと `baseUrl` {#servers-and-baseurl}
 
-`baseUrl` を省略すると、各操作はその操作自身のサーバーに送信されます。送信先は、操作の `servers` の最初の項目です。操作の `servers` がなければパスアイテムの `servers` の最初の項目、それもなければ最上位の `servers` の最初の項目が使われます。サーバー変数には既定値が設定されます。
+`baseUrl` を省略すると、各操作のリクエストはその操作のサーバーに送信されます。送信先は、操作の `servers` の最初の項目です。操作の `servers` がなければパスアイテムの `servers` の最初の項目、それもなければ最上位の `servers` の最初の項目が使われます。サーバー変数には既定値が設定されます。
 
-- ドキュメントにサーバーが 1 つもないときは、パスは現在のページからの相対パスのままになり、ブラウザーではこれで動作します。ただし、それ以外の環境では `new Request` が相対 URL を拒否するため、`baseUrl` を設定してください。
+- ドキュメントにサーバーが 1 つもないときは、パスは現在のページからの相対パスのままになり、ブラウザーではそのまま動作します。ただし、それ以外の環境では `new Request` が相対 URL を拒否するため、`baseUrl` を設定してください。
 - `"/api"` のような相対的な `baseUrl` も、ブラウザーでしか動作しません。
 
 環境ごとに異なるサーバーを使う方法は、[レシピ](./recipes#setting-the-base-url-for-each-environment)をご覧ください。
 
 ## 操作の呼び出し方 {#calling-an-operation}
 
-操作は、HTTP メソッドとパステンプレートをドキュメントの記述どおりに指定して選択します。第 2 引数には、入力をリクエスト内の送り先ごとにまとめて渡します。
+操作は、HTTP メソッドとパステンプレートをドキュメントの記述どおりに指定して選択します。第 2 引数には、入力をリクエスト内の場所ごとにまとめて渡します。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -81,7 +81,7 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 | `*/*`、`application/*` | スキーマの型、または `unknown` |
 | その他 | `BodyInit` |
 
-`contentType` でメディアタイプを選択すると、`body` の型はそのメディアタイプに従います。操作が宣言しているメディアタイプが 1 つだけのときは、`contentType` を省略できます。複数のメディアタイプを宣言しているときも、`contentType` を省略すると、その操作の最初の `application/json` メディアタイプが使われます。どちらの場合も、本体はそのメディアタイプで、`charset` などのパラメーターも含めて宣言どおりに送信されます。`*/*` のような範囲に対しては、`contentType` に任意の文字列を指定できます。
+`contentType` でメディアタイプを選択すると、`body` の型はそのメディアタイプに従います。操作が宣言しているメディアタイプが 1 つだけのときは、`contentType` を省略できます。複数のメディアタイプを宣言しているときも、`contentType` を省略すると、その操作の最初の `application/json` メディアタイプが使われます。どちらの場合も、本体は `charset` などのパラメーターを含め、宣言されたとおりのメディアタイプで送信されます。`*/*` のような範囲に対しては、`contentType` に任意の文字列を指定できます。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -107,7 +107,7 @@ JSON の本体は `JSON.stringify` でシリアライズされます。そのた
 
 ## レスポンス {#responses}
 
-すべての呼び出しは、`{ ok, status, data, response }` で解決されるプロミスを返します。`status` を比較すると、`data` は一致するレスポンスの型に絞り込まれます。また、`ok` は `response.ok` と同じ値です。規則については[厳密な型](./strict-types#responses-are-typed-by-status)をご覧ください。
+すべての呼び出しは、`{ ok, status, data, response }` で解決するプロミスを返します。`status` を比較すると、`data` は一致するレスポンスの型に絞り込まれます。また、`ok` は `response.ok` と同じ値です。規則については[厳密な型](./strict-types#responses-are-typed-by-status)をご覧ください。
 
 ### レスポンス本体 {#response-bodies}
 
@@ -159,4 +159,4 @@ try {
 
 ## クライアントオブジェクト {#the-client-object}
 
-クライアントは、ドキュメントにある HTTP メソッドごとのプロパティを、ドキュメントと同じ綴りで持ちます（`api.get` ではなく `api.GET`）。そのほかに `with` も持ちます（[ミドルウェア](./middleware#per-client-middleware-with-with)を参照）。小文字のメソッド名を含め、それ以外のプロパティは通常のオブジェクトと同じように振る舞います。そのため、クライアントを調べたりシリアライズしたりしても、リクエストが送信されることはありません。
+クライアントは、ドキュメントにある HTTP メソッドごとのプロパティを、ドキュメントと同じ表記で持ちます（`api.get` ではなく `api.GET`）。そのほかに `with` も持ちます（[ミドルウェア](./middleware#per-client-middleware-with-with)を参照）。小文字のメソッド名を含め、それ以外のプロパティは通常のオブジェクトと同じように振る舞います。そのため、クライアントを調べたりシリアライズしたりしても、リクエストが送信されることはありません。

@@ -4,7 +4,7 @@
 
 ## 想定外のステータスで例外を投げる {#throwing-on-unexpected-statuses}
 
-呼び出しは、2xx 以外のレスポンスに対して例外を投げずにレスポンスを返します。データ取得ライブラリーの中など、例外のほうが適しているときは、呼び出しをラップして、想定するステータスを渡します。
+呼び出しは、2xx 以外のレスポンスに対して例外を投げずにレスポンスを返します。データ取得ライブラリーの中で使うときなど、例外のほうが適しているときは、呼び出しをラップして、想定するステータスを渡します。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -49,7 +49,7 @@ const pet = await expectStatus(call, 200);
 
 ## TanStack Query {#tanstack-query}
 
-生成されたフックは必要ありません。`queryFn` の中で、TanStack Query が提供する `signal` を渡して呼び出してください。そうすれば、クエリーがキャンセルされたときにリクエストが中止されます。
+フックを生成する必要はありません。`queryFn` の中で、TanStack Query が提供する `signal` を渡して呼び出してください。そうすれば、クエリーがキャンセルされたときにリクエストが中止されます。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -161,7 +161,7 @@ const mock: Middleware = async (request, next, { operation }) => {
 const mocked = api.with(mock);
 ```
 
-## ストリーミングされるレスポンスを読み込む {#reading-streamed-responses}
+## ストリーミングされるレスポンスを読み取る {#reading-streamed-responses}
 
 JSON Lines やサーバー送信イベントのような逐次的なメディアタイプ（sequential media types）のレスポンスでは、`data` は非同期反復可能オブジェクトです。先に `status` で絞り込んでから、反復処理します。
 
@@ -199,9 +199,9 @@ async function handle(incoming: Request): Promise<Response> {
 }
 ```
 
-## 生成されるファイルをプロジェクトに置く {#keeping-the-generated-file-in-your-project}
+## 生成されるファイルを管理する {#keeping-the-generated-file-in-your-project}
 
-生成されるファイルをコミットすると、oasis-gen を実行しなくてもプロジェクトの型チェックができます。一方、ビルドの工程で生成すると、ファイルはドキュメントと同期した状態に保たれます。どちらの方法でも、生成されるファイルはプロジェクトのスタイル規則に従っていないため、リンターとフォーマッターの対象から除外してください。たとえば ESLint のフラット設定（flat config）では、次のようにします。
+生成されるファイルをコミットすると、oasis-gen を実行しなくてもプロジェクトの型チェックができます。一方、ビルド時に生成すると、ファイルはドキュメントと同期した状態に保たれます。どちらの方法でも、生成されるファイルはプロジェクトのスタイル規則に従っていないため、リンターとフォーマッターの対象から除外してください。たとえば ESLint のフラット設定（flat config）では、次のようにします。
 
 ```js
 import { globalIgnores } from "eslint/config";
@@ -212,12 +212,12 @@ export default [
 ];
 ```
 
-## よくある問題 {#common-problems}
+## トラブルシューティング {#common-problems}
 
 | 問題 | 原因 | 解決方法 |
 | --- | --- | --- |
-| ブラウザー以外での `TypeError: Failed to parse URL` | ドキュメントにサーバーがないか `baseUrl` が相対的なため、リクエストの URL が相対 URL | 絶対 URL の `baseUrl` を設定 |
-| `TS5097: An import path can only end with a '.ts' extension ...` | プロジェクトでインポートの `.ts` 拡張子が不許可 | `allowImportingTsExtensions` を有効にするか、`./api.js` または `./api` をインポート |
+| ブラウザー以外の環境での `TypeError: Failed to parse URL` | リクエストの URL が相対 URL（ドキュメントにサーバーがないか、`baseUrl` が相対 URL のため） | 絶対 URL の `baseUrl` を設定 |
+| `TS5097: An import path can only end with a '.ts' extension ...` | インポートで `.ts` 拡張子を許可していないプロジェクト | `allowImportingTsExtensions` を有効にするか、`./api.js` または `./api` をインポート |
 | `DecodeError` での `TS2554: Expected 0-1 arguments, but got 2.` | ES2022 より古い `lib` | `lib` を ES2022 以降に設定 |
 | `TS2304: Cannot find name 'RequestInit'`、`'Blob'`、または `'FormData'` | `lib` の `dom` と `@types/node` のどちらも利用不可 | どちらかを追加 |
 | エラーレスポンスでの `DecodeError` | サーバーから返された、`Content-Type` と一致しない本体（HTML のエラーページなど） | `DecodeError` を捕捉して `error.response.status` を確認。[エラー](./client#decodeerror)を参照 |

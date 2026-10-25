@@ -39,7 +39,7 @@ const api = createClient({ middleware: [timing, retry] });
 - Errors that `fetch` itself throws are thrown from `next`.
 - Response bodies are read and decoded after the chain finishes. As a result,
   a middleware can adjust the response, and errors that occur while reading
-  the body, including `DecodeError`, do not pass through `next`.
+  the body, including `DecodeError`, are not thrown from `next`.
 
 ## The operation
 
@@ -71,5 +71,5 @@ const acme = api.with(tenant("acme"));
 await acme.GET("/pets");
 ```
 
-Using `with` instead of changing a shared client keeps per-request state,
+Using `with` instead of mutating a shared client keeps per-request state,
 such as a tenant or a user's token on a server, from leaking between requests.

@@ -21,8 +21,8 @@ type PetKind = Pet["kind"];
   digits, and `_` replaced by one `_`: `Pet.Owner` becomes `Pet_Owner`. A key
   that starts with a digit gets a leading `_`.
 - A name that is already taken by the client's own exports (`Client`,
-  `Middleware`, ...) or by an earlier schema gets a number: a schema named
-  `Client` becomes `Client_2`.
+  `Middleware`, ...) or by an earlier schema gets a numeric suffix: a schema
+  named `Client` becomes `Client_2`.
 - A schema with a [request variant](./strict-types#requests-and-responses-have-separate-types)
   also exports the request variant, named with a `Request` suffix, such as
   `AccountRequest`.
@@ -42,7 +42,7 @@ type PetKind = Pet["kind"];
 | `oneOf`, `anyOf` | A union; with a `discriminator`, each member is tagged with its value |
 | `allOf` | An intersection |
 | `$ref` to a component | That schema's type |
-| A property listed only in `required` | `{} \| null` (any value except `undefined`) |
+| A property in `required` but not in `properties` | `{} \| null` (any value except `undefined`) |
 | No schema, or `{}` | `unknown` |
 
 `title`, `description`, `default`, and `deprecated` become JSDoc comments, so
@@ -90,8 +90,8 @@ if (animal.kind === "Dog") {
 Checking `kind` narrows an `Animal` to a `Dog` or a `Cat`.
 
 oasis-gen does not support a `discriminator` on a parent that has no `oneOf`
-and that only its subtypes refer to with `allOf`. Such a parent stays a plain
-object type.
+and is referenced only by its subtypes through `allOf`. Such a parent stays a
+plain object type.
 
 ## Type aliases and `components`
 
@@ -100,7 +100,7 @@ Each schema is defined as a type alias with a `$` prefix, such as `$Pet`, and
 names. The exported names, `schemas`, and `components` all refer to these
 aliases:
 
-| Type | Content |
+| Type | Description |
 | --- | --- |
 | `schemas["Pet"]`, or `components["schemas"]["Pet"]` | The same type as `Pet` |
 | `components["requestSchemas"]` | Request variants of component schemas |

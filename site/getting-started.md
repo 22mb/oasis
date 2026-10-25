@@ -99,9 +99,9 @@ switch (res.status) {
 }
 ```
 
-You select an operation by its HTTP method and path template, exactly as the
-document writes them. Comparing `status` narrows `data` to the response that
-the document declares for that status. The `default` branch handles the
+You select an operation by its HTTP method and path template, exactly as they
+are written in the document. Checking `status` narrows `data` to the response
+that the document declares for that status. The `default` branch handles the
 statuses that the document does not declare, so `data` is `unknown` there.
 [Strict types](./strict-types) explains why.
 

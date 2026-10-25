@@ -84,7 +84,7 @@ type Middleware = (
 ) => Promise<Response>;
 ```
 
-| `OperationInfo` field | Type | Content |
+| `OperationInfo` field | Type | Description |
 | --- | --- | --- |
 | `method` | `string` | The HTTP method, as used in the call |
 | `path` | `string` | The path template, such as `/pets/{petId}` |

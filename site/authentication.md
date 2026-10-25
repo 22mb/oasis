@@ -34,9 +34,10 @@ request with the scopes that the requirement lists and the
 
 For each request, `auth` picks the first of the operation's `security`
 alternatives whose credentials are all available. Alternatives that add
-nothing to the request (anonymous `{}`, or `mutualTLS` alone) are used only
-when no other alternative is available. If no alternative is available, the
-request is sent without credentials, and the server decides.
+nothing to the request (the empty requirement `{}`, or `mutualTLS` alone) are
+used only when no other alternative is available. If no alternative is
+available, the request is sent without credentials, and the server decides how
+to respond.
 
 ## Where credentials go
 
@@ -52,7 +53,7 @@ request is sent without credentials, and the server decides.
 Browsers ignore a `Cookie` header set in `fetch`, so cookie API keys work only
 in Node, Deno, and Bun.
 
-## When nothing is sent
+## When no credentials are sent {#when-nothing-is-sent}
 
 `auth` follows only the document's `security`. It sends nothing for
 operations with `security: []`. It also sends nothing for any operation when

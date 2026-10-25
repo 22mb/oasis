@@ -1,4 +1,4 @@
-# OpenAPI への対応
+# OpenAPI の対応状況
 
 このページでは、oasis-gen が OpenAPI ドキュメントから何を受け付け、それぞれの機能をどう扱うかを一覧にしています。対応状況を表す語の意味は次のとおりです。
 
@@ -44,7 +44,7 @@ OpenAPI 3.0 のドキュメントでは、これらのキーワードを次の�
 
 | 機能 | 対応状況 | 備考 |
 | --- | --- | --- |
-| JSON Schema 2020-12 | 対応 | `type` の配列、`const`、`enum`、`allOf`、`oneOf`、`anyOf`、`prefixItems`、`additionalProperties`、兄弟キーワードを持つ `$ref`、`readOnly` と `writeOnly`（[厳密な型](./strict-types#requests-and-responses-have-separate-types)を参照） |
+| JSON Schema 2020-12 | 対応 | `type` の配列、`const`、`enum`、`allOf`、`oneOf`、`anyOf`、`prefixItems`、`additionalProperties`、ほかのキーワードと並んだ `$ref`、`readOnly` と `writeOnly`（[厳密な型](./strict-types#requests-and-responses-have-separate-types)を参照） |
 | 再帰的なスキーマ | 対応 | プロパティ、配列、`additionalProperties` を経由するもの。`$defs` をはじめとする `components.schemas` 以外の場所への `$ref` も含む |
 | `oneOf` または `anyOf` の `discriminator` | 対応 | 明示的なマッピングと暗黙のマッピング、`defaultMapping` |
 | 親の `oneOf` に列挙され、それぞれが `allOf` で親を拡張するサブタイプ | 対応 | [サブタイプ](./schemas#subtypes)を参照 |
@@ -69,7 +69,7 @@ OpenAPI 3.0 のドキュメントでは、これらのキーワードを次の�
 | `query` | `form`、`deepObject` | `allowReserved` に対応。`spaceDelimited` と `pipeDelimited` は拒否 |
 | `path` | `simple` | `label` と `matrix` は拒否 |
 | `header` | `simple` | |
-| `cookie` | `form`（パーセントエンコード）、`cookie`（そのまま送信） | 仕様書ではクッキーに `&` を使えないため、explode した値はどちらのスタイルでも `; ` で連結 |
+| `cookie` | `form`（パーセントエンコード）、`cookie`（そのまま送信） | 仕様書ではクッキーに `&` を使えないため、`explode` で展開された値はどちらのスタイルでも `; ` で連結 |
 | `querystring` | 対応 | メディアタイプに基づいて型付けとエンコードを実施。[`querystring` パラメーター](./client#querystring-parameters)を参照 |
 
 どのスタイルも `explode` に対応しています。また、スキーマの代わりに `content` を持つパラメーターにも対応しています。メディアタイプが JSON のクエリーパラメーターは、スキーマから型付けされて JSON としてシリアライズされます。一方、`content` を持つその他のパラメーターには、シリアライズ済みの文字列を渡します。

@@ -34,7 +34,7 @@ type PetKind = Pet["kind"];
 | `oneOf`、`anyOf` | ユニオン型。`discriminator` があるときは、各メンバーにその値のタグを付与 |
 | `allOf` | インターセクション型 |
 | コンポーネントへの `$ref` | そのスキーマの型 |
-| `required` にだけ挙げられたプロパティ | `{} \| null`（`undefined` 以外の任意の値） |
+| `required` にだけ含まれるプロパティ | `{} \| null`（`undefined` 以外の任意の値） |
 | スキーマなし、または `{}` | `unknown` |
 
 `title`、`description`、`default`、`deprecated` は JSDoc コメントになるため、エディターでホバーしたときに表示されます。なお、`format` に応じた変換は行われません。詳しくは[厳密な型](./strict-types#formats-are-not-converted)をご覧ください。

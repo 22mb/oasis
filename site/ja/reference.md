@@ -24,7 +24,7 @@ oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
 - **TypeScript** 5.0 以降が必要です。生成されるファイルには、`lib` の ES2022 以降が必要です。さらに `fetch`、`Request`、`Response` の型のために、`lib` の `dom` か `@types/node` のどちらかが必要です。
 - 生成されるファイルは TypeScript の消去可能な構文（erasable syntax）だけを使っているため、Node.js の Type Stripping でもそのまま実行できます。
 
-このサイトの例は `./api.ts` をインポートしています。このインポートには、`allowImportingTsExtensions`（Vite のテンプレートでは設定済み）か Node.js の Type Stripping が必要です。どちらも使わないときは、モジュール解決の方式に合わせて `./api.js` か `./api` をインポートしてください。
+このサイトのコード例は `./api.ts` をインポートしています。このインポートには、`allowImportingTsExtensions`（Vite のテンプレートでは設定済み）か Node.js の Type Stripping が必要です。どちらも使わないときは、モジュール解決の方式に合わせて `./api.js` か `./api` をインポートしてください。
 
 ## インストール {#installation}
 

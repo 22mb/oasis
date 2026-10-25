@@ -24,7 +24,7 @@ features:
   - icon:
       src: /icons/strict.svg
     title: Strict types
-    details: <code>status</code> narrows <code>data</code> to the declared response. Statuses that the document does not declare stay in the type. Request types follow <code>readOnly</code> and <code>writeOnly</code>.
+    details: <code>status</code> narrows <code>data</code> to the declared response. Statuses that the document does not declare stay in the type. Request types respect <code>readOnly</code> and <code>writeOnly</code>.
   - icon:
       src: /icons/file.svg
     title: Zero runtime dependencies

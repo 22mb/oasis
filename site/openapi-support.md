@@ -6,14 +6,14 @@ each feature. The support levels mean the following:
 - **Supported**: the feature affects the generated client.
 - **Ignored**: the feature is accepted but does not affect the generated client.
 - **Rejected**: the feature stops generation with an error.
-- **Not supported**: the feature is read as noted, or not read at all.
+- **Not supported**: the feature is handled only as noted, or not at all.
 
 ## Versions
 
 | Version | Support |
 | --- | --- |
 | OpenAPI 3.2 | Supported |
-| OpenAPI 3.1 | Supported; read exactly like 3.2 |
+| OpenAPI 3.1 | Supported; treated exactly like 3.2 |
 | OpenAPI 3.0 | Supported, with the differences below |
 | Swagger 2.0 (`swagger: "2.0"`) | Not supported |
 
@@ -21,12 +21,12 @@ In an OpenAPI 3.0 document, these keywords are handled as follows:
 
 | Keyword | Handling |
 | --- | --- |
-| `nullable: true` | Adds `null` to the type. On an `enum`, `null` is added even if the list omits it. Other generators read it this way, although 3.0.3 itself leaves such an `enum` excluding `null` |
+| `nullable: true` | Adds `null` to the type. On an `enum`, `null` is added even if the list omits it. Other generators read it this way, although under 3.0.3 itself such an `enum` still disallows `null` |
 | `nullable: true` next to a `$ref`, or on an `allOf` with one `$ref` | Adds `null` to the referenced type |
 | `example`, a boolean `exclusiveMinimum`, `format: binary` or `byte` | Ignored |
 
-`nullable` in a 3.1 or 3.2 document is rejected, because the specification
-would have it silently ignored in those versions. Use `type: [..., "null"]`
+`nullable` in a 3.1 or 3.2 document is rejected, because those versions of the
+specification would silently ignore it. Use `type: [..., "null"]`
 instead.
 
 ## Documents
@@ -54,7 +54,7 @@ See [Schemas](./schemas) for the TypeScript type that each keyword becomes.
 | Subtypes listed in the parent's `oneOf`, each extending it with `allOf` | Supported | See [Subtypes](./schemas#subtypes) |
 | Other cycles through `$ref`, `allOf`, `oneOf` or `anyOf` alone | Rejected | Cycles with no object or array in between |
 | `discriminator` on an `allOf` parent | Not supported | The parent is not turned into a union of its children |
-| `$dynamicRef` | Not supported | Read as `unknown` |
+| `$dynamicRef` | Not supported | Typed as `unknown` |
 
 ## Operations
 
@@ -63,7 +63,7 @@ See [Schemas](./schemas) for the TypeScript type that each keyword becomes.
 | `get`, `put`, `post`, `delete`, `options`, `head`, `patch`, `trace` | Supported | |
 | `query` (the HTTP `QUERY` method) | Supported | |
 | `additionalOperations` | Supported | Custom methods such as `LINK` |
-| Some `additionalOperations` names | Rejected | `delete`, `get`, `head`, `options`, `post`, and `put` in any case, and `PATCH`, `TRACE`, and `QUERY` in uppercase, because fetch would send them as the fixed fields' methods; also `with` and `then`, which the client reserves |
+| Some `additionalOperations` names | Rejected | `delete`, `get`, `head`, `options`, `post`, and `put` regardless of case, and `PATCH`, `TRACE`, and `QUERY` in uppercase, because fetch would send them as the same methods as the fixed fields; also `with` and `then`, which the client reserves |
 | Callbacks and webhooks | Not supported | |
 
 ## Parameters

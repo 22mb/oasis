@@ -2,8 +2,8 @@
 
 The types that oasis-gen generates follow the text of the OpenAPI
 specification. When the specification allows a status or a value, the
-generated types include it, so the compiler asks you to handle it. This page shows the rules that follow from
-this principle.
+generated types include it, so the compiler makes you handle it. This page
+shows the rules that follow from this principle.
 
 The examples use a client generated from a petstore document. Hover over a
 name in a code block to see its type.
@@ -14,14 +14,14 @@ The specification does not expect a document to cover every status that an
 operation can return. oasis-gen therefore types `status` as every status that
 a response can have, and each key under `responses` covers some of them:
 
-| Key under `responses` | Statuses that it covers | `data` |
+| Key under `responses` | Statuses covered | `data` |
 | --- | --- | --- |
 | A status code, such as `200` | That code | The type of that response |
 | A range, such as `4XX` | The codes in the range that are not declared on their own | The type of that response |
 | `default` | Every status that no other key covers, including 2xx | The type of the `default` response |
 | No key | The statuses that no key covers, when there is no `default` | `unknown` |
 
-Comparing `status` narrows `data` to the matching response:
+Checking `status` narrows `data` to the matching response:
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -75,12 +75,12 @@ if (res.ok) {
 }
 ```
 
-Compare `status` instead, or `switch` on it, as in the examples above.
+Check `status` instead, or `switch` on it, as in the examples above.
 
-## Error responses are values
+## Error responses are returned, not thrown {#error-responses-are-values}
 
-Calls return non-2xx responses instead of throwing them. A call throws only
-for network errors, for bodies that do not match their `Content-Type`, and for
+Non-2xx responses are returned, not thrown. A call throws only for network
+errors, for bodies that do not match their `Content-Type`, and for
 invalid path parameters. See [Errors](./client#errors). To throw on an unexpected status,
 see the [recipe](./recipes#throwing-on-unexpected-statuses).
 
@@ -113,7 +113,7 @@ type InRequests = AccountRequest;
 
 - In the request variant, `readOnly` properties have the type `never`, so you
   cannot set them. In the response type, `writeOnly` properties have the type
-  `never`. On the other side, these properties stay required or optional as
+  `never`. In the other type, these properties stay required or optional as
   the schema declares.
 - A property is also `readOnly` or `writeOnly` when its `$ref` target is, or
   when another `allOf` member marks a property of the same name.
@@ -123,6 +123,6 @@ type InRequests = AccountRequest;
 ## Formats are not converted
 
 A `format` does not change the type. A `date-time` stays a `string`, and an
-`int64` is a `number`, as `JSON.parse` produces it. Integers above
+`int64` is a `number`, which is what `JSON.parse` produces. Integers above
 2<sup>53</sup> therefore lose precision. Convert values yourself where you need
 another type.
