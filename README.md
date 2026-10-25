@@ -1,15 +1,16 @@
-<img src="https://raw.githubusercontent.com/22mb/oasis/main/site/public/logo-512.png" alt="" width="96" height="96">
-
-# oasis-gen
-
-A minimal API client generator for **OpenAPI 3.2**.
+<div align="center">
+  <img src="https://raw.githubusercontent.com/22mb/oasis/main/site/public/logo-512.png" alt="" width="96" height="96">
+  <h1>oasis-gen</h1>
+  <p>A minimal API client generator for <b>OpenAPI 3.2</b>.</p>
+  <p>
+    <a href="https://22mb.github.io/oasis/"><b>Documentation</b></a> ·
+    <a href="https://22mb.github.io/oasis/playground"><b>Playground</b></a> ·
+    <a href="https://22mb.github.io/oasis/ja/">日本語</a>
+  </p>
+</div>
 
 oasis-gen reads an OpenAPI document and writes one dependency-free TypeScript
 file, with types for every operation and a small `fetch`-based runtime.
-
-**[Documentation](https://22mb.github.io/oasis/)** ·
-**[Playground](https://22mb.github.io/oasis/playground)** ·
-[日本語](https://22mb.github.io/oasis/ja/)
 
 <img src="https://raw.githubusercontent.com/22mb/oasis/main/site/public/strict-types.png" alt="In the generated client, res.data has the type $Pet when res.status is 200, $Error when it is 404, and unknown for any other status">
 
