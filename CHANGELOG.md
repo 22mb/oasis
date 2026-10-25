@@ -7,6 +7,39 @@ change the generated code or the CLI in incompatible ways.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-25
+
+### Removed
+
+- **Breaking:** The generated `components` no longer has `refs` and
+  `requestRefs`. Schemas in other files or under `$defs` are still typed, and
+  are reached through the component schemas and operations that refer to
+  them. Named exports (`import type { Pet }`), `schemas` and
+  `components["schemas"]` are unchanged.
+
+### Added
+
+- Node.js 22 is supported. The npm package now requires Node.js 22 or later
+  instead of 24.
+
+### Fixed
+
+- `patternProperties` is no longer ignored. With `additionalProperties: false`,
+  a value with a key that matches a pattern was rejected. TypeScript cannot
+  restrict keys to a pattern, so such an object now has an index signature
+  over every key, typed as the patterns and `additionalProperties` allow.
+- The variant that a discriminator's `defaultMapping` names no longer requires
+  the discriminating property. The specification lets a value leave it out,
+  and uses the `defaultMapping` schema then.
+- `auth()` accepts `undefined` credentials, such as an unset environment
+  variable, under `exactOptionalPropertyTypes`. It already treated them as
+  unavailable at runtime.
+- A call can leave out an optional request body without naming a media type,
+  also when the operation declares several and none is implied.
+- A `Cookie` header in a call's `headers` option now joins the `cookie`
+  parameters and replaces only the cookies of the same name. Before, it
+  replaced them all.
+
 ### Security
 
 - The generated client rejects a path that starts with `//` with a
@@ -47,6 +80,7 @@ The first release. 0.1.0 was tagged, but its release stopped before the
 - Prebuilt binaries for macOS, Linux and Windows on arm64 and x64, published
   to npm as `oasis-gen`.
 
-[Unreleased]: https://github.com/22mb/oasis/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/22mb/oasis/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/22mb/oasis/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/22mb/oasis/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/22mb/oasis/releases/tag/v0.1.1
