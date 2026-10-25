@@ -772,9 +772,10 @@ impl<'a> Emitter<'a> {
             return t;
         };
         let property = key(&d.property_name);
-        // The default variant takes every value the mapping does not list.
+        // The default variant takes every value the mapping does not list, and
+        // values without the property; its own schema says whether it is required.
         if d.default_mapping.as_deref() == Some(k.as_str()) {
-            return format!("({t} & {{ {property}: string }})");
+            return format!("({t} & {{ {property}?: string }})");
         }
         let values: Vec<String> = d
             .mapping

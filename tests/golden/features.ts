@@ -345,9 +345,9 @@ type $Bike = {
   gears: number;
 };
 type $OtherVehicle = {
-  kind: string;
+  kind?: string;
 };
-type $Vehicle = ($Car & { kind: "car" | "Car" }) | ($Bike & { kind: "Bike" }) | ($OtherVehicle & { kind: string });
+type $Vehicle = ($Car & { kind: "car" | "Car" }) | ($Bike & { kind: "Bike" }) | ($OtherVehicle & { kind?: string });
 type $Serial = number;
 type $Entity = {
   serial?: $Serial;

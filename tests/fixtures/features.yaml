@@ -358,9 +358,9 @@ components:
       properties:
         kind: { type: string }
         gears: { type: integer }
+    # The default variant also takes values without the discriminating property.
     OtherVehicle:
       type: object
-      required: [kind]
       properties:
         kind: { type: string }
     Vehicle:
