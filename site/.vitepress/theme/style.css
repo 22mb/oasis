@@ -117,3 +117,22 @@
     line-break: strict;
   }
 }
+
+/* Hand-drawn SVG diagrams: strokes and text follow the theme through currentColor. */
+.vp-doc figure.diagram {
+  margin-block: 24px;
+  color: var(--vp-c-text-1);
+  /* On narrow screens, scroll the drawing instead of shrinking its text. */
+  overflow-x: auto;
+
+  & svg {
+    min-inline-size: 560px;
+  }
+
+  & figcaption {
+    margin-block-start: 8px;
+    font-size: 14px;
+    color: var(--vp-c-text-2);
+    text-wrap: pretty;
+  }
+}
