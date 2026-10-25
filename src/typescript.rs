@@ -569,6 +569,13 @@ impl<'a> Emitter<'a> {
                 let body_field = format!("body{}: {}", opt(!body.required), self.request_body(c));
                 variants.push(vec![ct, body_field]);
             }
+            // An optional body can be left out without naming a media type, also
+            // when no media type is implied.
+            let implied = default_media_type(body).is_some()
+                || body.content.iter().any(|c| c.media_type.contains('*'));
+            if !body.required && !implied && !variants.is_empty() {
+                variants.push(vec!["contentType?: never".into(), "body?: never".into()]);
+            }
         }
 
         let object = |fields: &[String]| {

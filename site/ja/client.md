@@ -81,7 +81,7 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 | `*/*`、`application/*` | スキーマの型、または `unknown` |
 | その他 | `BodyInit` |
 
-`contentType` でメディアタイプを選択すると、`body` の型はそのメディアタイプに従います。操作が宣言しているメディアタイプが 1 つだけのときは、`contentType` を省略できます。複数のメディアタイプを宣言しているときも、`contentType` を省略すると、その操作の最初の `application/json` メディアタイプが使われます。どちらの場合も、本体は `charset` などのパラメーターを含め、宣言されたとおりのメディアタイプで送信されます。`*/*` のような範囲に対しては、`contentType` に任意の文字列を指定できます。
+`contentType` でメディアタイプを選択すると、`body` の型はそのメディアタイプに従います。操作が宣言しているメディアタイプが 1 つだけのときは、`contentType` を省略できます。複数のメディアタイプを宣言しているときも、`contentType` を省略すると、その操作の最初の `application/json` メディアタイプが使われます。どちらの場合も、本体は `charset` などのパラメーターを含め、宣言されたとおりのメディアタイプで送信されます。`*/*` のような範囲に対しては、`contentType` に任意の文字列を指定できます。リクエスト本体が省略可能なときは、`body` と `contentType` の両方を省略できます。
 
 ```ts twoslash
 import { createClient } from "./api.ts";

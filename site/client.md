@@ -97,6 +97,7 @@ can omit `contentType` when the operation declares only one media type. When
 the operation declares several, you can omit `contentType` to use its first
 `application/json` media type. The body is then sent as that media type,
 exactly as the document declares it, including its parameters (such as `charset`). For a range such as `*/*`, `contentType` accepts any string.
+When the request body is optional, you can omit both `body` and `contentType`.
 
 ```ts twoslash
 import { createClient } from "./api.ts";

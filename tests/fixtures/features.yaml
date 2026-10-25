@@ -219,6 +219,18 @@ paths:
       responses:
         "204":
           description: Saved.
+  # An optional body with no implied media type can still be left out.
+  /photos/{id}:
+    put:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          image/png: {}
+          image/jpeg: {}
+      responses:
+        "204":
+          description: Saved, or cleared without a body.
   /blobs:
     # No `responses`, and a form querystring without a schema.
     get:
