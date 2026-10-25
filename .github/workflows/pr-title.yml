@@ -12,6 +12,8 @@ jobs:
   check:
     name: PR title
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout, for a release pull request
     steps:
       - env:
           TITLE: ${{ github.event.pull_request.title }}
@@ -26,5 +28,25 @@ jobs:
               echo "Changelog: feat, fix and perf are listed; fix(security) goes under Security"
               echo "Breaking:  add ! before the colon, e.g. feat!: ..."
             } >&2
+            exit 1
+          fi
+      # A release pull request must set the version in Cargo.toml and add its
+      # section to CHANGELOG.md, which the release workflow reads only after the tag is pushed.
+      - if: "startsWith(github.event.pull_request.title, 'release: ')"
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - if: "startsWith(github.event.pull_request.title, 'release: ')"
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          version=${TITLE#release: }
+          cargo=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+          if [[ "$version" != "$cargo" ]]; then
+            echo "::error title=Version mismatch::The title says $version, but Cargo.toml has $cargo." >&2
+            exit 1
+          fi
+          if ! awk -v heading="## [$version]" 'index($0, heading) == 1 { found = 1 } END { exit !found }' CHANGELOG.md; then
+            echo "::error title=Missing changelog section::CHANGELOG.md has no ## [$version] section." >&2
             exit 1
           fi

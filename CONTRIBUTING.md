@@ -69,7 +69,8 @@ translate the IR. Adding a target language means adding one emitter next to
    ```
 
 3. Merge the release pull request, titled `release: <version>`, then tag its commit on `main` and push the
-   tag, which runs the release workflow.
+   tag, which runs the release workflow. CI checks that `Cargo.toml` and
+   `CHANGELOG.md` match the title.
 
    ```sh
    git tag -a v<version> -m "oasis-gen <version>" && git push origin v<version>
