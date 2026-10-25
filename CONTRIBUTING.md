@@ -30,6 +30,21 @@ cd site && npm ci && npm run dev   # the documentation site
 `tests/fixtures`. A change to the generator usually changes these files.
 Review the diff and commit it with the change.
 
+## Design
+
+```
+JSON/YAML files ──Documents──▶ serde_json::Value per file ──parse──▶ ir::Api ──emit──▶ TypeScript
+```
+
+`src/documents.rs` loads the entry document and every local file it references,
+and resolves URI references (base URIs from `$self` and `$id`). `src/parse.rs`
+handles everything about the OpenAPI document (`$ref` resolution, version
+check, validation) and produces a language-neutral IR (`src/ir.rs`). Schemas
+behind `$ref`s outside `components.schemas` are hoisted into named schemas
+once, so references stay references and recursion is cheap. Emitters only
+translate the IR. Adding a target language means adding one emitter next to
+`src/typescript.rs`. The IR is public but not yet stable.
+
 ## Pull requests
 
 - Keep a pull request to one change, and add a test or a fixture for it.

@@ -74,29 +74,10 @@ cargo install --git https://github.com/22mb/oasis
 
 Changes in each release are listed in [CHANGELOG.md](CHANGELOG.md).
 
-## Design
+## Contributing
 
-```
-JSON/YAML files ──Documents──▶ serde_json::Value per file ──parse──▶ ir::Api ──emit──▶ TypeScript
-```
-
-`src/documents.rs` loads the entry document and every local file it references,
-and resolves URI references (base URIs from `$self` and `$id`). `src/parse.rs`
-handles everything about the OpenAPI document (`$ref` resolution, version
-check, validation) and produces a language-neutral IR (`src/ir.rs`). Schemas
-behind `$ref`s outside `components.schemas` are hoisted into named schemas
-once, so references stay references and recursion is cheap. Emitters only
-translate the IR. Adding a target language means adding one emitter next to
-`src/typescript.rs`. The IR is public but not yet stable.
-
-## Development
-
-```sh
-cargo test                      # unit tests and golden files
-UPDATE_GOLDEN=1 cargo test      # regenerate tests/golden after an intended change
-cd tests/ts && npm ci && npm test  # type-check and run the generated client against a test server
-cd site && npm ci && npm run dev   # the documentation site
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and the
+design of the generator.
 
 ## License
 
