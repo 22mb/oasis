@@ -1,0 +1,2 @@
+# Check out with LF everywhere, so golden files match the generated output on Windows too.
+* text=auto eol=lf

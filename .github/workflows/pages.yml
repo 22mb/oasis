@@ -13,6 +13,9 @@ on:
 
 permissions: {}
 
+env:
+  CARGO_INCREMENTAL: 0
+
 # A new push cancels the previous run, except a deployment in progress on main.
 concurrency:
   group: pages-${{ github.event.pull_request.number || github.ref }}
@@ -36,6 +39,16 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - run: rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+      - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
+      # The playground's dependencies, cached per toolchain and Cargo.lock.
+      - uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            playground/target/
+          key: cargo-wasm-${{ env.RUSTC_VERSION }}-${{ hashFiles('playground/Cargo.lock') }}
+          restore-keys: cargo-wasm-${{ env.RUSTC_VERSION }}-
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v5.0.0

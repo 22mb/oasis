@@ -1,0 +1,37 @@
+name: Bug report
+description: Generated code that is wrong, fails to type-check, or behaves unexpectedly
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: oasis-gen version
+      description: The output of `npx oasis-gen --version`.
+    validations:
+      required: true
+  - type: textarea
+    id: document
+    attributes:
+      label: OpenAPI document
+      description: The smallest document, or part of one, that shows the problem. Remove anything private.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: The generated code, the error message, or the runtime behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: TypeScript version, and the runtime the client runs in (Node.js, a browser, Bun).

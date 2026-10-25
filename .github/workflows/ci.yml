@@ -7,6 +7,10 @@ on:
 
 permissions: {}
 
+# Incremental builds only add to the cache; CI always starts from scratch.
+env:
+  CARGO_INCREMENTAL: 0
+
 # One run per branch or pull request; a new push cancels the previous one.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -23,8 +27,48 @@ jobs:
         with:
           persist-credentials: false
       - run: rustup toolchain install stable --profile minimal -c clippy,rustfmt
+      # Dependencies are cached per toolchain and Cargo.lock. Release builds never use the cache.
+      - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
+      - uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            target/
+          key: cargo-rust-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-rust-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  # The release builds these platforms too; testing them here catches path and
+  # line-ending differences before a tag is pushed.
+  rust-platforms:
+    name: Rust (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read # checkout
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install stable --profile minimal
+      - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
+      - uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            target/
+          key: cargo-test-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-test-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
       - run: cargo test --locked
 
   typescript:
@@ -49,6 +93,11 @@ jobs:
       - run: npm run check:ts5.0
       # Without the dom lib, as Node-only tsconfigs are set up.
       - run: npm run check:no-dom
+      # The generated client also runs in Bun.
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: latest
+      - run: npm run test:bun
 
   npm-package:
     name: npm package
@@ -65,6 +114,15 @@ jobs:
           package-manager-cache: false
       - run: rustup toolchain install stable --profile minimal --target x86_64-unknown-linux-musl
       - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
+      - uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            target/
+          key: cargo-musl-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-musl-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
       - run: cargo build --release --locked --target x86_64-unknown-linux-musl
       - name: Pack the npm packages
         run: |
