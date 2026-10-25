@@ -29,3 +29,11 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      # Twoslash needs TypeScript's JavaScript API, which TypeScript 7 changed
+      # (twoslashes/twoslash#93).
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # Shiki's major version must match the one VitePress 1 bundles (2.x).
+      - dependency-name: "@shikijs/*"
+        update-types: ["version-update:semver-major"]
