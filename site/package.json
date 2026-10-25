@@ -11,7 +11,7 @@
     "@shikijs/vitepress-twoslash": "2.5.0",
     "@tanstack/react-query": "5.104.2",
     "monaco-editor": "0.57.0",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "vitepress": "1.6.4"
   },
   "overrides": {
