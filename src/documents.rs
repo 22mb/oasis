@@ -509,6 +509,29 @@ mod tests {
     }
 
     #[test]
+    fn loads_a_file_once_under_its_path_and_its_self_uri() {
+        let dir = std::env::temp_dir().join(format!("oasis-gen-two-uris-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir); // left behind by a failed run
+        std::fs::create_dir_all(dir.join("lib")).unwrap();
+        std::fs::write(
+            dir.join("lib/index.yaml"),
+            "$self: https://api.example.com/schemas/index.yaml\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("lib/pet.yaml"), "type: object\n").unwrap();
+        let pet = "https://api.example.com/schemas/pet.yaml";
+        let entry = dir.join("openapi.yaml");
+        let doc = json!({"a": {"$ref": "lib/index.yaml"}, "b": {"$ref": "lib/pet.yaml"}, "c": {"$ref": pet}});
+        std::fs::write(&entry, doc.to_string()).unwrap();
+        let docs = Documents::from_file(&entry).unwrap();
+        let (by_path, _) = docs.resolve(&docs.root_base(), "lib/pet.yaml").unwrap();
+        let (by_uri, _) = docs.resolve(&docs.root_base(), pet).unwrap();
+        assert_eq!(by_path, by_uri);
+        assert_eq!(docs.docs.len(), 3); // the entry, lib/index.yaml and lib/pet.yaml
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn reports_remote_references() {
         let docs =
             Documents::from_value(json!({"x": {"$ref": "https://elsewhere.example/a.yaml"}}))

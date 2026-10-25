@@ -1414,6 +1414,15 @@ mod tests {
             ),
             (with_schema(json!({"type": "str"})), "unknown type `str`"),
             (
+                with_schema(json!({"$ref": "#/components/schemas/Nope"})),
+                "unresolved $ref `#/components/schemas/Nope`",
+            ),
+            (with_schema(json!({"$ref": "#nope"})), "no `$anchor: nope`"),
+            (
+                json!({"openapi": "3.0.3", "components": {"schemas": {"S": {"type": "string", "nullable": "yes"}}}}),
+                "`nullable` must be a boolean",
+            ),
+            (
                 json!({"openapi": "3.2.0", "servers": [{}]}),
                 "server requires `url`",
             ),

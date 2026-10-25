@@ -163,6 +163,77 @@ paths:
       responses:
         "204":
           description: Found.
+  # Every serialization of arrays and objects, and operation-level servers over path-level ones.
+  /params/{list}/{pair}:
+    servers:
+      - url: https://path.example.com
+    get:
+      servers:
+        - url: https://operation.example.com
+      parameters:
+        - { name: list, in: path, required: true, schema: { type: array, items: { type: string } } }
+        - name: pair
+          in: path
+          required: true
+          schema: { type: object, properties: { x: { type: integer }, y: { type: integer } } }
+        - { name: X-Ids, in: header, schema: { type: array, items: { type: integer } } }
+        - name: X-Pair
+          in: header
+          schema: { type: object, additionalProperties: { type: string } }
+        - name: obj
+          in: query
+          schema: { type: object, additionalProperties: { type: integer } }
+        - name: flat
+          in: query
+          explode: false
+          schema: { type: object, additionalProperties: { type: integer } }
+        - name: deep
+          in: query
+          style: deepObject
+          schema: { type: object, additionalProperties: { type: array, items: { type: integer } } }
+        - { name: opt, in: query, schema: { type: [string, "null"] } }
+        - { name: multi, in: cookie, schema: { type: array, items: { type: string } } }
+      responses:
+        "200":
+          description: JSON or text.
+          content:
+            application/json:
+              schema: { type: object, properties: { n: { type: integer } } }
+            text/plain:
+              schema: { type: string }
+        "202":
+          description: Items without a schema.
+          content:
+            application/jsonl: {}
+  /forms/{id}:
+    put:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Form" }
+          application/x-www-form-urlencoded:
+            schema: { $ref: "#/components/schemas/Form" }
+      responses:
+        "204":
+          description: Saved.
+  /blobs:
+    # No `responses`, and a form querystring without a schema.
+    get:
+      parameters:
+        - name: q
+          in: querystring
+          content:
+            application/x-www-form-urlencoded: {}
+    post:
+      requestBody:
+        content:
+          "*/*": {}
+      responses:
+        "204":
+          description: Stored.
 components:
   schemas:
     Account:
@@ -322,3 +393,67 @@ components:
         serial: { $ref: "#/components/schemas/Serial" }
     # Named like a runtime export, so exported as `Client_2`.
     Client: { type: string }
+    Form:
+      type: object
+      properties:
+        tags: { type: array, items: { type: string } }
+        note: { type: [string, "null"] }
+    # `allOf` below the top of a schema: an intersection that needs parentheses in an
+    # array, and readOnly reaching a property through it.
+    Stamped:
+      type: object
+      properties:
+        stamp:
+          allOf:
+            - $ref: "#/components/schemas/Serial"
+            - { type: integer, minimum: 0 }
+        pairs:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/Base"
+              - $ref: "#/components/schemas/Owner"
+    # readOnly from a referenced schema reaches a property named in a nested `allOf`.
+    Nested:
+      allOf:
+        - $ref: "#/components/schemas/Entity"
+        - allOf:
+            - required: [serial]
+            - properties:
+                extra: { type: string }
+    # A request shape for a schema hoisted from `$defs`.
+    Doc:
+      type: object
+      properties:
+        meta: { $ref: "#/components/schemas/Doc/$defs/meta" }
+      $defs:
+        meta:
+          type: object
+          properties:
+            rev: { type: integer, readOnly: true }
+    Words: { items: { type: string } }
+    Tuple:
+      prefixItems: [{ type: string }]
+      items: { type: number }
+    OpenTuple:
+      type: array
+      prefixItems: [{ type: boolean }]
+    Closed:
+      type: object
+      properties:
+        x: { type: string }
+      additionalProperties: false
+    Empty: { type: object, additionalProperties: false }
+    Constants:
+      type: object
+      required: [one, yes, nothing]
+      properties:
+        one: { const: 1 }
+        yes: { const: true }
+        nothing: { const: null }
+    Described:
+      type: object
+      properties:
+        owner:
+          $ref: "#/components/schemas/Owner"
+          description: Who owns it.
