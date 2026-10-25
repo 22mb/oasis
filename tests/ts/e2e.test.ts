@@ -154,11 +154,13 @@ test("HEAD responses have no body", async () => {
 
 test("streams JSON Lines and JSON text sequences", async () => {
   const lines = await api.GET("/stream/jsonl");
+  assert.ok(lines.status === 200);
   const items = [];
   for await (const item of lines.data) items.push(item);
   assert.deepEqual(items, [{ id: 1, name: "a" }, { id: 2, name: "b" }]);
 
   const seq = await api.GET("/stream/seq");
+  assert.ok(seq.status === 200);
   const records = [];
   for await (const item of seq.data) records.push(item);
   assert.deepEqual(records, [{ id: 1 }, { id: 2 }]);
@@ -166,6 +168,7 @@ test("streams JSON Lines and JSON text sequences", async () => {
 
 test("streams server-sent events", async () => {
   const res = await api.GET("/stream/sse");
+  assert.ok(res.status === 200);
   const events = [];
   for await (const e of res.data) events.push(e);
   // `retry` and `id` persist: the second event has no `id` line of its own, and the
@@ -195,6 +198,7 @@ test("stops reading when the consumer breaks early", async () => {
   });
 
   const res = await local.GET("/stream/jsonl");
+  assert.ok(res.status === 200);
   for await (const item of res.data) {
     assert.deepEqual(item, { id: 1, name: "a" });
     break;
@@ -203,6 +207,7 @@ test("stops reading when the consumer breaks early", async () => {
 
   // Throwing inside the loop cancels too.
   const failing = await local.GET("/stream/jsonl");
+  assert.ok(failing.status === 200);
   await assert.rejects(
     (async () => {
       for await (const item of failing.data) throw new Error(`stop at ${item.id}`);

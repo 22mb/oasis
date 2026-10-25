@@ -1,6 +1,6 @@
 // Type-level tests for tests/fixtures/features.yaml: compiled by `tsc`, never run.
 import { createClient, type ApiResponse, type components, type schemas } from "../golden/features.ts";
-import type { Equal, Expect } from "./equal.ts";
+import type { Codes, Equal, Expect, Failure, Result, Success } from "./equal.ts";
 
 // readOnly and writeOnly give requests and responses different shapes.
 export type Exact = [
@@ -75,7 +75,26 @@ export async function checks() {
   void text;
 }
 
-// `default` may be a success, so it survives narrowing on `ok`.
+// `default` covers undeclared successes too, so it survives narrowing on `ok`.
 export function defaultMayBeOk(res: ApiResponse<{ "404": number; default: string }>) {
   if (res.ok) res.data satisfies string;
 }
+
+
+// Each response key covers its own statuses: a range minus the codes declared in
+// it, `default` the rest, and statuses nothing covers have an unknown body.
+export type Statuses = [
+  Expect<Equal<
+    Awaited<ReturnType<typeof api.GET<"/shapes">>>,
+    | Result<200, true, schemas["Shape"]>
+    | Result<301, false, undefined>
+    | Result<404, false, undefined>
+    | Result<Exclude<Codes<400, 500>, 404>, false, string>
+    | Result<Exclude<Success, 200>, true, unknown>
+    | Result<Exclude<Failure, 301 | Codes<400, 500>>, false, unknown>
+  >>,
+  // With `2XX` declared, no success is left for `default`.
+  Expect<Equal<ApiResponse<{ "2XX": number; default: string }>, Result<Success, true, number> | Result<Failure, false, string>>>,
+  // `default` alone covers every status.
+  Expect<Equal<ApiResponse<{ default: string }>, Result<Success, true, string> | Result<Failure, false, string>>>,
+];

@@ -1,12 +1,11 @@
 // Type-level tests for the generated client: compiled by `tsc`, never run.
 import { createClient, type RequestOptions, type schemas } from "../golden/petstore.ts";
-import type { Equal, Expect } from "./equal.ts";
+import type { Equal, Expect, Failure, Result, Success } from "./equal.ts";
 
 const api = createClient();
 
 // Exact shapes, so that a type widening (e.g. to `unknown`) or a required input
 // becoming optional fails here.
-type Result<S, O, D> = { status: S; ok: O; data: D; response: Response };
 export type Exact = [
   Expect<Equal<schemas["NewPet"], { name: string; kind: "cat" | "dog"; tag?: string | null }>>,
   Expect<Equal<schemas["Pet"], schemas["NewPet"] & { id: number; owner?: schemas["Owner"] }>>,
@@ -24,13 +23,23 @@ export type Exact = [
   >>,
   Expect<Equal<
     Awaited<ReturnType<typeof api.GET<"/pets/{petId}">>>,
-    Result<200, true, schemas["Pet"]> | Result<404, false, schemas["Error"]>
+    | Result<200, true, schemas["Pet"]>
+    | Result<404, false, schemas["Error"]>
+    // Undeclared statuses remain possible.
+    | Result<Exclude<Success, 200>, true, unknown>
+    | Result<Exclude<Failure, 404>, false, unknown>
   >>,
   Expect<Equal<
     Awaited<ReturnType<typeof api.GET<"/pets">>>,
-    Result<200, true, schemas["Pet"][]> | Result<number, boolean, schemas["Error"]>
+    // `default` covers every other status, successes included.
+    | Result<200, true, schemas["Pet"][]>
+    | Result<Exclude<Success, 200>, true, schemas["Error"]>
+    | Result<Failure, false, schemas["Error"]>
   >>,
-  Expect<Equal<Awaited<ReturnType<typeof api.DELETE<"/pets/{petId}">>>, Result<204, true, undefined>>>,
+  Expect<Equal<
+    Awaited<ReturnType<typeof api.DELETE<"/pets/{petId}">>>,
+    Result<204, true, undefined> | Result<Exclude<Success, 204>, true, unknown> | Result<Failure, false, unknown>
+  >>,
   // No required inputs: init is optional.
   Expect<Equal<Parameters<typeof api.QUERY<"/pets">>, [
     path: "/pets",
@@ -46,15 +55,22 @@ export async function checks() {
   // @ts-expect-error wrong path param type
   await api.GET("/pets/{petId}", { path: { petId: "1" } });
 
-  // Results narrow by `ok` and status.
-  if (pet.ok) {
+  // Results narrow by status. `ok` is `response.ok`, which an undeclared 2xx
+  // also has, so it does not narrow to the declared success.
+  if (pet.status === 200) {
     const p: schemas["Pet"] = pet.data;
     const id: number = p.id;
     void id;
-  } else {
-    const title: string = pet.data.title;
-    void title;
   }
+  if (pet.ok) {
+    // @ts-expect-error the body of an undeclared success is unknown
+    const p: schemas["Pet"] = pet.data;
+    void p;
+  }
+  // @ts-expect-error not every failure is the declared 404
+  if (!pet.ok) pet.data satisfies schemas["Error"];
+  // Undeclared statuses can be compared with.
+  if (pet.status === 500) pet.data satisfies unknown;
   if (pet.status === 404) {
     const e: schemas["Error"] = pet.data;
     void e;
@@ -80,7 +96,7 @@ export async function checks() {
 
   // QUERY and additionalOperations methods.
   const found = await api.QUERY("/pets", { body: { name: "Tama" } });
-  if (found.ok) found.data satisfies schemas["Pet"][];
+  if (found.status === 200) found.data satisfies schemas["Pet"][];
   await api.LINK("/pets/{petId}", { path: { petId: 1 }, header: { Link: "</owners/1>" } });
 
   // querystring parameter.
@@ -90,9 +106,9 @@ export async function checks() {
 
   // Binary and streaming responses.
   const photo = await api.GET("/pets/{petId}/photo", { path: { petId: 1 } });
-  if (photo.ok) photo.data satisfies Blob;
+  if (photo.status === 200) photo.data satisfies Blob;
   const feed = await api.GET("/stream/jsonl");
-  if (feed.ok) for await (const p of feed.data) p satisfies schemas["Pet"];
+  if (feed.status === 200) for await (const p of feed.data) p satisfies schemas["Pet"];
   const sse = await api.GET("/stream/sse");
-  if (sse.ok) for await (const e of sse.data) e.data satisfies string;
+  if (sse.status === 200) for await (const e of sse.data) e.data satisfies string;
 }

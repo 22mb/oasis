@@ -303,15 +303,37 @@ export type RequestOptions = Omit<RequestInit, "method" | "body"> & {
   middleware?: Middleware[];
 };
 
-export type ApiResponse<Responses> = {
-  [S in keyof Responses & string]: {
-    status: S extends `${infer N extends number}` ? N : number;
-    // `default` also covers undeclared success codes.
-    ok: S extends "default" ? boolean : S extends `2${string}` ? true : false;
-    data: Responses[S];
-    response: Response;
-  };
-}[keyof Responses & string];
+/**
+ * One member per declared response key, each with the statuses it covers: a
+ * code itself, a range such as `4XX` minus the codes declared in it, and
+ * `default` every other status, successes included. Statuses nothing covers are
+ * still possible and have `data: unknown`. `ok` is `response.ok`, so narrow on
+ * `status` to tell a declared success from a `default` or undeclared one.
+ */
+export type ApiResponse<Responses> = ResponseOf<Responses, keyof Responses & string>;
+
+type ResponseOf<R, K extends keyof R & string> =
+  | {
+      [S in Exclude<K, "default">]: Members<
+        Exclude<Covered<S>, S extends `${string}XX` ? K : never>,
+        R[S]
+      >;
+    }[Exclude<K, "default">]
+  | Members<
+      Exclude<StatusCode, Covered<Exclude<K, "default">>>,
+      "default" extends K ? R[K & "default"] : unknown
+    >;
+
+type Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+/** Every status a `Response` can have, as text. */
+type StatusCode = `${2 | 3 | 4 | 5}${Digit}${Digit}`;
+type Covered<Key> = Key extends `${infer D}XX` ? `${D}${Digit}${Digit}` : Key;
+type Members<S extends string, D> =
+  | Member<Extract<S, `2${string}`>, true, D>
+  | Member<Exclude<S, `2${string}`>, false, D>;
+type Member<S extends string, O, D> = [S] extends [never]
+  ? never
+  : { status: S extends `${infer N extends number}` ? N : never; ok: O; data: D; response: Response };
 
 /**
  * One alternative of an operation's security: every scheme in it applies together,

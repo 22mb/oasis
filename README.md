@@ -17,10 +17,10 @@ import { createClient } from "./api.ts";
 const api = createClient({ headers: () => ({ authorization: `Bearer ${token}` }) });
 
 const res = await api.GET("/pets/{petId}", { path: { petId: 1 } });
-if (res.ok) {
+if (res.status === 200) {
   res.data.name; // typed from the 200 response
-} else {
-  res.data.title; // typed from the error response
+} else if (res.status === 404) {
+  res.data.title; // typed from the 404 response
 }
 ```
 
@@ -74,10 +74,14 @@ await api.POST("/pets", {
 ```
 
 The init argument is optional only when the operation has no required inputs.
-Every call resolves to `{ ok, status, data, response }`; `ok` and `status`
-narrow `data` to the matching response type. `ok` is typed from the declared
-status: `2XX` keys are successes, `default` may be either, and everything else
-is an error response. Non-2xx responses are returned, not thrown. Network
+Every call resolves to `{ ok, status, data, response }`, and `status` narrows
+`data` to the matching response type. A status code key covers that code, a
+range such as `4XX` the codes in it not declared on their own, and `default`
+every other status, successes included. Statuses that no key covers are still
+possible, as the specification allows, and have `data: unknown`. `ok` is
+`response.ok`, so after `if (res.ok)` `data` also includes `default` and
+undeclared successes; compare `status` (or `switch` on it) to get the declared
+type. Non-2xx responses are returned, not thrown. Network
 errors throw as usual. A body that is not what its `Content-Type` says (an
 HTML error page served as `application/json`, say) throws a `DecodeError`,
 which carries the `response` (body consumed) and the offending `text`. A path
