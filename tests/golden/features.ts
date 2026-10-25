@@ -188,6 +188,28 @@ export interface paths {
       };
     };
   };
+  "/photos/{id}": {
+    PUT: {
+      request: {
+        path: {
+          id: number;
+        };
+      } & ({
+        contentType: "image/png";
+        body?: BodyInit;
+      } | {
+        contentType: "image/jpeg";
+        body?: BodyInit;
+      } | {
+        contentType?: never;
+        body?: never;
+      });
+      responses: {
+        /** Saved, or cleared without a body. */
+        "204": undefined;
+      };
+    };
+  };
   "/blobs": {
     GET: {
       request: {

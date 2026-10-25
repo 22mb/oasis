@@ -200,7 +200,24 @@ export type Operations = [
   >>,
   // Several response media types are a union; a sequence without a schema has unknown items.
   Expect<Equal<Operation<"/params/{list}/{pair}", "GET">["responses"], { "200": { n?: number } | string; "202": AsyncIterable<unknown> }>>,
+  // An optional body without an implied media type: either a media type and its body, or neither.
+  // (`BodyInit` as the generated file derives it, for the check without the dom lib.)
+  Expect<Equal<
+    Operation<"/photos/{id}", "PUT">["request"],
+    { path: { id: number } } & (
+      | { contentType: "image/png"; body?: NonNullable<RequestInit["body"]> }
+      | { contentType: "image/jpeg"; body?: NonNullable<RequestInit["body"]> }
+      | { contentType?: never; body?: never }
+    )
+  >>,
   // No `responses` at all, a form querystring without a schema, and a `*/*` body.
   Expect<Equal<Operation<"/blobs", "GET">, { request: { querystring?: Record<string, unknown> }; responses: { default: unknown } }>>,
   Expect<Equal<Operation<"/blobs", "POST">["request"], { contentType?: string; body?: unknown }>>,
 ];
+
+export async function optionalBodies() {
+  await api.PUT("/photos/{id}", { path: { id: 1 } });
+  await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new Blob() });
+  // @ts-expect-error a body needs its media type when none is implied
+  await api.PUT("/photos/{id}", { path: { id: 1 }, body: new Blob() });
+}

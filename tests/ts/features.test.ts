@@ -246,3 +246,13 @@ test("a form querystring takes fields or an encoded string", async () => {
     "https://api.example.com/blobs?a=1&b=%202",
   ]);
 });
+
+test("an optional body can be left out without a media type", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  await api.PUT("/photos/{id}", { path: { id: 1 } });
+  await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new Uint8Array([1]) });
+  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body.length]), [
+    [null, 0],
+    ["image/png", 1],
+  ]);
+});
