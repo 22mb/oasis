@@ -1,0 +1,60 @@
+name: Prepare release
+
+# Run by hand to start a release. It picks the next version from the commits
+# since the last tag (cliff.toml), sets it in Cargo.toml and the lockfiles,
+# prepends its section to CHANGELOG.md and pushes the branch `release/<version>`.
+# Open the pull request from the link in the run's summary: a pull request
+# opened with the workflow's token would not run CI. Merging it releases
+# (release.yml).
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the release branch
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # every tag and commit, for git-cliff
+          # The credentials stay for `git push` below.
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: rustup toolchain install stable --profile minimal
+      - name: Set the version and draft the changelog
+        run: |
+          version=$(npx -y git-cliff@2.14.2 --bumped-version)
+          version=${version#v}
+          if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "::error title=Nothing to release::v$version is already tagged; no feat, fix or perf commit since." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --heads origin "release/$version" > /dev/null; then
+            echo "::error title=Branch exists::release/$version exists; open its pull request, or delete the branch to start over." >&2
+            exit 1
+          fi
+          sed -i "s/^version = \".*\"$/version = \"$version\"/" Cargo.toml # the package's; dependencies are inline
+          cargo check
+          cargo check --manifest-path playground/Cargo.toml
+          npx -y git-cliff@2.14.2 --unreleased --tag "v$version" --prepend CHANGELOG.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "release/$version"
+          git commit -q -am "release: $version"
+          git push origin "release/$version"
+          {
+            echo "## release: $version"
+            echo
+            echo "Review the changelog, edit the branch if needed, and open the pull request:"
+            echo "https://github.com/$GITHUB_REPOSITORY/compare/main...release/$version?expand=1&title=release:+$version"
+          } >> "$GITHUB_STEP_SUMMARY"

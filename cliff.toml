@@ -1,5 +1,6 @@
-# Drafts a release's section of CHANGELOG.md from the titles of the pull
-# requests merged since the last tag (see "Releasing" in CONTRIBUTING.md).
+# Writes a release's section of CHANGELOG.md from the titles of the pull
+# requests merged since the last tag (prepare-release.yml; see "Releasing" in
+# CONTRIBUTING.md).
 # Titles follow Conventional Commits; only the types below reach the changelog.
 
 [changelog]
@@ -36,3 +37,10 @@ commit_parsers = [
   { message = "^fix\\(security\\)", group = "<!-- 3 -->Security" },
   { message = "^fix", group = "<!-- 2 -->Fixed" },
 ]
+
+# `--bumped-version` picks the next version from the commits since the last tag.
+# Until 1.0.0, a breaking change bumps the minor version and anything else the
+# patch version, as the header of CHANGELOG.md says.
+[bump]
+features_always_bump_minor = false
+breaking_always_bump_major = false
