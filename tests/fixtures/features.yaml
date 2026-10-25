@@ -138,6 +138,31 @@ paths:
       responses:
         "204":
           description: Patched.
+  /lookup:
+    get:
+      parameters:
+        - name: q
+          in: querystring
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags: { type: array, items: { type: string } }
+      responses:
+        "204":
+          description: Found.
+    post:
+      parameters:
+        - name: q
+          in: querystring
+          content:
+            text/plain:
+              schema: { type: string }
+      responses:
+        "204":
+          description: Found.
 components:
   schemas:
     Account:

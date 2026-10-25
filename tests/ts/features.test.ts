@@ -65,6 +65,16 @@ test("uses path- and operation-level servers", async () => {
   assert.equal(sent[1]!.headers.get("content-type"), "application/json; charset=utf-8");
 });
 
+test("serializes a querystring parameter as its media type", async () => {
+  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  await api.GET("/lookup", { querystring: { tags: ["a b", "#c"] } });
+  await api.POST("/lookup", { querystring: "x=1&y=#2" });
+  assert.deepEqual(sent.map((s) => s.url), [
+    "https://api.example.com/lookup?%7B%22tags%22%3A%5B%22a%20b%22%2C%22%23c%22%5D%7D",
+    "https://api.example.com/lookup?x%3D1%26y%3D%232",
+  ]);
+});
+
 test("a body is sent as the operation's media type when the call names none", async () => {
   const { api, sent } = recording(() => new Response(null, { status: 204 }));
   // A string is JSON when the operation takes JSON, not text/plain.

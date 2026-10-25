@@ -232,7 +232,7 @@ document is rejected, since the spec would have it silently ignored there.
 The 3.2 features oasis-gen supports:
 
 - `query` operations (the HTTP `QUERY` method) and `additionalOperations` with custom methods such as `LINK`
-- `in: querystring` parameters
+- `in: querystring` parameters: form fields, or a value of the parameter's schema serialized as its media type (JSON, for instance) and percent-encoded
 - `itemSchema` and sequential media types (JSON Lines, NDJSON, JSON text sequences, server-sent events), streamed as async iterables
 - `components.mediaTypes` and `$ref` to them
 - Multi-file documents: `$ref`s to other local files (whole documents or fragments), resolved against `$self` when present, with `$id` and `$anchor` in schemas. A `$self` URI such as `https://api.example.com/openapi/root.yaml` is mapped onto the file's own directory, so `schemas/pet.yaml` next to it is found locally. Schemas from other files appear in `components["refs"]` under keys like `schemas/pet.yaml#`

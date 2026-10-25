@@ -115,3 +115,10 @@ export async function access() {
   // @ts-expect-error writeOnly properties are not received
   if (res.status === 201) res.data.password satisfies string;
 }
+
+export async function querystrings() {
+  // A JSON querystring takes its schema's type.
+  await api.GET("/lookup", { querystring: { tags: ["a"] } });
+  // @ts-expect-error not the schema's type
+  await api.GET("/lookup", { querystring: "tags=a" });
+}

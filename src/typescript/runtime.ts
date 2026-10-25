@@ -145,6 +145,8 @@ type Spec = {
     security?: SecurityRequirement[];
     /** The media type a body is sent as when the call names none. */
     contentType?: string;
+    /** The media type of the `querystring` parameter. */
+    querystring?: string;
   }>;
 };
 
@@ -153,7 +155,7 @@ type Init = RequestOptions & {
   query?: Record<string, unknown>;
   header?: Record<string, unknown>;
   cookie?: Record<string, unknown>;
-  querystring?: string | Record<string, unknown>;
+  querystring?: unknown;
   contentType?: string;
   body?: unknown;
 };
@@ -165,6 +167,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     if (!path.startsWith("/")) {
       throw new TypeError(`${op}: the path must be a template from the document, starting with "/"`);
     }
+    const info = spec.operations[op];
     const styles = spec.styles[op] ?? {};
     const style = (location: string, name: string) => styles[`${location}:${name}`] ?? {};
 
@@ -180,9 +183,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       return value;
     }).join("/");
     const search = querystring !== undefined
-      ? typeof querystring === "string"
-        ? querystring.replace(/^\?/, "")
-        : formEncode(querystring)
+      ? encodeQuerystring(querystring, info?.querystring)
       : present(query).flatMap(([name, value]) => queryPairs(name, value, style("query", name))).join("&");
     if (search) url += `?${search}`;
 
@@ -203,7 +204,6 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     }
     new Headers(rest.headers).forEach((value, name) => headers.set(name, value));
 
-    const info = spec.operations[op];
     const encoded = encodeBody(body, contentType ?? info?.contentType, headers);
     const request = new Request(url, {
       ...rest,
@@ -258,6 +258,21 @@ function present(values: object | undefined): [string, unknown][] {
 type Encode = (s: string) => string;
 
 /** RFC 6570 reserved expansion: reserved characters and %XX triples pass through. */
+/**
+ * The whole query string from the value of a `querystring` parameter: form
+ * fields, or else the value serialized as its media type and percent-encoded.
+ */
+function encodeQuerystring(value: unknown, mediaType = "application/x-www-form-urlencoded"): string {
+  switch (mediaKind(mediaType)) {
+    case "form":
+      return typeof value === "string" ? value.replace(/^\?/, "") : formEncode(value as Record<string, unknown>);
+    case "json":
+      return encodeURIComponent(JSON.stringify(value));
+    default:
+      return encodeURIComponent(String(value));
+  }
+}
+
 function encodeReserved(s: string): string {
   return s.replace(
     /%[0-9A-Fa-f]{2}|[^A-Za-z0-9\-._~:/?@!$'()*,;=]/gu,

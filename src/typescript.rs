@@ -381,6 +381,9 @@ impl<'a> Emitter<'a> {
                 if let Some(security) = &op.security {
                     info.push(format!("security: {}", security_literal(security)));
                 }
+                if let Some(qs) = &op.querystring {
+                    info.push(format!("querystring: {}", quote(&qs.content.media_type)));
+                }
                 if let Some(ct) = op.body.as_ref().and_then(default_media_type) {
                     info.push(format!("contentType: {}", quote(ct)));
                 }
@@ -505,6 +508,7 @@ impl<'a> Emitter<'a> {
                     self.ty(s, 4, View::Request)
                 }
                 (MediaKind::FormUrlEncoded, _) => "Record<string, unknown>".to_string(),
+                (MediaKind::Json, s) => self.schema_or_unknown(s.as_ref(), 4, View::Request),
                 _ => "string".to_string(),
             };
             fields.push(format!("querystring{}: {}", opt(!qs.required), t));
