@@ -29,6 +29,9 @@ export default defineConfig({
   markdown: {
     // The default GitHub themes leave some tokens, such as comments, below 4.5:1.
     theme: { light: "github-light-high-contrast", dark: "github-dark-high-contrast" },
+    // VitePress loads only the languages of code blocks, but Twoslash also
+    // highlights the examples in hovered JSDoc, such as TanStack Query's `tsx`.
+    languages: ["tsx"],
     codeTransformers: [
       transformerTwoslash({
         // Show `^?` results as lines of their own instead of popups over the code.
