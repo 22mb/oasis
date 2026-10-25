@@ -135,7 +135,8 @@ jobs:
             if npm view "$name@$version" version > /dev/null 2>&1; then
               echo "$name@$version is already published"
             else
-              npm publish "$dir" --access public --provenance --tag "$tag"
+              # `./` keeps npm from reading `npm-dist/oasis-gen` as a GitHub `owner/repo`.
+              npm publish "./$dir" --access public --provenance --tag "$tag"
             fi
           done
       - name: Publish the GitHub release
