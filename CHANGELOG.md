@@ -5,6 +5,16 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.4.0](https://github.com/22mb/oasis/compare/v0.3.0...v0.4.0) - 2026-10-27
+
+### Changed
+
+- **Breaking:** Compute response statuses in the generator instead of in conditional types ([#39](https://github.com/22mb/oasis/pull/39))
+
+### Fixed
+
+- **Breaking:** Let fetch set Content-Type for multipart bodies, and reject it in header objects ([#41](https://github.com/22mb/oasis/pull/41))
+
 ## [0.3.0](https://github.com/22mb/oasis/compare/v0.2.0...v0.3.0) - 2026-10-25
 
 ### Added
