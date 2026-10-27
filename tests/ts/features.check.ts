@@ -250,6 +250,18 @@ export async function formBodies() {
   await api.POST("/uploads", { contentType: "multipart/form-data", body: { file: "png", meta: {} } });
 }
 
+export async function contentTypeHeader() {
+  const body = { file: new Blob(), meta: {} };
+  // @ts-expect-error the body's media type sets Content-Type, not a header object
+  createClient({ headers: { "Content-Type": "application/json" } });
+  // @ts-expect-error ... also in lower case and from a function
+  createClient({ headers: () => ({ "content-type": "application/json" }) });
+  // @ts-expect-error ... or in a call
+  await api.POST("/uploads", { contentType: "multipart/form-data", body, headers: { "Content-Type": "multipart/form-data" } });
+  createClient({ headers: { Authorization: "Bearer t" } });
+  await api.POST("/uploads", { contentType: "multipart/form-data", body, headers: { "X-Request-Id": "r1" } });
+}
+
 export async function optionalBodies() {
   await api.PUT("/photos/{id}", { path: { id: 1 } });
   await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new Blob() });

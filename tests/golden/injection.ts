@@ -94,8 +94,9 @@ export type SecuritySchemeName = "\" + ((globalThis.__oasis_pwned ??= []).push(8
 
 // `@types/node` declares `RequestInit` globally but not lib.dom's `HeadersInit`
 // and `BodyInit`, so derive them from it: the file then type-checks without the
-// dom lib.
-type HeadersInit = NonNullable<RequestInit["headers"]>;
+// dom lib. `Content-Type` comes from the body's media type (`contentType`), so a
+// header object cannot name it; `Headers` and arrays are not checked.
+type HeadersInit = NonNullable<RequestInit["headers"]> & { "Content-Type"?: never; "content-type"?: never };
 type BodyInit = NonNullable<RequestInit["body"]>;
 
 export interface ClientOptions {
@@ -113,7 +114,8 @@ export interface ClientOptions {
 }
 
 /** Standard fetch options accepted by every operation, besides its parameters and body. */
-export type RequestOptions = Omit<RequestInit, "method" | "body"> & {
+export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
+  headers?: HeadersInit;
   /** Runs inside the client's middleware, for this call only. */
   middleware?: Middleware[];
 };
@@ -570,8 +572,11 @@ function encodeBody(
     headers.set("content-type", contentType!);
     return formEncode(body as Record<string, unknown>, encoding);
   }
-  // multipart: let fetch set the boundary.
-  if (kind === "multipart") return isRawBody(body) ? body : formData(body as Record<string, unknown>, encoding);
+  if (kind === "multipart") {
+    // Only fetch knows the boundary, so it sets the header.
+    headers.delete("content-type");
+    return isRawBody(body) ? body : formData(body as Record<string, unknown>, encoding);
+  }
   if (contentType) headers.set("content-type", contentType);
   return body as BodyInit;
 }

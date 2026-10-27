@@ -94,7 +94,7 @@ await api.POST("/pets", {
 });
 ```
 
-JSON の本体は `JSON.stringify` でシリアライズされます。そのため、メディアタイプが JSON のときは、文字列の本体は JSON 文字列として送信されます。マルチパートの本体では、`fetch` が境界（boundary）を含めて `Content-Type` ヘッダーを設定します。また、リクエスト本体には、そのスキーマの[リクエスト用の型](./strict-types#requests-and-responses-have-separate-types)が使われます。
+JSON の本体は `JSON.stringify` でシリアライズされます。そのため、メディアタイプが JSON のときは、文字列の本体は JSON 文字列として送信されます。`Content-Type` ヘッダーは本体のメディアタイプから設定されるため、`headers` に渡すオブジェクトでは指定できません。マルチパートの本体では、`headers` で設定した `Content-Type` ヘッダーに代わり、`fetch` が境界（boundary）を含めて `Content-Type` ヘッダーを設定します。また、リクエスト本体には、そのスキーマの[リクエスト用の型](./strict-types#requests-and-responses-have-separate-types)が使われます。
 
 ### フォームの本体 {#form-bodies}
 

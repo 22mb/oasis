@@ -112,8 +112,10 @@ await api.POST("/pets", {
 ```
 
 JSON bodies are serialized with `JSON.stringify`, so a string body is sent as a
-JSON string when the media type is JSON. For multipart bodies, `fetch` sets the
-`Content-Type` header, including its boundary. A request body uses the
+JSON string when the media type is JSON. The `Content-Type` header comes from
+the body's media type, so an object passed as `headers` cannot name it. For
+multipart bodies, `fetch` sets the `Content-Type` header, including its
+boundary, in place of any set in `headers`. A request body uses the
 [request variant](./strict-types#requests-and-responses-have-separate-types)
 of its schema.
 
