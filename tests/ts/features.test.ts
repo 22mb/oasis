@@ -282,6 +282,22 @@ test("multipart parts take their media type from the value or the Encoding Objec
   ]);
 });
 
+test("a multipart body replaces a Content-Type set before it, so fetch can add the boundary", async () => {
+  const sent: Headers[] = [];
+  const api = createClient({
+    // Header objects cannot name Content-Type, but `Headers` and arrays can.
+    headers: new Headers({ "Content-Type": "application/json" }),
+    fetch: async (request: Request) => {
+      sent.push(request.headers);
+      return new Response(null, { status: 204 });
+    },
+  });
+  const body = { file: new Blob(["f"]), meta: {} };
+  await api.POST("/uploads", { contentType: "multipart/form-data", body });
+  await api.POST("/uploads", { contentType: "multipart/form-data", body, headers: [["Content-Type", "multipart/form-data"]] });
+  for (const headers of sent) assert.match(headers.get("content-type")!, /^multipart\/form-data; boundary=/);
+});
+
 test("a body for a media type range is sent by its kind unless the call names one", async () => {
   const { api, sent } = recording(() => new Response(null, { status: 204 }));
   await api.POST("/blobs", { body: new TextEncoder().encode("raw") });
