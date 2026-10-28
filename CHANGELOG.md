@@ -9,7 +9,10 @@ change the generated code or the CLI in incompatible ways.
 
 ### Fixed
 
-- Emit only the status aliases a generated file uses ([#43](https://github.com/22mb/oasis/pull/43))
+- A generated file declared status aliases it did not use, such as
+  `Status1xx`, so a project that type-checks it with `noUnusedLocals` failed
+  since 0.4.0. It now declares only the ones it uses.
+  ([#43](https://github.com/22mb/oasis/pull/43))
 
 ## [0.4.0](https://github.com/22mb/oasis/compare/v0.3.0...v0.4.0) - 2026-10-27
 
