@@ -100,7 +100,7 @@ test("supports QUERY and additionalOperations methods", async () => {
 
   const linked = await api.LINK("/pets/{petId}", { path: { petId: 1 }, header: { Link: "</owners/1>" } });
   assert.equal(last.method, "LINK");
-  assert.equal(last.headers.link, "</owners/1>");
+  assert.equal(last.headers["link"], "</owners/1>");
   assert.equal(linked.status, 204);
   assert.equal(linked.data, undefined);
 });

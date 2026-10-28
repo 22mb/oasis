@@ -1,7 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": []
+    "types": [],
+    "isolatedDeclarations": true,
+    "declaration": true
   },
   "include": ["../golden/*.ts"]
 }

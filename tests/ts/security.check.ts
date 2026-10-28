@@ -13,4 +13,4 @@ export const typo = auth({ bearr: "x" });
 export const async = auth({ bearer: async (scopes) => scopes.join(" ") });
 // A value that may be missing, such as an environment variable, is accepted as it is.
 declare const env: Record<string, string | undefined>;
-export const fromEnv = auth({ apiKey: env.API_KEY, bearer: undefined });
+export const fromEnv = auth({ apiKey: env["API_KEY"], bearer: undefined });
