@@ -249,6 +249,7 @@ impl<'a> Emitter<'a> {
             for (name, body) in &statuses {
                 writeln!(out, "type {name} = {{\n{body}}};").unwrap();
             }
+            status_runs(&mut out, &statuses);
             out.push('\n');
         }
 
@@ -1348,8 +1349,8 @@ fn status_alias(op: &Operation) -> (String, String) {
     (name, body)
 }
 
-/// Ascending statuses as a type: the runtime's `Status2xx` for a whole hundred,
-/// `Status20x` for a whole ten, and literals for the rest.
+/// Ascending statuses as a type: `Status2xx` for a whole hundred, `Status20x`
+/// for a whole ten (see `status_runs`), and literals for the rest.
 fn statuses(codes: &[u16]) -> String {
     let mut parts = Vec::new();
     let mut i = 0;
@@ -1369,6 +1370,25 @@ fn statuses(codes: &[u16]) -> String {
         }
     }
     union(parts)
+}
+
+/// The aliases for a whole hundred and a whole ten of statuses that the
+/// `statuses` aliases use, and only those: an unused one fails `noUnusedLocals`.
+fn status_runs(out: &mut String, statuses: &BTreeMap<String, String>) {
+    let used = |name: &str| statuses.values().any(|body| body.contains(name));
+    let hundreds: Vec<u16> = (1..6).filter(|h| used(&format!("Status{h}xx"))).collect();
+    for t in 10..60 {
+        if hundreds.contains(&(t / 10)) || used(&format!("Status{t}x")) {
+            let codes: Vec<String> = (t * 10..t * 10 + 10).map(|c| c.to_string()).collect();
+            writeln!(out, "type Status{t}x = {};", codes.join(" | ")).unwrap();
+        }
+    }
+    for h in hundreds {
+        let tens: Vec<String> = (h * 10..h * 10 + 10)
+            .map(|t| format!("Status{t}x"))
+            .collect();
+        writeln!(out, "type Status{h}xx = {};", tens.join(" | ")).unwrap();
+    }
 }
 
 fn union(types: Vec<String>) -> String {
