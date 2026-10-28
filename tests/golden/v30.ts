@@ -64,6 +64,48 @@ type Statuses_204_default = {
   "204": [204, never];
   "default": [200 | 201 | 202 | 203 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
+type Status21x = 210 | 211 | 212 | 213 | 214 | 215 | 216 | 217 | 218 | 219;
+type Status22x = 220 | 221 | 222 | 223 | 224 | 225 | 226 | 227 | 228 | 229;
+type Status23x = 230 | 231 | 232 | 233 | 234 | 235 | 236 | 237 | 238 | 239;
+type Status24x = 240 | 241 | 242 | 243 | 244 | 245 | 246 | 247 | 248 | 249;
+type Status25x = 250 | 251 | 252 | 253 | 254 | 255 | 256 | 257 | 258 | 259;
+type Status26x = 260 | 261 | 262 | 263 | 264 | 265 | 266 | 267 | 268 | 269;
+type Status27x = 270 | 271 | 272 | 273 | 274 | 275 | 276 | 277 | 278 | 279;
+type Status28x = 280 | 281 | 282 | 283 | 284 | 285 | 286 | 287 | 288 | 289;
+type Status29x = 290 | 291 | 292 | 293 | 294 | 295 | 296 | 297 | 298 | 299;
+type Status30x = 300 | 301 | 302 | 303 | 304 | 305 | 306 | 307 | 308 | 309;
+type Status31x = 310 | 311 | 312 | 313 | 314 | 315 | 316 | 317 | 318 | 319;
+type Status32x = 320 | 321 | 322 | 323 | 324 | 325 | 326 | 327 | 328 | 329;
+type Status33x = 330 | 331 | 332 | 333 | 334 | 335 | 336 | 337 | 338 | 339;
+type Status34x = 340 | 341 | 342 | 343 | 344 | 345 | 346 | 347 | 348 | 349;
+type Status35x = 350 | 351 | 352 | 353 | 354 | 355 | 356 | 357 | 358 | 359;
+type Status36x = 360 | 361 | 362 | 363 | 364 | 365 | 366 | 367 | 368 | 369;
+type Status37x = 370 | 371 | 372 | 373 | 374 | 375 | 376 | 377 | 378 | 379;
+type Status38x = 380 | 381 | 382 | 383 | 384 | 385 | 386 | 387 | 388 | 389;
+type Status39x = 390 | 391 | 392 | 393 | 394 | 395 | 396 | 397 | 398 | 399;
+type Status40x = 400 | 401 | 402 | 403 | 404 | 405 | 406 | 407 | 408 | 409;
+type Status41x = 410 | 411 | 412 | 413 | 414 | 415 | 416 | 417 | 418 | 419;
+type Status42x = 420 | 421 | 422 | 423 | 424 | 425 | 426 | 427 | 428 | 429;
+type Status43x = 430 | 431 | 432 | 433 | 434 | 435 | 436 | 437 | 438 | 439;
+type Status44x = 440 | 441 | 442 | 443 | 444 | 445 | 446 | 447 | 448 | 449;
+type Status45x = 450 | 451 | 452 | 453 | 454 | 455 | 456 | 457 | 458 | 459;
+type Status46x = 460 | 461 | 462 | 463 | 464 | 465 | 466 | 467 | 468 | 469;
+type Status47x = 470 | 471 | 472 | 473 | 474 | 475 | 476 | 477 | 478 | 479;
+type Status48x = 480 | 481 | 482 | 483 | 484 | 485 | 486 | 487 | 488 | 489;
+type Status49x = 490 | 491 | 492 | 493 | 494 | 495 | 496 | 497 | 498 | 499;
+type Status50x = 500 | 501 | 502 | 503 | 504 | 505 | 506 | 507 | 508 | 509;
+type Status51x = 510 | 511 | 512 | 513 | 514 | 515 | 516 | 517 | 518 | 519;
+type Status52x = 520 | 521 | 522 | 523 | 524 | 525 | 526 | 527 | 528 | 529;
+type Status53x = 530 | 531 | 532 | 533 | 534 | 535 | 536 | 537 | 538 | 539;
+type Status54x = 540 | 541 | 542 | 543 | 544 | 545 | 546 | 547 | 548 | 549;
+type Status55x = 550 | 551 | 552 | 553 | 554 | 555 | 556 | 557 | 558 | 559;
+type Status56x = 560 | 561 | 562 | 563 | 564 | 565 | 566 | 567 | 568 | 569;
+type Status57x = 570 | 571 | 572 | 573 | 574 | 575 | 576 | 577 | 578 | 579;
+type Status58x = 580 | 581 | 582 | 583 | 584 | 585 | 586 | 587 | 588 | 589;
+type Status59x = 590 | 591 | 592 | 593 | 594 | 595 | 596 | 597 | 598 | 599;
+type Status3xx = Status30x | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x;
+type Status4xx = Status40x | Status41x | Status42x | Status43x | Status44x | Status45x | Status46x | Status47x | Status48x | Status49x;
+type Status5xx = Status50x | Status51x | Status52x | Status53x | Status54x | Status55x | Status56x | Status57x | Status58x | Status59x;
 
 export interface components {
   schemas: {
@@ -174,63 +216,6 @@ export type ApiResponse<O extends Operation> = {
 
 type Data<O extends Operation, K> = K extends keyof O["responses"] ? O["responses"][K] : unknown;
 type Member<S, Ok, D> = [S] extends [never] ? never : { status: S; ok: Ok; data: D; response: Response };
-
-// Statuses by ten and by hundred, which each operation's `statuses` lists.
-type Status10x = 100 | 101 | 102 | 103 | 104 | 105 | 106 | 107 | 108 | 109;
-type Status11x = 110 | 111 | 112 | 113 | 114 | 115 | 116 | 117 | 118 | 119;
-type Status12x = 120 | 121 | 122 | 123 | 124 | 125 | 126 | 127 | 128 | 129;
-type Status13x = 130 | 131 | 132 | 133 | 134 | 135 | 136 | 137 | 138 | 139;
-type Status14x = 140 | 141 | 142 | 143 | 144 | 145 | 146 | 147 | 148 | 149;
-type Status15x = 150 | 151 | 152 | 153 | 154 | 155 | 156 | 157 | 158 | 159;
-type Status16x = 160 | 161 | 162 | 163 | 164 | 165 | 166 | 167 | 168 | 169;
-type Status17x = 170 | 171 | 172 | 173 | 174 | 175 | 176 | 177 | 178 | 179;
-type Status18x = 180 | 181 | 182 | 183 | 184 | 185 | 186 | 187 | 188 | 189;
-type Status19x = 190 | 191 | 192 | 193 | 194 | 195 | 196 | 197 | 198 | 199;
-type Status20x = 200 | 201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209;
-type Status21x = 210 | 211 | 212 | 213 | 214 | 215 | 216 | 217 | 218 | 219;
-type Status22x = 220 | 221 | 222 | 223 | 224 | 225 | 226 | 227 | 228 | 229;
-type Status23x = 230 | 231 | 232 | 233 | 234 | 235 | 236 | 237 | 238 | 239;
-type Status24x = 240 | 241 | 242 | 243 | 244 | 245 | 246 | 247 | 248 | 249;
-type Status25x = 250 | 251 | 252 | 253 | 254 | 255 | 256 | 257 | 258 | 259;
-type Status26x = 260 | 261 | 262 | 263 | 264 | 265 | 266 | 267 | 268 | 269;
-type Status27x = 270 | 271 | 272 | 273 | 274 | 275 | 276 | 277 | 278 | 279;
-type Status28x = 280 | 281 | 282 | 283 | 284 | 285 | 286 | 287 | 288 | 289;
-type Status29x = 290 | 291 | 292 | 293 | 294 | 295 | 296 | 297 | 298 | 299;
-type Status30x = 300 | 301 | 302 | 303 | 304 | 305 | 306 | 307 | 308 | 309;
-type Status31x = 310 | 311 | 312 | 313 | 314 | 315 | 316 | 317 | 318 | 319;
-type Status32x = 320 | 321 | 322 | 323 | 324 | 325 | 326 | 327 | 328 | 329;
-type Status33x = 330 | 331 | 332 | 333 | 334 | 335 | 336 | 337 | 338 | 339;
-type Status34x = 340 | 341 | 342 | 343 | 344 | 345 | 346 | 347 | 348 | 349;
-type Status35x = 350 | 351 | 352 | 353 | 354 | 355 | 356 | 357 | 358 | 359;
-type Status36x = 360 | 361 | 362 | 363 | 364 | 365 | 366 | 367 | 368 | 369;
-type Status37x = 370 | 371 | 372 | 373 | 374 | 375 | 376 | 377 | 378 | 379;
-type Status38x = 380 | 381 | 382 | 383 | 384 | 385 | 386 | 387 | 388 | 389;
-type Status39x = 390 | 391 | 392 | 393 | 394 | 395 | 396 | 397 | 398 | 399;
-type Status40x = 400 | 401 | 402 | 403 | 404 | 405 | 406 | 407 | 408 | 409;
-type Status41x = 410 | 411 | 412 | 413 | 414 | 415 | 416 | 417 | 418 | 419;
-type Status42x = 420 | 421 | 422 | 423 | 424 | 425 | 426 | 427 | 428 | 429;
-type Status43x = 430 | 431 | 432 | 433 | 434 | 435 | 436 | 437 | 438 | 439;
-type Status44x = 440 | 441 | 442 | 443 | 444 | 445 | 446 | 447 | 448 | 449;
-type Status45x = 450 | 451 | 452 | 453 | 454 | 455 | 456 | 457 | 458 | 459;
-type Status46x = 460 | 461 | 462 | 463 | 464 | 465 | 466 | 467 | 468 | 469;
-type Status47x = 470 | 471 | 472 | 473 | 474 | 475 | 476 | 477 | 478 | 479;
-type Status48x = 480 | 481 | 482 | 483 | 484 | 485 | 486 | 487 | 488 | 489;
-type Status49x = 490 | 491 | 492 | 493 | 494 | 495 | 496 | 497 | 498 | 499;
-type Status50x = 500 | 501 | 502 | 503 | 504 | 505 | 506 | 507 | 508 | 509;
-type Status51x = 510 | 511 | 512 | 513 | 514 | 515 | 516 | 517 | 518 | 519;
-type Status52x = 520 | 521 | 522 | 523 | 524 | 525 | 526 | 527 | 528 | 529;
-type Status53x = 530 | 531 | 532 | 533 | 534 | 535 | 536 | 537 | 538 | 539;
-type Status54x = 540 | 541 | 542 | 543 | 544 | 545 | 546 | 547 | 548 | 549;
-type Status55x = 550 | 551 | 552 | 553 | 554 | 555 | 556 | 557 | 558 | 559;
-type Status56x = 560 | 561 | 562 | 563 | 564 | 565 | 566 | 567 | 568 | 569;
-type Status57x = 570 | 571 | 572 | 573 | 574 | 575 | 576 | 577 | 578 | 579;
-type Status58x = 580 | 581 | 582 | 583 | 584 | 585 | 586 | 587 | 588 | 589;
-type Status59x = 590 | 591 | 592 | 593 | 594 | 595 | 596 | 597 | 598 | 599;
-type Status1xx = Status10x | Status11x | Status12x | Status13x | Status14x | Status15x | Status16x | Status17x | Status18x | Status19x;
-type Status2xx = Status20x | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x;
-type Status3xx = Status30x | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x;
-type Status4xx = Status40x | Status41x | Status42x | Status43x | Status44x | Status45x | Status46x | Status47x | Status48x | Status49x;
-type Status5xx = Status50x | Status51x | Status52x | Status53x | Status54x | Status55x | Status56x | Status57x | Status58x | Status59x;
 
 /**
  * One alternative of an operation's security: every scheme in it applies together,
