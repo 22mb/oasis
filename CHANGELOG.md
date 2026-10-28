@@ -5,6 +5,25 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.4.0](https://github.com/22mb/oasis/compare/v0.3.0...v0.4.0) - 2026-10-27
+
+### Changed
+
+- **Breaking:** The generator computes which statuses each response key
+  covers, instead of conditional types at every call, so calls type-check
+  faster. `ApiResponse` takes the operation instead of its `responses`:
+  `ApiResponse<paths["/pets/{petId}"]["GET"]>`. Each operation in `paths` has
+  a `statuses` member. ([#39](https://github.com/22mb/oasis/pull/39))
+
+### Fixed
+
+- **Breaking:** A multipart body was sent with the `Content-Type` set in the
+  client's or the call's `headers`, without a boundary, so the server could not
+  parse it. `fetch` now sets the header, boundary included. Header objects can
+  no longer name `Content-Type`, since the body's media type sets it; to send a
+  body for a range such as `*/*` as a given media type, pass `contentType`.
+  ([#41](https://github.com/22mb/oasis/pull/41))
+
 ## [0.3.0](https://github.com/22mb/oasis/compare/v0.2.0...v0.3.0) - 2026-10-25
 
 ### Added
