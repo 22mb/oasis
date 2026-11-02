@@ -859,8 +859,27 @@ impl<'a> Emitter<'a> {
                     .collect(),
             ),
             Schema::Intersection(parts) => {
-                Type::Intersection(parts.iter().map(|p| self.ty(p, view)).collect())
+                Type::Intersection(parts.iter().map(|p| self.composed(p, view)).collect())
             }
+        }
+    }
+
+    /// The type of a member of an intersection. There, `type: object` without
+    /// other keywords only says the value is an object: as an index signature
+    /// it would accept every property name the other members leave out.
+    fn composed(&self, s: &Schema, view: View) -> Type {
+        match s {
+            Schema::Object {
+                properties,
+                pattern_properties,
+                additional: None,
+            } if properties.is_empty() && pattern_properties.is_empty() => Type::name("object"),
+            Schema::Union {
+                kind: UnionKind::Types,
+                variants,
+                ..
+            } => Type::Union(variants.iter().map(|v| self.composed(v, view)).collect()),
+            _ => self.ty(s, view),
         }
     }
 
@@ -1019,7 +1038,14 @@ impl<'a> Emitter<'a> {
             }
             Schema::Intersection(parts) => parts
                 .iter()
-                .flat_map(|p| self.eager(p, view, d, true, inlined))
+                .flat_map(|p| match p {
+                    Schema::Object { .. }
+                    | Schema::Union {
+                        kind: UnionKind::Types,
+                        ..
+                    } => vec![self.composed(p, view)],
+                    _ => self.eager(p, view, d, true, inlined),
+                })
                 .collect(),
             _ => vec![self.ty(s, view)],
         }

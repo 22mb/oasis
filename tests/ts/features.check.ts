@@ -40,6 +40,12 @@ export type Exact = [
   // A union of one variant keeps its parentheses next to `[]` and `&`.
   Expect<Equal<schemas["Tags"], ("a" | "b")[]>>,
   Expect<Equal<schemas["Tagged"], schemas["Base"] & (schemas["Circle"] | schemas["Square"])>>,
+  // `type: object` next to composition is `object`, alone it is any object.
+  Expect<Equal<schemas["Crate"], object & schemas["Parcel"] & { fragile?: boolean }>>,
+  Expect<Equal<schemas["ParcelAlias"], schemas["Parcel"] & object>>,
+  Expect<Equal<schemas["ParcelOrName"], object & (schemas["Parcel"] | string)>>,
+  Expect<Equal<schemas["OptionalParcel"], (object | null) & schemas["Parcel"]>>,
+  Expect<Equal<schemas["Bag"], { [key: string]: unknown }>>,
   // `defaultMapping`: the default variant takes every value the mapping does not list,
   // and values without the property. Explicitly mapped schemas keep their implicit
   // name as a value too.
@@ -72,6 +78,23 @@ export async function checks() {
   // @ts-expect-error `id` is required
   const missing: schemas["WithId"] = { note: "x" };
   void id, missing;
+
+  // `type: object` next to composition adds no index signature.
+  const crate = { id: 1, fragile: true } satisfies schemas["Crate"];
+  crate.id satisfies number;
+  // @ts-expect-error a property no member declares
+  const unknownName: schemas["Crate"] = { id: 1, fragile: true, fragil: true };
+  // @ts-expect-error ... also next to `$ref`
+  const unknownAlias: schemas["ParcelAlias"] = { id: 1, label: "x" };
+  // @ts-expect-error ... next to `oneOf`
+  const unknownVariant: schemas["ParcelOrName"] = { id: 1, label: "x" };
+  // @ts-expect-error `type: object` excludes the `string` variant
+  const notObject: schemas["ParcelOrName"] = "x";
+  // @ts-expect-error ... and in a `type` list
+  const unknownOptional: schemas["OptionalParcel"] = { id: 1, label: "x" };
+  // Without a sibling, it accepts any property.
+  const bag: schemas["Bag"] = { anything: 1 };
+  void unknownName, unknownAlias, unknownVariant, notObject, unknownOptional, bag;
 
   // Discriminated unions narrow on the mapped values.
   const shape = {} as schemas["Shape"];
