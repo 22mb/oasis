@@ -406,6 +406,13 @@ export interface components {
     ParcelOrName: $ParcelOrName;
     OptionalParcel: $OptionalParcel;
     Bag: $Bag;
+    SwitchOn: $SwitchOn;
+    SwitchOff: $SwitchOff;
+    Switch: $Switch;
+    ReportV1: $ReportV1;
+    ReportV2: $ReportV2;
+    LegacyReport: $LegacyReport;
+    Report: $Report;
   };
   requestSchemas: {
     Account: $Account$Request;
@@ -592,6 +599,25 @@ type $ParcelAlias = $Parcel & object;
 type $ParcelOrName = object & ($Parcel | string);
 type $OptionalParcel = (object | null) & $Parcel;
 type $Bag = { [key: string]: unknown };
+type $SwitchOn = {
+  enabled: true;
+};
+type $SwitchOff = {
+  enabled: boolean;
+};
+type $Switch = $SwitchOn & { enabled: true } | $SwitchOff & { enabled: false };
+type $ReportV1 = {
+  version: number;
+  title?: string;
+};
+type $ReportV2 = {
+  version: 2 | 3;
+  name?: string;
+};
+type $LegacyReport = {
+  version: number;
+};
+type $Report = $ReportV1 & { version: 1 } | $ReportV2 & { version: 2 | 3 } | $LegacyReport;
 type $components_schemas_Tree_defs_node = {
   value?: number;
   left?: $components_schemas_Tree_defs_node;
@@ -650,6 +676,13 @@ export type {
   $ParcelOrName as ParcelOrName,
   $OptionalParcel as OptionalParcel,
   $Bag as Bag,
+  $SwitchOn as SwitchOn,
+  $SwitchOff as SwitchOff,
+  $Switch as Switch,
+  $ReportV1 as ReportV1,
+  $ReportV2 as ReportV2,
+  $LegacyReport as LegacyReport,
+  $Report as Report,
   $Account$Request as AccountRequest,
   $Owner$Request as OwnerRequest,
   $Entity$Request as EntityRequest,

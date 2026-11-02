@@ -5,6 +5,7 @@ mod ast;
 use crate::Error;
 use crate::ir::*;
 use ast::{Expr, Item, Key, Member, Type, quote};
+use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 const RUNTIME: &str = include_str!("typescript/runtime.ts");
@@ -409,6 +410,7 @@ impl<'a> Emitter<'a> {
             }
         }
         items.push(Item::Blank);
+        self.check_discriminators()?;
         check_cycles(self.api, &edges)
     }
 
@@ -944,16 +946,27 @@ impl<'a> Emitter<'a> {
         let (Some(d), Schema::Ref(k)) = (d, v) else {
             return t;
         };
+        // Mapping keys are always strings, but the values they stand for have
+        // the property's type.
+        let typed = self
+            .property(v, &d.property_name)
+            .filter(|p| !self.is_text(p));
         // The default variant takes every value the mapping does not list, and
         // values without the property; its own schema says whether it is required.
         let (optional, values) = if d.default_mapping.as_deref() == Some(k.as_str()) {
+            if typed.is_some() {
+                return t;
+            }
             (true, Type::name("string"))
         } else {
             let values: Vec<Type> = d
                 .mapping
                 .iter()
                 .filter(|(_, target)| target == k)
-                .map(|(value, _)| Type::string(value))
+                .filter_map(|(value, _)| match typed {
+                    Some(p) => self.mapped_value(p, value).map(Type::Literal),
+                    None => Some(Type::string(value)),
+                })
                 .collect();
             if values.is_empty() {
                 return t;
@@ -962,6 +975,103 @@ impl<'a> Emitter<'a> {
         };
         let tag = Member::new(Key::name(&d.property_name), optional, values);
         Type::Intersection(vec![t, Type::inline(vec![tag])])
+    }
+
+    /// The schema of property `name` of `s`, through references and `allOf`.
+    fn property(&self, s: &'a Schema, name: &str) -> Option<&'a Schema> {
+        let mut stack = vec![s];
+        let mut seen = HashSet::new();
+        while let Some(s) = stack.pop() {
+            match s {
+                Schema::Ref(k) => {
+                    if seen.insert(k.as_str()) {
+                        stack.push(&self.schemas[k.as_str()].schema);
+                    }
+                }
+                Schema::Object { properties, .. } => {
+                    if let Some(p) = properties.iter().find(|p| p.name == name) {
+                        return Some(&p.schema);
+                    }
+                }
+                Schema::Intersection(parts) => stack.extend(parts.iter().rev()),
+                _ => {}
+            }
+        }
+        None
+    }
+
+    /// Whether property schema `p` allows strings, so that a mapping key can
+    /// stand for itself.
+    fn is_text(&self, p: &Schema) -> bool {
+        match self.resolve(p) {
+            Schema::Boolean | Schema::Integer { .. } | Schema::Number { .. } | Schema::Null => {
+                false
+            }
+            Schema::Const { value, .. } => value.is_string(),
+            Schema::Enum { values, .. } => values.iter().any(Value::is_string),
+            Schema::Union {
+                kind: UnionKind::Types,
+                variants,
+                ..
+            } => variants.iter().any(|v| self.is_text(v)),
+            _ => true,
+        }
+    }
+
+    /// The value of a property without strings, schema `p`, that mapping key
+    /// `key` stands for.
+    fn mapped_value(&self, p: &Schema, key: &str) -> Option<Value> {
+        let value = serde_json::from_str::<Value>(key).ok()?;
+        let allowed = match self.resolve(p) {
+            Schema::Boolean => value.is_boolean(),
+            Schema::Integer { .. } => value.is_i64() || value.is_u64(),
+            Schema::Number { .. } => value.is_number(),
+            Schema::Const { value: c, .. } => *c == value,
+            Schema::Enum { values, .. } => values.contains(&value),
+            Schema::Union { variants, .. } => {
+                variants.iter().any(|v| self.mapped_value(v, key).is_some())
+            }
+            _ => false,
+        };
+        allowed.then_some(value)
+    }
+
+    /// Rejects a mapping key that no value of its non-string property can have,
+    /// which could never match. A key that is the name of its schema may be the
+    /// implicit one, which only applies to strings.
+    fn check_discriminators(&self) -> Result<(), Error> {
+        let mut result = Ok(());
+        for s in &self.api.schemas {
+            walk(&s.schema, &mut |node| {
+                let Schema::Union {
+                    variants,
+                    discriminator: Some(d),
+                    ..
+                } = node
+                else {
+                    return;
+                };
+                for v in variants {
+                    let Schema::Ref(k) = v else { continue };
+                    let Some(p) = self
+                        .property(v, &d.property_name)
+                        .filter(|p| !self.is_text(p))
+                    else {
+                        continue;
+                    };
+                    let bad = d.mapping.iter().find(|(value, target)| {
+                        target == k && value != target && self.mapped_value(p, value).is_none()
+                    });
+                    if let (Some((value, _)), Ok(())) = (bad, &result) {
+                        result = Err(Error::new(format!(
+                            "{}: discriminator mapping key `{value}` is not a value of property `{}`",
+                            s.key, d.property_name
+                        )));
+                    }
+                }
+            });
+        }
+        result
     }
 
     /// The type of a named schema, for its alias.
@@ -1431,7 +1541,7 @@ fn identifier(key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value, json};
+    use serde_json::json;
 
     fn generate(schemas: Value) -> Result<String, Error> {
         let doc = json!({"openapi": "3.2.0", "paths": {}, "components": {"schemas": schemas}});
@@ -1465,6 +1575,23 @@ mod tests {
         // Two levels down, Puppy gets Animal's part through Dog's, without either listing.
         has("type $Puppy = {\n  kind: string;\n} & {\n  age?: number;\n};\n");
         has("type $Adult = {\n  kind: string;\n};\n");
+    }
+
+    #[test]
+    fn rejects_mapping_keys_a_non_string_property_cannot_have() {
+        let schemas = |key: &str| {
+            json!({
+                "On": {"type": "object", "properties": {"flag": {"type": "boolean"}}},
+                "Off": {"type": "object", "properties": {"flag": {"type": "boolean"}}},
+                "Toggle": {
+                    "oneOf": [r("On"), r("Off")],
+                    "discriminator": {"propertyName": "flag", "mapping": {key: "On"}}
+                }
+            })
+        };
+        assert!(generate(schemas("true")).is_ok());
+        let e = generate(schemas("yes")).unwrap_err().to_string();
+        assert!(e.contains("Toggle: discriminator mapping key `yes`"), "{e}");
     }
 
     #[test]

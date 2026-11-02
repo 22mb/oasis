@@ -565,3 +565,52 @@ components:
     # Without a sibling, it is any object.
     Bag:
       type: object
+    # Mapping keys are strings, but stand for values of the discriminating property's type.
+    SwitchOn:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { const: true }
+    SwitchOff:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    Switch:
+      oneOf:
+        - $ref: "#/components/schemas/SwitchOn"
+        - $ref: "#/components/schemas/SwitchOff"
+      discriminator:
+        propertyName: enabled
+        mapping:
+          "true": "#/components/schemas/SwitchOn"
+          "false": "#/components/schemas/SwitchOff"
+    ReportV1:
+      type: object
+      required: [version]
+      properties:
+        version: { type: integer }
+        title: { type: string }
+    ReportV2:
+      type: object
+      required: [version]
+      properties:
+        version: { type: integer, enum: [2, 3] }
+        name: { type: string }
+    LegacyReport:
+      type: object
+      required: [version]
+      properties:
+        version: { type: integer }
+    Report:
+      oneOf:
+        - $ref: "#/components/schemas/ReportV1"
+        - $ref: "#/components/schemas/ReportV2"
+        - $ref: "#/components/schemas/LegacyReport"
+      discriminator:
+        propertyName: version
+        mapping:
+          "1": "#/components/schemas/ReportV1"
+          "2": "#/components/schemas/ReportV2"
+          "3": "#/components/schemas/ReportV2"
+        defaultMapping: LegacyReport
