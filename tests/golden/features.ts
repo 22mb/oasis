@@ -400,6 +400,12 @@ export interface components {
     Labels: $Labels;
     LabeledPet: $LabeledPet;
     Counts: $Counts;
+    Parcel: $Parcel;
+    Crate: $Crate;
+    ParcelAlias: $ParcelAlias;
+    ParcelOrName: $ParcelOrName;
+    OptionalParcel: $OptionalParcel;
+    Bag: $Bag;
   };
   requestSchemas: {
     Account: $Account$Request;
@@ -576,6 +582,16 @@ type $LabeledPet = {
   [key: string]: unknown;
 };
 type $Counts = { [key: string]: number | string };
+type $Parcel = {
+  id: number;
+};
+type $Crate = object & $Parcel & {
+  fragile?: boolean;
+};
+type $ParcelAlias = $Parcel & object;
+type $ParcelOrName = object & ($Parcel | string);
+type $OptionalParcel = (object | null) & $Parcel;
+type $Bag = { [key: string]: unknown };
 type $components_schemas_Tree_defs_node = {
   value?: number;
   left?: $components_schemas_Tree_defs_node;
@@ -628,6 +644,12 @@ export type {
   $Labels as Labels,
   $LabeledPet as LabeledPet,
   $Counts as Counts,
+  $Parcel as Parcel,
+  $Crate as Crate,
+  $ParcelAlias as ParcelAlias,
+  $ParcelOrName as ParcelOrName,
+  $OptionalParcel as OptionalParcel,
+  $Bag as Bag,
   $Account$Request as AccountRequest,
   $Owner$Request as OwnerRequest,
   $Entity$Request as EntityRequest,

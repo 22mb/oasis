@@ -536,3 +536,32 @@ components:
       patternProperties:
         "^[a-z]+$": { type: integer }
       additionalProperties: { type: string }
+    # `type: object` next to composition only says the value is an object: the other
+    # members decide the properties.
+    Parcel:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer }
+    Crate:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/Parcel"
+        - type: object
+          properties:
+            fragile: { type: boolean }
+    ParcelAlias:
+      type: object
+      $ref: "#/components/schemas/Parcel"
+    ParcelOrName:
+      type: object
+      oneOf:
+        - $ref: "#/components/schemas/Parcel"
+        - type: string
+    OptionalParcel:
+      type: [object, "null"]
+      allOf:
+        - $ref: "#/components/schemas/Parcel"
+    # Without a sibling, it is any object.
+    Bag:
+      type: object
