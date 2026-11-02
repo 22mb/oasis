@@ -241,11 +241,7 @@ impl<'a> Emitter<'a> {
                     .iter()
                     .map(|op| self.operation(op, &mut statuses))
                     .collect();
-                Member::new(
-                    Key::Quoted(item.path.clone()),
-                    false,
-                    Type::object(operations),
-                )
+                Member::new(Key::name(&item.path), false, Type::object(operations))
             })
             .collect();
         items.push(Item::Interface {
@@ -547,7 +543,7 @@ impl<'a> Emitter<'a> {
                 Type::Union(r.content.iter().map(|c| self.response_data(c)).collect())
             };
             responses
-                .push(Member::new(Key::Quoted(r.status.key()), false, data).doc(doc(&r.meta, &[])));
+                .push(Member::new(Key::name(r.status.key()), false, data).doc(doc(&r.meta, &[])));
         }
         let (name, ty) = status_alias(op);
         let members = vec![
@@ -965,10 +961,7 @@ impl<'a> Emitter<'a> {
             (false, Type::Union(values))
         };
         let tag = Member::new(Key::name(&d.property_name), optional, values);
-        Type::Paren(Box::new(Type::Intersection(vec![
-            t,
-            Type::inline(vec![tag]),
-        ])))
+        Type::Intersection(vec![t, Type::inline(vec![tag])])
     }
 
     /// The type of a named schema, for its alias.
@@ -1306,7 +1299,7 @@ fn status_alias(op: &Operation) -> (String, Type) {
         name.push('_');
         name.push_str(&key);
         let pair = Type::Tuple(vec![statuses(&ok), statuses(&failed)], None);
-        members.push(Member::new(Key::Quoted(key), false, pair));
+        members.push(Member::new(Key::name(key), false, pair));
     }
     (name, Type::object(members))
 }
@@ -1465,7 +1458,7 @@ mod tests {
         .unwrap();
         let has = |s: &str| assert!(out.contains(s), "missing {s:?} in\n{out}");
         has(
-            "type $Animal = {\n  kind: string;\n} & (($Dog & { kind: \"Dog\" }) | ($Cat & { kind: \"Cat\" }));\n",
+            "type $Animal = {\n  kind: string;\n} & ($Dog & { kind: \"Dog\" } | $Cat & { kind: \"Cat\" });\n",
         );
         has("type $Dog = {\n  kind: string;\n} & ($Puppy | $Adult);\n");
         has("type $Cat = {\n  kind: string;\n} & {\n  lives?: number;\n};\n");

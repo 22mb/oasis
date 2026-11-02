@@ -29,7 +29,7 @@ export interface paths {
         /** A page of pets. */
         "200": $Pet[];
         /** Error. */
-        "default": $Error;
+        default: $Error;
       };
       statuses: Statuses_200_default;
     };
@@ -46,7 +46,7 @@ export interface paths {
         /** Created. */
         "201": $Pet;
         /** Error. */
-        "default": $Error;
+        default: $Error;
       };
       statuses: Statuses_201_default;
     };
@@ -243,19 +243,19 @@ export interface paths {
 type Statuses_200_404_default = {
   "200": [200, never];
   "404": [never, 404];
-  "default": [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | 400 | 401 | 402 | 403 | 405 | 406 | 407 | 408 | 409 | Status41x | Status42x | Status43x | Status44x | Status45x | Status46x | Status47x | Status48x | Status49x | Status5xx];
+  default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | 400 | 401 | 402 | 403 | 405 | 406 | 407 | 408 | 409 | Status41x | Status42x | Status43x | Status44x | Status45x | Status46x | Status47x | Status48x | Status49x | Status5xx];
 };
 type Statuses_200_default = {
   "200": [200, never];
-  "default": [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
 type Statuses_201_default = {
   "201": [201, never];
-  "default": [200 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [200 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
 type Statuses_204_default = {
   "204": [204, never];
-  "default": [200 | 201 | 202 | 203 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [200 | 201 | 202 | 203 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
 type Status21x = 210 | 211 | 212 | 213 | 214 | 215 | 216 | 217 | 218 | 219;
 type Status22x = 220 | 221 | 222 | 223 | 224 | 225 | 226 | 227 | 228 | 229;
