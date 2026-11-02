@@ -4,7 +4,7 @@
 
 ## 想定外のステータスで例外を投げる {#throwing-on-unexpected-statuses}
 
-呼び出しは、2xx 以外のレスポンスに対して例外を投げずにレスポンスを返します。データ取得ライブラリーの中で使うときなど、例外のほうが適しているときは、呼び出しをラップして、想定するステータスを渡します。
+API の呼び出しでは、2xx 以外のレスポンスに対しても例外を投げずにレスポンスを返します。データ取得ライブラリーの中で使うときなど、例外を投げるほうが適しているときは、呼び出しをラップして想定するステータスを渡します。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -49,7 +49,7 @@ const pet = await expectStatus(call, 200);
 
 ## TanStack Query {#tanstack-query}
 
-フックを生成する必要はありません。`queryFn` の中で、TanStack Query が提供する `signal` を渡して呼び出してください。そうすれば、クエリーがキャンセルされたときにリクエストが中止されます。
+フックを生成する必要はありません。`queryFn` の中で、TanStack Query が提供する `signal` を渡してクライアントを呼び出してください。そうすれば、クエリーがキャンセルされたときにリクエストも中止されます。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -90,7 +90,7 @@ function usePet(petId: number) {
 
 ## 環境ごとにベース URL を設定する {#setting-the-base-url-for-each-environment}
 
-ドキュメントのサーバーが開発用のホストを指しているときなど、環境ごとに異なるサーバーを呼び出すには、ビルドの環境変数から `baseUrl` を設定します。Vite では次のようにします。
+OpenAPI ドキュメントの `servers` が開発用のホストを指しているときなど、環境ごとに異なるサーバーを呼び出すには、ビルド時の環境変数から `baseUrl` を設定します。Vite では次のようにします。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -103,7 +103,7 @@ declare global {
 const api = createClient({ baseUrl: import.meta.env.VITE_API_BASE_URL });
 ```
 
-ブラウザーでは、Vite の開発サーバーの `server.proxy` オプションと組み合わせるなどして、`"/api"` のような相対的な `baseUrl` も使えます。
+また、ブラウザーでは Vite の開発サーバーの `server.proxy` オプションと組み合わせるなどして、`"/api"` のような相対パスの `baseUrl` も使えます。
 
 ## 401 を受け取ったらトークンを更新する {#refreshing-a-token-on-401}
 
@@ -132,7 +132,7 @@ const api = createClient({ middleware: [bearer] });
 
 ## テストでレスポンスをモックする {#mocking-responses-in-tests}
 
-`fetch` オプションを使うと、クライアント全体でネットワークへのアクセスが置き換えられます。
+`fetch` オプションを使うと、クライアント全体でネットワーク通信を置き換えられます。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -145,7 +145,7 @@ const api = createClient({
 });
 ```
 
-一部の操作だけをモックし、それ以外のリクエストはネットワーク経由で送信するには、`next` を呼び出さずに `Response` を返すミドルウェアを使います。
+一方、一部の操作だけをモックし、それ以外のリクエストはネットワーク経由で送信するには、`next` を呼び出さずに `Response` を返すミドルウェアを使います。
 
 ```ts twoslash
 import { createClient, type Middleware } from "./api.ts";
@@ -163,7 +163,7 @@ const mocked = api.with(mock);
 
 ## ストリーミングされるレスポンスを読み取る {#reading-streamed-responses}
 
-JSON Lines やサーバー送信イベントのような逐次的なメディアタイプ（sequential media types）のレスポンスでは、`data` は非同期反復可能オブジェクトです。先に `status` で絞り込んでから、反復処理します。
+JSON Lines やサーバー送信イベントのような逐次的なメディアタイプ（sequential media types）のレスポンスでは、`data` は非同期反復可能オブジェクトになります。先に `status` で型を絞り込んでから反復処理します。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -177,11 +177,11 @@ if (res.status === 200) {
 }
 ```
 
-ループを抜けると、ダウンロードは停止します。また、項目を解析できないときは、ループが `DecodeError` を投げます。
+ループを抜けるとダウンロードは停止します。また、項目を解析できないときは、ループが `DecodeError` を投げます。
 
 ## サーバーでリクエストごとにクライアントを派生させる {#per-request-clients-on-a-server}
 
-サーバーでは、1 つのクライアントで多くのユーザーからのリクエストを処理できます。クライアントは一度だけ作成し、受け取ったリクエストごとに `with` でクライアントを派生させてください。そうすれば、あるユーザーのトークンが別のユーザーのリクエストに渡ることはありません。
+サーバー側では、1 つのクライアントで多くのユーザーからのリクエストを処理できます。クライアントは一度だけ作成し、受け取ったリクエストごとに `with` でクライアントを派生させてください。そうすれば、あるユーザーのトークンが別のユーザーのリクエストに渡ることはありません。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -201,7 +201,7 @@ async function handle(incoming: Request): Promise<Response> {
 
 ## 生成されるファイルを管理する {#keeping-the-generated-file-in-your-project}
 
-生成されるファイルをコミットすると、oasis-gen を実行しなくてもプロジェクトの型チェックができます。一方、ビルド時に生成すると、ファイルはドキュメントと同期した状態に保たれます。どちらの方法でも、生成されるファイルはプロジェクトのスタイル規則に従っていないため、リンターとフォーマッターの対象から除外してください。たとえば ESLint のフラット設定（flat config）では、次のようにします。
+生成されるファイルをコミットすると、oasis-gen を実行しなくてもプロジェクトの型チェックができます。一方、ビルド時に生成すると、ファイルは OpenAPI ドキュメントと同期した状態に保たれます。どちらの方法でも、生成されるファイルはプロジェクトのスタイル規則に従っていないため、リンターやフォーマッターの対象から除外してください。たとえば ESLint のフラット設定（flat config）では、次のようにします。
 
 ```js
 import { globalIgnores } from "eslint/config";
@@ -216,10 +216,10 @@ export default [
 
 | 問題 | 原因 | 解決方法 |
 | --- | --- | --- |
-| ブラウザー以外の環境での `TypeError: Failed to parse URL` | リクエストの URL が相対 URL（ドキュメントにサーバーがないか、`baseUrl` が相対 URL のため） | 絶対 URL の `baseUrl` を設定 |
-| `TS5097: An import path can only end with a '.ts' extension ...` | インポートで `.ts` 拡張子を許可していないプロジェクト | `allowImportingTsExtensions` を有効にするか、`./api.js` または `./api` をインポート |
-| `DecodeError` での `TS2554: Expected 0-1 arguments, but got 2.` | ES2022 より古い `lib` | `lib` を ES2022 以降に設定 |
-| `TS2304: Cannot find name 'RequestInit'`、`'Blob'`、または `'FormData'` | `lib` の `dom` と `@types/node` のどちらも利用不可 | どちらかを追加 |
+| ブラウザー以外の環境での `TypeError: Failed to parse URL` | リクエストの URL が相対 URL（ドキュメントに `servers` がないか、`baseUrl` が相対 URL のため） | 絶対 URL の `baseUrl` を設定 |
+| `TS5097: An import path can only end with a '.ts' extension ...` | インポートパスでの `.ts` 拡張子を許可していないプロジェクト設定 | `allowImportingTsExtensions` を有効にするか、`./api.js` または `./api` をインポート |
+| `DecodeError` での `TS2554: Expected 0-1 arguments, but got 2.` | ES2022 より古い `lib` の設定 | `lib` を ES2022 以降に設定 |
+| `TS2304: Cannot find name 'RequestInit'`、`'Blob'`、または `'FormData'` | `lib` の `dom` と `@types/node` のどちらも利用不可 | いずれかを追加 |
 | エラーレスポンスでの `DecodeError` | サーバーから返された、`Content-Type` と一致しない本体（HTML のエラーページなど） | `DecodeError` を捕捉して `error.response.status` を確認。[エラー](./client#decodeerror)を参照 |
-| ブラウザーで送信されないクッキーパラメーターやクッキーの API キー | `fetch` で設定された `Cookie` ヘッダーをブラウザーが無視 | ブラウザー自身によるクッキー送信を利用（`credentials` の fetch オプションなど） |
-| 拒否される `nullable` | `nullable` が存在しない OpenAPI 3.1 か 3.2 のドキュメント | `type: [..., "null"]` を使用 |
+| ブラウザーで送信されないクッキーパラメーターやクッキーの API キー | `fetch` で設定された `Cookie` ヘッダーをブラウザーが無視 | ブラウザー自身によるクッキー送信を利用（`fetch` の `credentials` オプションなど） |
+| 拒否される `nullable` | `nullable` が存在しない OpenAPI 3.1 または 3.2 のドキュメント | `type: [..., "null"]` を使用 |
