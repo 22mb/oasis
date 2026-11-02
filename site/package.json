@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@shikijs/vitepress-twoslash": "4.5.0",
-    "@tanstack/react-query": "5.104.4",
+    "@tanstack/react-query": "5.104.5",
     "shiki": "4.5.0",
     "typescript": "6.0.3",
     "vitepress": "2.0.0-alpha.20"
