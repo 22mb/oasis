@@ -9,7 +9,11 @@ change the generated code or the CLI in incompatible ways.
 
 ### Fixed
 
-- **Breaking:** Stop `type: object` next to composition from adding an index signature ([#49](https://github.com/22mb/oasis/pull/49))
+- **Breaking:** `type: object` next to `allOf`, `oneOf` or `$ref` added an index
+  signature, so misspelled property names compiled in requests and undeclared
+  properties could be read from responses. It now becomes `object` in the
+  intersection, so both are type errors.
+  ([#49](https://github.com/22mb/oasis/pull/49))
 
 ## [0.4.1](https://github.com/22mb/oasis/compare/v0.4.0...v0.4.1) - 2026-10-28
 
