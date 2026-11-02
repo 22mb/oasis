@@ -5,6 +5,12 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.5.0](https://github.com/22mb/oasis/compare/v0.4.1...v0.5.0) - 2026-11-02
+
+### Fixed
+
+- **Breaking:** Stop `type: object` next to composition from adding an index signature ([#49](https://github.com/22mb/oasis/pull/49))
+
 ## [0.4.1](https://github.com/22mb/oasis/compare/v0.4.0...v0.4.1) - 2026-10-28
 
 ### Fixed
