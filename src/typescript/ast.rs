@@ -26,8 +26,6 @@ pub enum Type {
     Union(Vec<Type>),
     /// `unknown` when empty.
     Intersection(Vec<Type>),
-    /// `(T)`, where the parentheses are not needed but help the reader.
-    Paren(Box<Type>),
 }
 
 impl Type {
@@ -65,7 +63,7 @@ impl Type {
             Type::Generic(_, ts) | Type::Union(ts) | Type::Intersection(ts) => {
                 ts.iter().any(|t| t.refers_to(name))
             }
-            Type::Index(t, _) | Type::Array(t) | Type::Paren(t) => t.refers_to(name),
+            Type::Index(t, _) | Type::Array(t) => t.refers_to(name),
             Type::Tuple(ts, rest) => ts.iter().chain(rest.as_deref()).any(|t| t.refers_to(name)),
             Type::Object { members, .. } => members.iter().any(|m| m.ty.refers_to(name)),
         }
@@ -179,11 +177,6 @@ impl Type {
                     return true;
                 }
             },
-            Type::Paren(t) => {
-                out.push('(');
-                t.write(out, indent);
-                out.push(')');
-            }
         }
         false
     }
@@ -226,7 +219,6 @@ impl Member {
     fn write(&self, out: &mut String, indent: usize) {
         match &self.key {
             Key::Name(k) => out.push_str(&key(k)),
-            Key::Quoted(k) => out.push_str(&quote(k)),
             Key::Index => out.push_str("[key: string]"),
         }
         if self.optional {
@@ -250,7 +242,6 @@ impl Member {
 pub enum Key {
     /// Quoted unless it is an identifier.
     Name(String),
-    Quoted(String),
     /// `[key: string]`.
     Index,
 }

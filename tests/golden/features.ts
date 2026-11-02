@@ -32,7 +32,7 @@ export interface paths {
         /** Another success. */
         "2XX": undefined;
         /** Fallback. */
-        "default": unknown;
+        default: unknown;
       };
       statuses: Statuses_200_2XX_default;
     };
@@ -288,30 +288,30 @@ export interface paths {
 type Statuses_200_202_default = {
   "200": [200, never];
   "202": [202, never];
-  "default": [201 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [201 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
 type Statuses_200_2XX_default = {
   "200": [200, never];
   "2XX": [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, never];
-  "default": [never, Status3xx | Status4xx | Status5xx];
+  default: [never, Status3xx | Status4xx | Status5xx];
 };
 type Statuses_200_301_404_4XX_default = {
   "200": [200, never];
   "301": [never, 301];
   "404": [never, 404];
   "4XX": [never, 400 | 401 | 402 | 403 | 405 | 406 | 407 | 408 | 409 | Status41x | Status42x | Status43x | Status44x | Status45x | Status46x | Status47x | Status48x | Status49x];
-  "default": [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 302 | 303 | 304 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status5xx];
+  default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 302 | 303 | 304 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status5xx];
 };
 type Statuses_201_default = {
   "201": [201, never];
-  "default": [200 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [200 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
 type Statuses_204_default = {
   "204": [204, never];
-  "default": [200 | 201 | 202 | 203 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [200 | 201 | 202 | 203 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
 type Statuses_default = {
-  "default": [Status2xx, Status3xx | Status4xx | Status5xx];
+  default: [Status2xx, Status3xx | Status4xx | Status5xx];
 };
 type Status20x = 200 | 201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209;
 type Status21x = 210 | 211 | 212 | 213 | 214 | 215 | 216 | 217 | 218 | 219;
@@ -467,14 +467,14 @@ type $Square = {
   kind: string;
   side: number;
 };
-type $Shape = ($Circle & { kind: "c" | "Circle" }) | ($Square & { kind: "s" | "Square" });
+type $Shape = $Circle & { kind: "c" | "Circle" } | $Square & { kind: "s" | "Square" };
 type $Tree = $components_schemas_Tree_defs_node;
 type $Flag = "N" | "Y" | "yes" | "off" | "A";
 type $Level = 1 | 2 | null;
 type $Json = string | number | boolean | null | $Json[] | { [key: string]: $Json };
 type $Animal = {
   kind: string;
-} & (($Dog & { kind: "Dog" }) | ($Cat & { kind: "Cat" }));
+} & ($Dog & { kind: "Dog" } | $Cat & { kind: "Cat" });
 type $Dog = {
   kind: string;
 } & {
@@ -498,7 +498,7 @@ type $Bike = {
 type $OtherVehicle = {
   kind?: string;
 };
-type $Vehicle = ($Car & { kind: "car" | "Car" }) | ($Bike & { kind: "Bike" }) | ($OtherVehicle & { kind?: string });
+type $Vehicle = $Car & { kind: "car" | "Car" } | $Bike & { kind: "Bike" } | $OtherVehicle & { kind?: string };
 type $Serial = number;
 type $Entity = {
   serial?: $Serial;

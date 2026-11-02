@@ -47,10 +47,10 @@ export interface paths {
 // operations with the same keys share one.
 type Statuses_200_default = {
   "200": [200, never];
-  "default": [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
 type Statuses_default = {
-  "default": [Status2xx, Status3xx | Status4xx | Status5xx];
+  default: [Status2xx, Status3xx | Status4xx | Status5xx];
 };
 type Status20x = 200 | 201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209;
 type Status21x = 210 | 211 | 212 | 213 | 214 | 215 | 216 | 217 | 218 | 219;
@@ -113,7 +113,7 @@ export type schemas = components["schemas"];
  * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
  * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
  */
-type $Pet = ($Cat & { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": "\" + ((globalThis.__oasis_pwned ??= []).push(9)) + \"\u2028`${0}`" | "Cat" });
+type $Pet = $Cat & { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": "\" + ((globalThis.__oasis_pwned ??= []).push(9)) + \"\u2028`${0}`" | "Cat" };
 type $Cat = {
   /**
    * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
