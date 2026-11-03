@@ -1,0 +1,1 @@
+error: #/x/a -> #/x/b -> #/x/a: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone

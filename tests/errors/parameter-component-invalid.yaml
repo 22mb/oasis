@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths:
+  /a:
+    get:
+      parameters: [{$ref: '#/components/parameters/P'}]
+      responses: {'204': {description: ok}}
+components:
+  parameters:
+    P: {name: x, in: body}

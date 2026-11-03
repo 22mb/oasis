@@ -1,0 +1,1 @@
+error: paths./a: GET: response 200: unresolved $ref `#/nope`

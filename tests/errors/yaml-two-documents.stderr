@@ -1,0 +1,7 @@
+error: invalid YAML: error: line 5 column 1: multiple YAML documents detected; use from_str_multiple or from_str_multiple_with_options
+ --> <input>:5:1
+  |
+3 | paths: {}
+4 | ---
+5 | openapi: 3.1.0
+  | ^ multiple YAML documents detected; use from_str_multiple or from_str_multiple_with_options

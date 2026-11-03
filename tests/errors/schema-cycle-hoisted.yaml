@@ -1,0 +1,9 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths: {}
+x:
+  a: {$ref: '#/x/b'}
+  b: {allOf: [{$ref: '#/x/a'}]}
+components:
+  schemas:
+    A: {$ref: '#/x/a'}
