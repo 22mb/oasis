@@ -1,1 +1,1 @@
-error: security: scopes of `bearer` must be an array
+error: security-scopes-not-array.yaml:4:21: security: scopes of `bearer` must be an array

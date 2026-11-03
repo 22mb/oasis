@@ -1,1 +1,1 @@
-error: schemas.yaml#/B: unknown type `date`
+error: multifile-schema/schemas.yaml:1:11: schemas.yaml#/B: unknown type `date`

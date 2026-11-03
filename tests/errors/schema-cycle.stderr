@@ -1,1 +1,1 @@
-error: A -> B -> A: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone
+error: schema-cycle.yaml: A -> B -> A: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone

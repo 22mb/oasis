@@ -1,1 +1,1 @@
-error: paths./a: GET: parameter `x`: `content` must contain exactly one media type
+error: parameter-content-not-one.yaml:6:50: paths./a: GET: parameter `x`: `content` must contain exactly one media type

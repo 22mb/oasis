@@ -1,1 +1,1 @@
-error: paths./a: GET: security: unknown security scheme `nope`
+error: security-operation-unknown-scheme.yaml:6:25: paths./a: GET: security: unknown security scheme `nope`

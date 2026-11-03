@@ -1,1 +1,1 @@
-error: paths./a: GET: more than one `in: querystring` parameter
+error: querystring-twice.yaml:8:11: paths./a: GET: more than one `in: querystring` parameter

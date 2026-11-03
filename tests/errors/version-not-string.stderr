@@ -1,1 +1,1 @@
-error: `openapi` must be a string such as "3.0.3"
+error: version-not-string.yaml:1:10: `openapi` must be a string such as "3.0.3"

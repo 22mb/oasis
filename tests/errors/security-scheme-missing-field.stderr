@@ -1,1 +1,1 @@
-error: components.securitySchemes.key: security scheme requires `name`
+error: security-scheme-missing-field.yaml:4:37: components.securitySchemes.key: security scheme requires `name`

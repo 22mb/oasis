@@ -1,1 +1,1 @@
-error: paths./a: GET: parameter `x`: style `matrix` for query parameters is not supported
+error: parameter-style-unsupported.yaml:6:48: paths./a: GET: parameter `x`: style `matrix` for query parameters is not supported

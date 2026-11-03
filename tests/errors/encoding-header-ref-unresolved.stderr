@@ -1,1 +1,1 @@
-error: paths./a: POST: requestBody: multipart/form-data: unresolved $ref `#/nope`
+error: encoding-header-ref-unresolved.yaml:9:54: paths./a: POST: requestBody: multipart/form-data: unresolved $ref `#/nope`

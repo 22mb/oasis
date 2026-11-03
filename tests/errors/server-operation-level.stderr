@@ -1,1 +1,1 @@
-error: paths./a: GET: server requires `url`
+error: server-operation-level.yaml:6:17: paths./a: GET: server requires `url`

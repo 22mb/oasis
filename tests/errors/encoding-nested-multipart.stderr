@@ -1,1 +1,1 @@
-error: paths./a: POST: requestBody: multipart/form-data: encoding.parts: nested multipart parts are not supported
+error: encoding-nested-multipart.yaml:9:31: paths./a: POST: requestBody: multipart/form-data: encoding.parts: nested multipart parts are not supported

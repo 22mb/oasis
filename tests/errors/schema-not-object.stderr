@@ -1,1 +1,1 @@
-error: components.schemas.A: schema must be an object or boolean
+error: schema-not-object.yaml:6:8: components.schemas.A: schema must be an object or boolean

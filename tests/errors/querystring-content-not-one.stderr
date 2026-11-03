@@ -1,1 +1,1 @@
-error: paths./a: GET: `content` must contain exactly one media type
+error: querystring-content-not-one.yaml:6:56: paths./a: GET: `content` must contain exactly one media type

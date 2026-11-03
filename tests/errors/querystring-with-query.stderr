@@ -1,1 +1,1 @@
-error: paths./a: GET: `in: querystring` cannot be combined with `in: query` parameters
+error: querystring-with-query.yaml:7:9: paths./a: GET: `in: querystring` cannot be combined with `in: query` parameters

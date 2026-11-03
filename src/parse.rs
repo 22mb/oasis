@@ -42,11 +42,14 @@ enum Version {
 fn version(root: &Value) -> Result<Version, Error> {
     let version = match root.get("openapi") {
         Some(Value::String(v)) => v.as_str(),
-        Some(_) => return Err(Error::new("`openapi` must be a string such as \"3.0.3\"")),
-        None if root.get("swagger").is_some() => {
+        Some(v) => {
+            return Err(Error::new("`openapi` must be a string such as \"3.0.3\"").about(v));
+        }
+        None if let Some(v) = root.get("swagger") => {
             return Err(Error::new(
                 "Swagger 2.0 documents are not supported; convert to OpenAPI 3.x",
-            ));
+            )
+            .about(v));
         }
         None => return Err(Error::new("missing `openapi` version field")),
     };
@@ -56,7 +59,8 @@ fn version(root: &Value) -> Result<Version, Error> {
         (Some("3"), Some("1" | "2")) => Ok(Version::V31Plus),
         _ => Err(Error::new(format!(
             "unsupported OpenAPI version {version}: oasis-gen supports 3.0.x, 3.1.x and 3.2.x"
-        ))),
+        ))
+        .about(&root["openapi"])),
     }
 }
 
@@ -165,8 +169,10 @@ impl<'a> Parser<'a> {
         {
             for (name, s) in map.entries() {
                 let s = self.deref(s)?;
-                let kind = security_scheme(&s)
-                    .map_err(|e| e.context(format!("components.securitySchemes.{name}")))?;
+                let kind = security_scheme(&s).map_err(|e| {
+                    e.about(s.v)
+                        .context(format!("components.securitySchemes.{name}"))
+                })?;
                 self.security_schemes.push(SecurityScheme {
                     key: name.clone(),
                     meta: meta(s.v),
@@ -217,7 +223,7 @@ impl<'a> Parser<'a> {
     /// since `[]` and `{}` would then mean no or anonymous access.
     fn security(&mut self, list: &Node<'a>) -> Result<Vec<SecurityRequirement>, Error> {
         if !list.v.is_array() {
-            return Err(Error::new("must be an array of security requirements"));
+            return Err(Error::new("must be an array of security requirements").about(list.v));
         }
         let mut out = Vec::new();
         for item in list.items() {
@@ -225,7 +231,8 @@ impl<'a> Parser<'a> {
                 return Err(Error::new(format!(
                     "security requirement {} must map scheme names to scopes, e.g. `- bearer: []`",
                     item.v
-                )));
+                ))
+                .about(item.v));
             }
             let mut schemes = Vec::new();
             for (name, scopes) in item.entries() {
@@ -233,11 +240,13 @@ impl<'a> Parser<'a> {
                 let scopes = scopes
                     .v
                     .as_array()
-                    .ok_or_else(|| Error::new(format!("scopes of `{name}` must be an array")))?
+                    .ok_or_else(|| {
+                        Error::new(format!("scopes of `{name}` must be an array")).about(scopes.v)
+                    })?
                     .iter()
                     .map(|s| {
                         s.as_str().map(String::from).ok_or_else(|| {
-                            Error::new(format!("scopes of `{name}` must be strings"))
+                            Error::new(format!("scopes of `{name}` must be strings")).about(s)
                         })
                     })
                     .collect::<Result<_, _>>()?;
@@ -255,7 +264,8 @@ impl<'a> Parser<'a> {
             return Ok(name.to_string());
         }
         if !name.contains(['#', '/']) {
-            return Err(Error::new(format!("unknown security scheme `{name}`")));
+            return Err(Error::new(format!("unknown security scheme `{name}`"))
+                .about(from.v.get(name).unwrap_or(from.v)));
         }
         let (loc, target) = self.lookup(from, name)?;
         if loc.doc == 0
@@ -267,7 +277,8 @@ impl<'a> Parser<'a> {
         let key = self.docs.display(&loc);
         if !self.security_schemes.iter().any(|s| s.key == key) {
             let target = self.deref(target)?;
-            let kind = security_scheme(&target).map_err(|e| e.context(name.to_string()))?;
+            let kind = security_scheme(&target)
+                .map_err(|e| e.about(target.v).context(name.to_string()))?;
             self.security_schemes.push(SecurityScheme {
                 key: key.clone(),
                 meta: meta(target.v),
@@ -285,11 +296,14 @@ impl<'a> Parser<'a> {
                 None => return Ok(node),
             }
         }
-        Err(Error::new("$ref chain too deep or cyclic"))
+        Err(Error::new("$ref chain too deep or cyclic").about(node.v))
     }
 
     fn lookup(&self, from: &Node<'a>, reference: &str) -> Result<(Target, Node<'a>), Error> {
-        let (loc, base) = self.docs.resolve(&from.base, reference)?;
+        let (loc, base) = self
+            .docs
+            .resolve(&from.base, reference)
+            .map_err(|e| e.about(referring(from.v, reference)))?;
         let v = self
             .docs
             .value(&loc)
@@ -299,7 +313,7 @@ impl<'a> Parser<'a> {
 
     fn path_item(&mut self, path: &str, item: Node<'a>) -> Result<PathItem, Error> {
         if !path.starts_with('/') {
-            return Err(Error::new("path must start with `/`"));
+            return Err(Error::new("path must start with `/`").about(item.v));
         }
         let item = self.deref(item)?;
         let shared = item.get("parameters");
@@ -315,7 +329,8 @@ impl<'a> Parser<'a> {
                 if matches!(method.as_str(), "with" | "then") {
                     return Err(Error::new(format!(
                         "additionalOperations must not define `{method}`: the generated client reserves that name"
-                    )));
+                    ))
+                    .about(op.v));
                 }
                 let lower = method.to_ascii_lowercase();
                 let fixed = FIXED_METHODS.contains(&lower.as_str());
@@ -326,7 +341,8 @@ impl<'a> Parser<'a> {
                     return Err(Error::new(format!(
                         "additionalOperations must not define `{method}`: it is sent as `{}`, use the `{lower}` field",
                         lower.to_ascii_uppercase()
-                    )));
+                    ))
+                    .about(op.v));
                 }
                 ops.push((method.clone(), op));
             }
@@ -334,9 +350,10 @@ impl<'a> Parser<'a> {
 
         let mut operations = Vec::new();
         for (method, op) in ops {
+            let v = op.v;
             let op = self
                 .operation(path, &method, op, shared.clone())
-                .map_err(|e| e.context(method.clone()))?;
+                .map_err(|e| e.about(v).context(method.clone()))?;
             operations.push(op);
         }
         Ok(PathItem {
@@ -357,7 +374,9 @@ impl<'a> Parser<'a> {
         if let Some(id) = &operation_id
             && !self.operation_ids.insert(id.clone())
         {
-            return Err(Error::new(format!("duplicate operationId `{id}`")));
+            return Err(
+                Error::new(format!("duplicate operationId `{id}`")).about(&op.v["operationId"])
+            );
         }
 
         // Operation-level parameters override path-level ones with the same name and location.
@@ -377,12 +396,12 @@ impl<'a> Parser<'a> {
             let name = p.str("name").unwrap_or_default();
             if p.str("in") == Some("querystring") {
                 if querystring.is_some() {
-                    return Err(Error::new("more than one `in: querystring` parameter"));
+                    return Err(Error::new("more than one `in: querystring` parameter").about(p.v));
                 }
-                querystring = Some(self.querystring(&p)?);
+                querystring = Some(self.querystring(&p).map_err(|e| e.about(p.v))?);
             } else if let Some(param) = self
                 .param(&p)
-                .map_err(|e| e.context(format!("parameter `{name}`")))?
+                .map_err(|e| e.about(p.v).context(format!("parameter `{name}`")))?
             {
                 params.push(param);
             }
@@ -390,16 +409,17 @@ impl<'a> Parser<'a> {
         if querystring.is_some() && params.iter().any(|p| p.location == Location::Query) {
             return Err(Error::new(
                 "`in: querystring` cannot be combined with `in: query` parameters",
-            ));
+            )
+            .about(op.v.get("parameters").unwrap_or(op.v)));
         }
         for name in path_template_names(path) {
             if !params
                 .iter()
                 .any(|p| p.location == Location::Path && p.name == name)
             {
-                return Err(Error::new(format!(
-                    "path parameter `{name}` is not defined"
-                )));
+                return Err(
+                    Error::new(format!("path parameter `{name}` is not defined")).about(op.v),
+                );
             }
         }
 
@@ -411,7 +431,7 @@ impl<'a> Parser<'a> {
                     meta: meta(b.v),
                     content: self
                         .content(b.get("content"))
-                        .map_err(|e| e.context("requestBody"))?,
+                        .map_err(|e| e.about(b.v).context("requestBody"))?,
                 })
             }
             None => None,
@@ -422,11 +442,11 @@ impl<'a> Parser<'a> {
             for (key, r) in map.fields() {
                 let r = self.deref(r)?;
                 responses.push(Response {
-                    status: status(key)?,
+                    status: status(key).map_err(|e| e.about(r.v))?,
                     meta: meta(r.v),
                     content: self
                         .content(r.get("content"))
-                        .map_err(|e| e.context(format!("response {key}")))?,
+                        .map_err(|e| e.about(r.v).context(format!("response {key}")))?,
                 });
             }
         }
@@ -450,13 +470,18 @@ impl<'a> Parser<'a> {
     }
 
     fn param(&mut self, p: &Node<'a>) -> Result<Option<Param>, Error> {
-        let name = p.str("name").ok_or_else(|| Error::new("missing `name`"))?;
+        let name = p
+            .str("name")
+            .ok_or_else(|| Error::new("missing `name`").about(p.v))?;
         let location = match p.str("in") {
             Some("path") => Location::Path,
             Some("query") => Location::Query,
             Some("header") => Location::Header,
             Some("cookie") => Location::Cookie,
-            other => return Err(Error::new(format!("invalid `in`: {other:?}"))),
+            other => {
+                return Err(Error::new(format!("invalid `in`: {other:?}"))
+                    .about(p.v.get("in").unwrap_or(p.v)));
+            }
         };
         if location == Location::Header
             && IGNORED_HEADERS.contains(&name.to_ascii_lowercase().as_str())
@@ -465,14 +490,15 @@ impl<'a> Parser<'a> {
         }
         let required = p.bool("required").unwrap_or(false);
         if location == Location::Path && !required {
-            return Err(Error::new("path parameters must be `required: true`"));
+            return Err(Error::new("path parameters must be `required: true`")
+                .about(p.v.get("required").unwrap_or(p.v)));
         }
 
         let value = match (p.get("schema"), p.get("content")) {
             (Some(_), Some(_)) => {
-                return Err(Error::new(
-                    "parameters must not have both `schema` and `content`",
-                ));
+                return Err(
+                    Error::new("parameters must not have both `schema` and `content`").about(p.v),
+                );
             }
             (None, Some(content)) => ParamValue::Content(self.single_content(content)?),
             (schema, None) => {
@@ -501,9 +527,9 @@ impl<'a> Parser<'a> {
     }
 
     fn querystring(&mut self, p: &Node<'a>) -> Result<QueryString, Error> {
-        let content = p
-            .get("content")
-            .ok_or_else(|| Error::new("`in: querystring` parameter must use `content`"))?;
+        let content = p.get("content").ok_or_else(|| {
+            Error::new("`in: querystring` parameter must use `content`").about(p.v)
+        })?;
         Ok(QueryString {
             required: p.bool("required").unwrap_or(false),
             meta: meta(p.v),
@@ -512,9 +538,10 @@ impl<'a> Parser<'a> {
     }
 
     fn single_content(&mut self, content: Node<'a>) -> Result<Content, Error> {
+        let v = content.v;
         let mut list = self.content(Some(content))?;
         if list.len() != 1 {
-            return Err(Error::new("`content` must contain exactly one media type"));
+            return Err(Error::new("`content` must contain exactly one media type").about(v));
         }
         Ok(list.remove(0))
     }
@@ -534,7 +561,7 @@ impl<'a> Parser<'a> {
                 item_schema,
                 encoding: self
                     .encoding(media_type, &m)
-                    .map_err(|e| e.context(media_type.clone()))?,
+                    .map_err(|e| e.about(m.v).context(media_type.clone()))?,
             });
         }
         Ok(out)
@@ -554,7 +581,11 @@ impl<'a> Parser<'a> {
         }
         let mut out = Vec::new();
         for (name, e) in map.entries() {
-            let fail = |message: String| Error::new(message).context(format!("encoding.{name}"));
+            let fail = |message: String| {
+                Error::new(message)
+                    .about(e.v)
+                    .context(format!("encoding.{name}"))
+            };
             if multipart {
                 for (header, h) in e.get("headers").iter().flat_map(|h| h.entries()) {
                     let h = self.deref(h)?;
@@ -563,7 +594,8 @@ impl<'a> Parser<'a> {
                     {
                         return Err(fail(format!(
                             "required part header `{header}` is not supported"
-                        )));
+                        ))
+                        .about(h.v));
                     }
                 }
             }
@@ -620,6 +652,11 @@ impl<'a> Parser<'a> {
     }
 
     fn schema(&mut self, node: Node<'a>, depth: usize) -> Result<Schema, Error> {
+        let v = node.v;
+        self.schema_at(node, depth).map_err(|e| e.about(v))
+    }
+
+    fn schema_at(&mut self, node: Node<'a>, depth: usize) -> Result<Schema, Error> {
         if depth > MAX_DEPTH {
             return Err(Error::new("schema nesting too deep"));
         }
@@ -635,7 +672,9 @@ impl<'a> Parser<'a> {
                 v: node.v,
                 base: Rc::new(base),
             },
-            Some(Err(e)) => return Err(Error::new(format!("invalid `$id`: {e}"))),
+            Some(Err(e)) => {
+                return Err(Error::new(format!("invalid `$id`: {e}")).about(&node.v["$id"]));
+            }
             None => node,
         };
 
@@ -680,10 +719,11 @@ impl<'a> Parser<'a> {
             (_, None) => Ok(schema),
             (Version::V30, Some(Value::Bool(true))) => Ok(nullable(schema)),
             (Version::V30, Some(Value::Bool(false))) => Ok(schema),
-            (Version::V30, Some(_)) => Err(Error::new("`nullable` must be a boolean")),
-            (Version::V31Plus, Some(_)) => Err(Error::new(
+            (Version::V30, Some(v)) => Err(Error::new("`nullable` must be a boolean").about(v)),
+            (Version::V31Plus, Some(v)) => Err(Error::new(
                 "`nullable` is OpenAPI 3.0 syntax; use `type: [..., \"null\"]`",
-            )),
+            )
+            .about(v)),
         }
     }
 
@@ -695,7 +735,7 @@ impl<'a> Parser<'a> {
     fn discriminator(&mut self, d: &Node<'a>, variants: &[Schema]) -> Result<Discriminator, Error> {
         let property_name = d
             .str("propertyName")
-            .ok_or_else(|| Error::new("discriminator requires `propertyName`"))?
+            .ok_or_else(|| Error::new("discriminator requires `propertyName`").about(d.v))?
             .to_string();
         // Values are component names of the entry document, or URI references.
         let components = self.root.v.pointer("/components/schemas");
@@ -709,9 +749,9 @@ impl<'a> Parser<'a> {
         let mut mapping = Vec::new();
         if let Some(map) = d.v.get("mapping").and_then(Value::as_object) {
             for (value, t) in map {
-                let t = t
-                    .as_str()
-                    .ok_or_else(|| Error::new("discriminator mapping values must be strings"))?;
+                let t = t.as_str().ok_or_else(|| {
+                    Error::new("discriminator mapping values must be strings").about(t)
+                })?;
                 mapping.push((value.clone(), target(t)?));
             }
         }
@@ -740,7 +780,7 @@ impl<'a> Parser<'a> {
         let types: Vec<&str> = match node.v.get("type") {
             Some(Value::String(t)) => vec![t],
             Some(Value::Array(ts)) => ts.iter().filter_map(Value::as_str).collect(),
-            Some(_) => return Err(Error::new("`type` must be a string or array")),
+            Some(t) => return Err(Error::new("`type` must be a string or array").about(t)),
             None if has(&[
                 "properties",
                 "patternProperties",
@@ -862,7 +902,9 @@ impl<'a> Parser<'a> {
                     additional,
                 }
             }
-            other => return Err(Error::new(format!("unknown type `{other}`"))),
+            other => {
+                return Err(Error::new(format!("unknown type `{other}`")).about(&node.v["type"]));
+            }
         })
     }
 }
@@ -926,7 +968,8 @@ fn param_style(p: &Node, location: Location) -> Result<Style, Error> {
             return Err(Error::new(format!(
                 "style `{s}` for {} parameters is not supported",
                 location.as_str()
-            )));
+            ))
+            .about(&p.v["style"]));
         }
     };
     Ok(style)
@@ -936,13 +979,13 @@ fn servers(list: Option<Node>) -> Result<Vec<Server>, Error> {
     let text = |n: &Node, key| n.str(key).map(String::from);
     let mut out = Vec::new();
     for s in list.iter().flat_map(|l| l.items()) {
-        let url = text(&s, "url").ok_or_else(|| Error::new("server requires `url`"))?;
+        let url = text(&s, "url").ok_or_else(|| Error::new("server requires `url`").about(s.v))?;
         let mut variables = Vec::new();
         for (name, var) in s.get("variables").iter().flat_map(|v| v.entries()) {
             variables.push(ServerVariable {
                 name: name.clone(),
                 default: text(&var, "default").ok_or_else(|| {
-                    Error::new(format!("server variable `{name}` requires `default`"))
+                    Error::new(format!("server variable `{name}` requires `default`")).about(var.v)
                 })?,
             });
         }
@@ -964,7 +1007,10 @@ fn security_scheme(s: &Node) -> Result<SecuritySchemeKind, Error> {
                 Some("query") => ApiKeyLocation::Query,
                 Some("header") => ApiKeyLocation::Header,
                 Some("cookie") => ApiKeyLocation::Cookie,
-                other => return Err(Error::new(format!("invalid apiKey `in`: {other:?}"))),
+                other => {
+                    return Err(Error::new(format!("invalid apiKey `in`: {other:?}"))
+                        .about(s.v.get("in").unwrap_or(s.v)));
+                }
             },
         },
         Some("http") => SecuritySchemeKind::Http {
@@ -976,9 +1022,10 @@ fn security_scheme(s: &Node) -> Result<SecuritySchemeKind, Error> {
             url: required("openIdConnectUrl")?,
         },
         other => {
-            return Err(Error::new(format!(
-                "invalid security scheme type: {other:?}"
-            )));
+            return Err(
+                Error::new(format!("invalid security scheme type: {other:?}"))
+                    .about(s.v.get("type").unwrap_or(s.v)),
+            );
         }
     })
 }
@@ -993,6 +1040,20 @@ fn status(key: &str) -> Result<Status, Error> {
             "invalid response key `{key}`: expected a status code, `1XX`..`5XX` or `default`"
         ))),
     }
+}
+
+/// The string in `from` that names `reference`: its `$ref`, or a discriminator's
+/// mapping value; `from` itself otherwise.
+fn referring<'v>(from: &'v Value, reference: &str) -> &'v Value {
+    let mapping = from.get("mapping").and_then(Value::as_object);
+    let candidates = [from.get("$ref"), from.get("defaultMapping")]
+        .into_iter()
+        .flatten()
+        .chain(mapping.into_iter().flat_map(|m| m.values()));
+    candidates
+        .into_iter()
+        .find(|v| v.as_str() == Some(reference))
+        .unwrap_or(from)
 }
 
 fn meta(v: &Value) -> Meta {

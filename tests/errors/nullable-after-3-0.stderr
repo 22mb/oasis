@@ -1,1 +1,1 @@
-error: components.schemas.A: `nullable` is OpenAPI 3.0 syntax; use `type: [..., "null"]`
+error: nullable-after-3-0.yaml:6:33: components.schemas.A: `nullable` is OpenAPI 3.0 syntax; use `type: [..., "null"]`

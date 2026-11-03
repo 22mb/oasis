@@ -1,1 +1,1 @@
-error: #/components/schemas/A/$defs/B: schema must be an object or boolean
+error: schema-defs-not-object.yaml:8:18: #/components/schemas/A/$defs/B: schema must be an object or boolean

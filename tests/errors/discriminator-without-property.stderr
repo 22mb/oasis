@@ -1,1 +1,1 @@
-error: components.schemas.A: discriminator requires `propertyName`
+error: discriminator-without-property.yaml:6:67: components.schemas.A: discriminator requires `propertyName`

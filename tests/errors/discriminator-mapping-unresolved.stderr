@@ -1,1 +1,1 @@
-error: components.schemas.A: unresolved $ref `Nope`
+error: discriminator-mapping-unresolved.yaml:8:53: components.schemas.A: unresolved $ref `Nope`

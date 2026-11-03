@@ -1,1 +1,1 @@
-error: server requires `url`
+error: server-without-url.yaml:4:11: server requires `url`

@@ -1,1 +1,1 @@
-error: paths./a: GET: unknown type `date`
+error: querystring-schema-invalid.yaml:6:91: paths./a: GET: unknown type `date`

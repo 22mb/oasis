@@ -1,1 +1,1 @@
-error: components.schemas.A: unresolved $ref `#nope`: no `$anchor: nope`
+error: ref-anchor.yaml:6:15: components.schemas.A: unresolved $ref `#nope`: no `$anchor: nope`

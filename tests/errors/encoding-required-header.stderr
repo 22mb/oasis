@@ -1,1 +1,1 @@
-error: paths./a: POST: requestBody: multipart/form-data: encoding.file: required part header `X-Id` is not supported
+error: encoding-required-header.yaml:9:30: paths./a: POST: requestBody: multipart/form-data: encoding.file: required part header `X-Id` is not supported

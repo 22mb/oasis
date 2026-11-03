@@ -1,1 +1,1 @@
-error: components.schemas.A: `nullable` must be a boolean
+error: nullable-not-boolean.yaml:6:33: components.schemas.A: `nullable` must be a boolean

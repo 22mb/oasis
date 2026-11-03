@@ -1,1 +1,1 @@
-error: Swagger 2.0 documents are not supported; convert to OpenAPI 3.x
+error: version-swagger.yaml:1:10: Swagger 2.0 documents are not supported; convert to OpenAPI 3.x

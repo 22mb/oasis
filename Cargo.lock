@@ -277,6 +277,7 @@ dependencies = [
 name = "oasis-gen"
 version = "0.5.0"
 dependencies = [
+ "serde",
  "serde-saphyr",
  "serde_json",
  "url",

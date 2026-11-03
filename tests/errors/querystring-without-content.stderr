@@ -1,1 +1,1 @@
-error: paths./a: GET: `in: querystring` parameter must use `content`
+error: querystring-without-content.yaml:6:20: paths./a: GET: `in: querystring` parameter must use `content`

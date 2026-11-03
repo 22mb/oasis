@@ -1,1 +1,1 @@
-error: paths./a: cannot resolve $ref `paths.yaml`: ./multifile-syntax/paths.yaml:1:6: unclosed bracket '{'
+error: multifile-syntax/openapi.yaml:4:14: paths./a: cannot resolve $ref `paths.yaml`: multifile-syntax/paths.yaml:1:6: unclosed bracket '{'

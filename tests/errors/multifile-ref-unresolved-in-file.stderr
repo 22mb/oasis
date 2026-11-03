@@ -1,1 +1,1 @@
-error: paths./a: GET: unresolved $ref `#/nope`
+error: multifile-ref-unresolved-in-file/params.yaml:1:11: paths./a: GET: unresolved $ref `#/nope`

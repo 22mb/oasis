@@ -1,1 +1,1 @@
-error: security: scopes of `bearer` must be strings
+error: security-scopes-not-strings.yaml:4:22: security: scopes of `bearer` must be strings

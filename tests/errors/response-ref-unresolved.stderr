@@ -1,1 +1,1 @@
-error: paths./a: GET: unresolved $ref `#/components/responses/Nope`
+error: response-ref-unresolved.yaml:6:33: paths./a: GET: unresolved $ref `#/components/responses/Nope`

@@ -1,1 +1,1 @@
-error: #/x/A: discriminator mapping key `yes` is not a value of property `on`
+error: discriminator-key-hoisted.yaml: #/x/A: discriminator mapping key `yes` is not a value of property `on`
