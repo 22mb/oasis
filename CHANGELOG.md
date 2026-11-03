@@ -5,6 +5,16 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.5.1](https://github.com/22mb/oasis/compare/v0.5.0...v0.5.1) - 2026-11-03
+
+### Fixed
+
+- Type discriminator tags by the discriminating property ([#54](https://github.com/22mb/oasis/pull/54))
+- Stop generation hanging on a cycle of references ([#55](https://github.com/22mb/oasis/pull/55))
+- Report syntax errors as file:line:column ([#64](https://github.com/22mb/oasis/pull/64))
+- Report where in the document each error is ([#65](https://github.com/22mb/oasis/pull/65))
+- Give every error message the same form ([#66](https://github.com/22mb/oasis/pull/66))
+
 ## [0.5.0](https://github.com/22mb/oasis/compare/v0.4.1...v0.5.0) - 2026-11-02
 
 ### Fixed
