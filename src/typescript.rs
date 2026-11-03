@@ -705,9 +705,11 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// `s`, with references followed.
+    /// `s`, with references followed. A cycle of references, which
+    /// [`check_cycles`] rejects later on, ends at one of its references.
     fn resolve<'s>(&'s self, mut s: &'s Schema) -> &'s Schema {
-        while let Schema::Ref(k) = s {
+        for _ in 0..=self.schemas.len() {
+            let Schema::Ref(k) = s else { break };
             s = &self.schemas[k.as_str()].schema;
         }
         s
@@ -1614,6 +1616,40 @@ mod tests {
                 .unwrap()
                 .contains("type $Json = string | $Json[];\n")
         );
+    }
+
+    #[test]
+    fn rejects_cycles_the_emitter_reads_through() {
+        let cycle = |extra: Value| {
+            let mut schemas = json!({"A": r("B"), "B": r("A")});
+            schemas
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            schemas
+        };
+        // A discriminating property.
+        let err = generate(cycle(json!({
+            "V": {"type": "object", "properties": {"k": r("A")}},
+            "U": {
+                "oneOf": [r("V")],
+                "discriminator": {"propertyName": "k", "mapping": {"x": "V"}}
+            },
+        })))
+        .unwrap_err();
+        assert!(err.to_string().starts_with("A -> B -> A:"), "{err}");
+        // A multipart body.
+        let doc = json!({
+            "openapi": "3.2.0",
+            "paths": {"/a": {"post": {
+                "requestBody": {"content": {"multipart/form-data": {"schema": r("A")}}},
+                "responses": {"204": {"description": "ok"}},
+            }}},
+            "components": {"schemas": cycle(json!({}))},
+        });
+        let err = emit(&crate::parse(&crate::Documents::from_value(doc).unwrap()).unwrap());
+        let err = err.unwrap_err().to_string();
+        assert!(err.starts_with("A -> B -> A:"), "{err}");
     }
 
     #[test]
