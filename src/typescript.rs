@@ -495,12 +495,12 @@ impl<'a> Emitter<'a> {
                         );
                         field("name", name);
                     }
-                    SecuritySchemeKind::Http { scheme, .. } => {
+                    SecuritySchemeKind::Http { scheme } => {
                         field("type", "http");
                         field("scheme", scheme);
                     }
                     SecuritySchemeKind::MutualTls => field("type", "mutualTLS"),
-                    SecuritySchemeKind::OAuth2 { .. } => field("type", "oauth2"),
+                    SecuritySchemeKind::OAuth2 => field("type", "oauth2"),
                     SecuritySchemeKind::OpenIdConnect { .. } => field("type", "openIdConnect"),
                 }
                 (s.key.clone(), Expr::inline(spec))
