@@ -32,7 +32,7 @@ type PetKind = Pet["kind"];
 | `properties` を持つ `type: object` | オブジェクト型。`required` にないプロパティは省略可能 |
 | `additionalProperties` | インデックスシグネチャ（オブジェクトが `properties` も持つときは `unknown`） |
 | `patternProperties` | すべてのキーを対象とするインデックスシグネチャ（TypeScript ではキーをパターンで絞れないため）。値の型は、各パターンと `additionalProperties` の型のユニオン型（オブジェクトが `properties` も持つとき、または `additionalProperties` がないときは `unknown`） |
-| `oneOf`、`anyOf` | ユニオン型。`discriminator` があるときは、各メンバーにその値のタグを付与 |
+| `oneOf`、`anyOf` | ユニオン型。`discriminator` があるときは、各メンバーにその値のタグを判別プロパティの型で付与（`mapping` の `"true"` は、boolean のプロパティでは `true`） |
 | `allOf` | インターセクション型 |
 | コンポーネントへの `$ref` | そのスキーマの型 |
 | `required` にのみ含まれるプロパティ（`properties` には未定義） | `{} \| null`（`undefined` 以外の任意の値） |

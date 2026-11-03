@@ -46,6 +46,12 @@ export type Exact = [
   Expect<Equal<schemas["ParcelOrName"], object & (schemas["Parcel"] | string)>>,
   Expect<Equal<schemas["OptionalParcel"], (object | null) & schemas["Parcel"]>>,
   Expect<Equal<schemas["Bag"], { [key: string]: unknown }>>,
+  // Mapping keys take the type of a discriminating property that is not a string.
+  Expect<Equal<schemas["Switch"], schemas["SwitchOn"] & { enabled: true } | schemas["SwitchOff"] & { enabled: false }>>,
+  Expect<Equal<
+    schemas["Report"],
+    schemas["ReportV1"] & { version: 1 } | schemas["ReportV2"] & { version: 2 | 3 } | schemas["LegacyReport"]
+  >>,
   // `defaultMapping`: the default variant takes every value the mapping does not list,
   // and values without the property. Explicitly mapped schemas keep their implicit
   // name as a value too.
@@ -95,6 +101,14 @@ export async function checks() {
   // Without a sibling, it accepts any property.
   const bag: schemas["Bag"] = { anything: 1 };
   void unknownName, unknownAlias, unknownVariant, notObject, unknownOptional, bag;
+
+  // Values of a non-string discriminating property are assignable, and narrow.
+  const on: schemas["Switch"] = { enabled: true };
+  // @ts-expect-error `SwitchOn` holds only `true`
+  const off: schemas["SwitchOn"] = { enabled: false };
+  const report = {} as schemas["Report"];
+  if (report.version === 1 && "title" in report) report.title satisfies string | undefined;
+  void on, off;
 
   // Discriminated unions narrow on the mapped values.
   const shape = {} as schemas["Shape"];
