@@ -189,7 +189,7 @@ declares.
 | Media type | `data` |
 | --- | --- |
 | `application/json`, `*+json` | Parsed JSON; `undefined` for an empty body |
-| `text/*`, `application/x-www-form-urlencoded` | `string` |
+| `text/*`, `application/x-www-form-urlencoded` | `string`; `Blob` for a `text/*` type whose schema has no `type` |
 | `application/jsonl`, `application/x-ndjson`, `application/json-seq`, `*+json-seq` | `AsyncIterable` of parsed items |
 | `text/event-stream` | `AsyncIterable<{ data, event?, id?, retry? }>` |
 | `*/*`, `application/*` | Typed as `unknown`; decoded according to the actual `Content-Type` |
@@ -197,7 +197,10 @@ declares.
 
 `data` is `undefined` for `HEAD` requests and for `204`, `205`, and `304`
 responses. A response without a `Content-Type` is read as text, or as
-`undefined` when the body is empty. Items of sequential media types are typed
+`undefined` when the body is empty. A `text/*` response whose schema has no
+`type` (`type: string, format: binary` in OpenAPI 3.0) is binary, such as a CSV
+file to download: `data` is a `Blob`, as it is for every response of the
+operation with that media type. A `text/*` response without a schema is text. Items of sequential media types are typed
 from `itemSchema` when the document has one.
 
 ## Errors

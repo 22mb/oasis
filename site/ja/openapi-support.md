@@ -22,7 +22,7 @@ OpenAPI 3.0 のドキュメントでは、以下のキーワードを次のよ�
 | --- | --- |
 | `nullable: true` | 型に `null` を追加。`enum` に指定されている場合は、列挙値に `null` がなくても `null` を追加（ほかの生成ツールも同様に解釈するが、3.0.3 自体の規定ではこのような `enum` に `null` は認められない） |
 | `$ref` と並んだ `nullable: true`、または `$ref` を 1 つだけ含む `allOf` に指定された `nullable: true` | 参照先の型に `null` を追加 |
-| `type: string, format: binary` | 生のバイナリーデータ。`type` のないスキーマとして解釈され、`unknown` 型（マルチパートの本体では `Blob` 型）に変換 |
+| `type: string, format: binary` | 生のバイナリーデータ。`type` のないスキーマとして解釈され、`unknown` 型（マルチパートの本体と `text/*` のレスポンスでは `Blob` 型）に変換 |
 | `type: string, format: byte` | Base64 のテキスト。`contentEncoding: base64` として解釈され、`string` 型に変換。マルチパートのパートとしては `application/octet-stream` で送信 |
 | `example`、論理値の `exclusiveMinimum` | 無視 |
 

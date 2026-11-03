@@ -60,6 +60,15 @@ paths:
       responses:
         "204":
           description: Uploaded.
+  /pets/export:
+    get:
+      operationId: exportPets
+      responses:
+        "200":
+          description: The pets as a CSV file.
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
 components:
   schemas:
     Kind:

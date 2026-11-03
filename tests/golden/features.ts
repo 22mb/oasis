@@ -281,6 +281,18 @@ export interface paths {
       statuses: Statuses_204_default;
     };
   };
+  "/report": {
+    GET: {
+      request: {};
+      responses: {
+        /** The report as a file, or a summary. */
+        "200": Blob | string;
+        /** The rows that failed. */
+        "4XX": Blob;
+      };
+      statuses: Statuses_200_4XX_default;
+    };
+  };
 }
 
 // The statuses each response key covers, as `[successes, failures]`; the
@@ -301,6 +313,11 @@ type Statuses_200_301_404_4XX_default = {
   "404": [never, 404];
   "4XX": [never, 400 | 401 | 402 | 403 | 405 | 406 | 407 | 408 | 409 | Status41x | Status42x | Status43x | Status44x | Status45x | Status46x | Status47x | Status48x | Status49x];
   default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 302 | 303 | 304 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status5xx];
+};
+type Statuses_200_4XX_default = {
+  "200": [200, never];
+  "4XX": [never, Status4xx];
+  default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status5xx];
 };
 type Statuses_201_default = {
   "201": [201, never];
@@ -857,6 +874,8 @@ type Spec = {
     querystringEncoding?: Record<string, Encoding>;
     /** Form body encodings, keyed by media type and then by property. */
     encoding?: Record<string, Record<string, Encoding>>;
+    /** `text/*` response media types the document declares binary, read as a `Blob`. */
+    binary?: string[];
   }>;
 };
 
@@ -944,7 +963,7 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
     return {
       status: response.status,
       ok: response.ok,
-      data: await decodeBody(response, method),
+      data: await decodeBody(response, method, info.binary),
       response,
     };
   };
@@ -1140,10 +1159,15 @@ function parseJson(response: Response, text: string): unknown {
   }
 }
 
-async function decodeBody(response: Response, method: string): Promise<unknown> {
+/** `binary` lists media types, or ranges such as `text/*`, to read as a `Blob`. */
+async function decodeBody(response: Response, method: string, binary: string[] = []): Promise<unknown> {
   if (method === "HEAD" || [204, 205, 304].includes(response.status)) return undefined;
   const contentType = response.headers.get("content-type");
   if (!contentType) return (await response.text()) || undefined;
+  const mt = essence(contentType);
+  if (binary.some((t) => t === mt || (t.endsWith("/*") && mt.startsWith(t.slice(0, -1))))) {
+    return response.blob();
+  }
   switch (mediaKind(contentType)) {
     case "json": {
       const text = await response.text();
@@ -1343,5 +1367,6 @@ const spec: Spec = {
     "PUT /forms/{id}": { contentType: "application/json" },
     "POST /uploads": { encoding: { "multipart/form-data": { file: { contentType: "image/png, image/jpeg" }, photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
     "GET /blobs": { querystring: "application/x-www-form-urlencoded" },
+    "GET /report": { binary: ["text/csv"] },
   },
 };

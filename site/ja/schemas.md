@@ -36,7 +36,7 @@ type PetKind = Pet["kind"];
 | `allOf` | インターセクション型 |
 | コンポーネントへの `$ref` | そのスキーマの型 |
 | `required` にのみ含まれるプロパティ（`properties` には未定義） | `{} \| null`（`undefined` 以外の任意の値） |
-| スキーマなし、または `{}`（OpenAPI 3.0 の `type: string, format: binary` も含む） | `unknown`。マルチパート本体のパートでは `Blob` |
+| スキーマなし、または `{}`（OpenAPI 3.0 の `type: string, format: binary` も含む） | `unknown`。マルチパート本体のパートと `text/*` のレスポンスでは `Blob` |
 
 `title`、`description`、`default`、`deprecated` は JSDoc コメントになるため、エディターでホバーしたときに表示されます。なお、`format` に応じた変換は行われません。詳しくは[厳密な型](./strict-types#formats-are-not-converted)をご覧ください。
 

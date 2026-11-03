@@ -150,6 +150,8 @@ type Spec = {
     querystringEncoding?: Record<string, Encoding>;
     /** Form body encodings, keyed by media type and then by property. */
     encoding?: Record<string, Record<string, Encoding>>;
+    /** `text/*` response media types the document declares binary, read as a `Blob`. */
+    binary?: string[];
   }>;
 };
 
@@ -237,7 +239,7 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
     return {
       status: response.status,
       ok: response.ok,
-      data: await decodeBody(response, method),
+      data: await decodeBody(response, method, info.binary),
       response,
     };
   };
@@ -433,10 +435,15 @@ function parseJson(response: Response, text: string): unknown {
   }
 }
 
-async function decodeBody(response: Response, method: string): Promise<unknown> {
+/** `binary` lists media types, or ranges such as `text/*`, to read as a `Blob`. */
+async function decodeBody(response: Response, method: string, binary: string[] = []): Promise<unknown> {
   if (method === "HEAD" || [204, 205, 304].includes(response.status)) return undefined;
   const contentType = response.headers.get("content-type");
   if (!contentType) return (await response.text()) || undefined;
+  const mt = essence(contentType);
+  if (binary.some((t) => t === mt || (t.endsWith("/*") && mt.startsWith(t.slice(0, -1))))) {
+    return response.blob();
+  }
   switch (mediaKind(contentType)) {
     case "json": {
       const text = await response.text();
