@@ -88,12 +88,11 @@ jobs:
           package-manager-cache: false
       - name: Pack the npm packages
         run: |
-          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
           exe=oasis-gen
           [[ "$RUNNER_OS" == Windows ]] && exe=oasis-gen.exe
           mkdir -p "artifacts/$TARGET"
           cp "target/$TARGET/debug/$exe" "artifacts/$TARGET/"
-          node npm/build.mjs "$version" artifacts npm-dist --partial
+          node npm/build.mjs artifacts npm-dist --partial
           mkdir tarballs project
           (cd tarballs && npm pack ../npm-dist/platforms/* ../npm-dist/oasis-gen)
           (cd project && npm init -y > /dev/null)

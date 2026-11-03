@@ -66,14 +66,16 @@ export type Exact = [
 const api = createClient();
 
 export async function checks() {
-  // readOnly properties are optional in requests; writeOnly ones are required there.
+  // readOnly properties are `?: never` in requests; writeOnly ones are required there.
   await api.POST("/upload", { body: { name: "a", password: "p", owner: {} } });
+  // @ts-expect-error readOnly properties are not sent
+  await api.POST("/upload", { body: { id: 1, name: "a", password: "p" } });
   // @ts-expect-error writeOnly `password` is required in requests
   await api.POST("/upload", { body: { name: "a" } });
   const created = await api.POST("/upload", { body: { name: "a", password: "p" } });
   if (created.status === 201) {
     const id: number = created.data.id;
-    // @ts-expect-error writeOnly `password` is optional in responses
+    // @ts-expect-error writeOnly `password` is `?: never` in responses
     const password: string = created.data.password;
     void id, password;
   }
@@ -166,15 +168,6 @@ export type Statuses = [
   // `default` alone covers every status.
   Expect<Equal<ApiResponse<paths["/blobs"]["GET"]>, Result<Success, true, unknown> | Result<Failure, false, unknown>>>,
 ];
-
-export async function access() {
-  await api.POST("/upload", { body: { name: "a", password: "p" } });
-  // @ts-expect-error readOnly properties are not sent
-  await api.POST("/upload", { body: { id: 1, name: "a", password: "p" } });
-  const res = await api.POST("/upload", { body: { name: "a", password: "p" } });
-  // @ts-expect-error writeOnly properties are not received
-  if (res.status === 201) res.data.password satisfies string;
-}
 
 export async function querystrings() {
   // A JSON querystring takes its schema's type.
