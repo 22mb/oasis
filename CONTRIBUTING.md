@@ -38,11 +38,12 @@ JSON/YAML files ──Documents──▶ serde_json::Value per file ──parse�
 
 `src/documents.rs` loads the entry document and every local file it references,
 and resolves URI references (base URIs from `$self` and `$id`). `src/parse.rs`
-handles everything about the OpenAPI document (`$ref` resolution, version
-check, validation) and produces a language-neutral IR (`src/ir.rs`). Schemas
-behind `$ref`s outside `components.schemas` are hoisted into named schemas
-once, so references stay references and recursion is cheap. Emitters only
-translate the IR. Adding a target language means adding one emitter next to
+handles the OpenAPI document (`$ref` resolution, version check, validation) and
+produces a language-neutral IR (`src/ir.rs`). Schemas behind `$ref`s outside
+`components.schemas` are hoisted into named schemas once, so references stay
+references and recursion is cheap. Emitters translate the IR, and reject what
+their language cannot express, such as a type alias that refers to itself in
+TypeScript. Adding a target language means adding one emitter next to
 `src/typescript.rs`. The IR is public but not yet stable.
 
 ### Principles for the generated types
