@@ -4,7 +4,7 @@ mod ast;
 
 use crate::Error;
 use crate::ir::*;
-use ast::{Expr, Item, Key, Member, Type, quote};
+use ast::{Expr, Item, Member, Type, quote};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -242,7 +242,7 @@ impl<'a> Emitter<'a> {
                     .iter()
                     .map(|op| self.operation(op, &mut statuses))
                     .collect();
-                Member::new(Key::name(&item.path), false, Type::object(operations))
+                Member::new(&item.path, false, Type::object(operations))
             })
             .collect();
         items.push(Item::Interface {
@@ -312,36 +312,30 @@ impl<'a> Emitter<'a> {
         taken.extend(runtime_exports());
         let components: Vec<&NamedSchema> =
             self.api.schemas.iter().filter(|s| !s.hoisted).collect();
-        // (alias, exported name, enum values); request shapes come after every
-        // schema's own name, so adding one never renames another schema.
-        let mut names = Vec::new();
+        // (alias, exported name); request shapes come after every schema's own
+        // name, so adding one never renames another schema.
+        let mut types = Vec::new();
+        let mut enums = Vec::new();
         for s in &components {
-            let values = match &s.schema {
-                Schema::Enum { values, .. } => Some(values),
-                _ => None,
-            };
+            let local = self.reference(&s.key, View::Response);
             let name = unique(export_name(&s.key), &mut taken);
-            names.push((self.reference(&s.key, View::Response), name, values));
+            match &s.schema {
+                Schema::Enum { values, .. } => enums.push((local, name, values)),
+                _ => types.push((local, name)),
+            }
         }
         for s in &components {
             if self.request_variants.contains(s.key.as_str()) {
                 let name = unique(format!("{}Request", export_name(&s.key)), &mut taken);
-                names.push((self.reference(&s.key, View::Request), name, None));
+                types.push((self.reference(&s.key, View::Request), name));
             }
         }
-        let (enums, types): (Vec<_>, Vec<_>) =
-            names.into_iter().partition(|(.., values)| values.is_some());
         if !types.is_empty() {
             items.push(Item::Comment(vec![
                 "Each component schema under its own name; `<name>Request` is its request shape."
                     .into(),
             ]));
-            items.push(Item::ExportTypes(
-                types
-                    .into_iter()
-                    .map(|(local, name, _)| (local, name))
-                    .collect(),
-            ));
+            items.push(Item::ExportTypes(types));
             items.push(Item::Blank);
         }
         if !enums.is_empty() {
@@ -350,7 +344,7 @@ impl<'a> Emitter<'a> {
             ]));
             let mut specifiers = Vec::new();
             for (local, name, values) in enums {
-                let values = values.unwrap().iter().cloned().map(Expr::Literal).collect();
+                let values = values.iter().cloned().map(Expr::Literal).collect();
                 items.push(Item::Const {
                     name: local.clone(),
                     ty: None,
@@ -371,15 +365,9 @@ impl<'a> Emitter<'a> {
             .iter()
             .filter(|s| !s.hoisted)
             .filter(|s| view == View::Response || self.request_variants.contains(s.key.as_str()))
-            .map(|s| {
-                Member::new(
-                    Key::name(&s.key),
-                    false,
-                    Type::name(self.reference(&s.key, view)),
-                )
-            })
+            .map(|s| Member::new(&s.key, false, Type::name(self.reference(&s.key, view))))
             .collect();
-        Member::new(Key::name(name), false, Type::object(schemas))
+        Member::new(name, false, Type::object(schemas))
     }
 
     /// One type alias per schema, and one for its request view where that differs.
@@ -530,11 +518,7 @@ impl<'a> Emitter<'a> {
         }
         let mut responses = Vec::new();
         if op.responses.is_empty() {
-            responses.push(Member::new(
-                Key::name("default"),
-                false,
-                Type::name("unknown"),
-            ));
+            responses.push(Member::new("default", false, Type::name("unknown")));
         }
         for r in &op.responses {
             // Never carries a body on the wire, whatever the document declares.
@@ -544,17 +528,16 @@ impl<'a> Emitter<'a> {
             } else {
                 Type::Union(r.content.iter().map(|c| self.response_data(c)).collect())
             };
-            responses
-                .push(Member::new(Key::name(r.status.key()), false, data).doc(doc(&r.meta, &[])));
+            responses.push(Member::new(r.status.key(), false, data).doc(doc(&r.meta, &[])));
         }
         let (name, ty) = status_alias(op);
         let members = vec![
-            Member::new(Key::name("request"), false, self.request(op)),
-            Member::new(Key::name("responses"), false, Type::object(responses)),
-            Member::new(Key::name("statuses"), false, Type::name(&name)),
+            Member::new("request", false, self.request(op)),
+            Member::new("responses", false, Type::object(responses)),
+            Member::new("statuses", false, Type::name(&name)),
         ];
         statuses.entry(name).or_insert(ty);
-        Member::new(Key::name(&op.method), false, Type::object(members)).doc(doc(&op.meta, &extra))
+        Member::new(&op.method, false, Type::object(members)).doc(doc(&op.meta, &extra))
     }
 
     fn request(&self, op: &Operation) -> Type {
@@ -583,14 +566,10 @@ impl<'a> Emitter<'a> {
                         // Other content-based parameters are passed pre-serialized.
                         ParamValue::Content(_) => Type::name("string"),
                     };
-                    Member::new(Key::name(&p.name), !p.required, t).doc(doc(&p.meta, &[]))
+                    Member::new(&p.name, !p.required, t).doc(doc(&p.meta, &[]))
                 })
                 .collect();
-            fields.push(Member::new(
-                Key::name(loc.as_str()),
-                !required,
-                Type::object(members),
-            ));
+            fields.push(Member::new(loc.as_str(), !required, Type::object(members)));
         }
         if let Some(qs) = &op.querystring {
             let t = match (qs.content.kind(), &qs.content.schema) {
@@ -603,7 +582,7 @@ impl<'a> Emitter<'a> {
                 (MediaKind::Json, s) => self.schema_or_unknown(s.as_ref(), View::Request),
                 _ => Type::name("string"),
             };
-            fields.push(Member::new(Key::name("querystring"), !qs.required, t));
+            fields.push(Member::new("querystring", !qs.required, t));
         }
 
         // One set of fields per request media type; several become a union.
@@ -611,17 +590,12 @@ impl<'a> Emitter<'a> {
         if let Some(body) = &op.body {
             for c in &body.content {
                 let ct = if c.media_type.contains('*') {
-                    Member::new(Key::name("contentType"), true, Type::name("string"))
+                    Member::new("contentType", true, Type::name("string"))
                 } else {
                     let implied = default_media_type(body) == Some(c.media_type.as_str());
-                    Member::new(
-                        Key::name("contentType"),
-                        implied,
-                        Type::string(&c.media_type),
-                    )
+                    Member::new("contentType", implied, Type::string(&c.media_type))
                 };
-                let body_field =
-                    Member::new(Key::name("body"), !body.required, self.request_body(c));
+                let body_field = Member::new("body", !body.required, self.request_body(c));
                 variants.push(vec![ct, body_field]);
             }
             // An optional body can be left out without naming a media type, also
@@ -630,8 +604,8 @@ impl<'a> Emitter<'a> {
                 || body.content.iter().any(|c| c.media_type.contains('*'));
             if !body.required && !implied && !variants.is_empty() {
                 variants.push(vec![
-                    Member::new(Key::name("contentType"), true, Type::name("never")),
-                    Member::new(Key::name("body"), true, Type::name("never")),
+                    Member::new("contentType", true, Type::name("never")),
+                    Member::new("body", true, Type::name("never")),
                 ]);
             }
         }
@@ -913,7 +887,7 @@ impl<'a> Emitter<'a> {
         };
         if properties.is_empty() {
             return match index {
-                Some(t) => Type::inline(vec![Member::new(Key::Index, false, t)]),
+                Some(t) => Type::inline(vec![Member::index(t)]),
                 None => Type::Generic("Record", vec![Type::name("string"), Type::name("never")]),
             };
         }
@@ -933,10 +907,10 @@ impl<'a> Emitter<'a> {
                     }
                     t => t,
                 };
-                Member::new(Key::name(&p.name), !p.required || absent, t).doc(doc(&p.meta, &[]))
+                Member::new(&p.name, !p.required || absent, t).doc(doc(&p.meta, &[]))
             })
             .collect();
-        members.extend(index.map(|t| Member::new(Key::Index, false, t)));
+        members.extend(index.map(Member::index));
         Type::object(members)
     }
 
@@ -973,7 +947,7 @@ impl<'a> Emitter<'a> {
             }
             (false, Type::Union(values))
         };
-        let tag = Member::new(Key::name(&d.property_name), optional, values);
+        let tag = Member::new(&d.property_name, optional, values);
         Type::Intersection(vec![t, Type::inline(vec![tag])])
     }
 
@@ -1087,10 +1061,11 @@ impl<'a> Emitter<'a> {
     fn define(&self, s: &'a NamedSchema, view: View, edges: &mut Vec<(&'a str, &'a str)>) -> Type {
         let mut d = Defining {
             key: &s.key,
+            view,
             expanding: Vec::new(),
             edges: Vec::new(),
         };
-        let parts = self.eager(&s.schema, view, &mut d, true, false);
+        let parts = self.eager(&s.schema, &mut d, true);
         edges.append(&mut d.edges);
         Type::Intersection(parts)
     }
@@ -1098,23 +1073,16 @@ impl<'a> Emitter<'a> {
     /// The intersection members of `s` at the top of the alias of `d.key`.
     /// `member` says `s` is an `allOf` member (or the whole alias), where a
     /// reference to a parent listing `d.key` is replaced by the parent's own
-    /// part; `inlined` says that is what is being rendered, so the listing
-    /// itself is dropped.
-    fn eager(
-        &self,
-        s: &'a Schema,
-        view: View,
-        d: &mut Defining<'a>,
-        member: bool,
-        inlined: bool,
-    ) -> Vec<Type> {
+    /// part. While one is being rendered, the listing itself is dropped.
+    fn eager(&self, s: &'a Schema, d: &mut Defining<'a>, member: bool) -> Vec<Type> {
+        let view = d.view;
         match s {
             Schema::Ref(k) if member && self.enumerates(k, d.key) => {
                 if d.expanding.contains(&k.as_str()) {
                     return Vec::new();
                 }
                 d.expanding.push(k);
-                let parts = self.eager(&self.schemas[k.as_str()].schema, view, d, true, true);
+                let parts = self.eager(&self.schemas[k.as_str()].schema, d, true);
                 d.expanding.pop();
                 parts
             }
@@ -1127,13 +1095,13 @@ impl<'a> Emitter<'a> {
                 discriminator,
                 ..
             } => {
-                if inlined && variants.iter().any(|v| self.reaches(v, d.key, true)) {
+                if !d.expanding.is_empty() && self.reaches(s, d.key) {
                     return Vec::new();
                 }
                 let types = variants
                     .iter()
                     .map(|v| {
-                        let t = Type::Intersection(self.eager(v, view, d, false, inlined));
+                        let t = Type::Intersection(self.eager(v, d, false));
                         self.tag(t, v, discriminator.as_ref())
                     })
                     .collect();
@@ -1147,7 +1115,7 @@ impl<'a> Emitter<'a> {
                         kind: UnionKind::Types,
                         ..
                     } => vec![self.composed(p, view)],
-                    _ => self.eager(p, view, d, true, inlined),
+                    _ => self.eager(p, d, true),
                 })
                 .collect(),
             _ => vec![self.ty(s, view)],
@@ -1158,14 +1126,13 @@ impl<'a> Emitter<'a> {
     /// it through `$ref`, `allOf`, `oneOf` and `anyOf` alone, crossing at least
     /// one `oneOf` or `anyOf`.
     fn enumerates(&self, p: &str, c: &str) -> bool {
-        self.reaches(&self.schemas[p].schema, c, false)
+        self.reaches(&self.schemas[p].schema, c)
     }
 
     /// Whether `c` is reachable from `s` through `$ref`, `allOf`, `oneOf` and
-    /// `anyOf` alone, crossing a `oneOf` or `anyOf` (`crossed` says one was
-    /// crossed already).
-    fn reaches(&self, s: &'a Schema, c: &str, crossed: bool) -> bool {
-        let mut stack = vec![(s, crossed)];
+    /// `anyOf` alone, crossing a `oneOf` or `anyOf`.
+    fn reaches(&self, s: &'a Schema, c: &str) -> bool {
+        let mut stack = vec![(s, false)];
         let mut seen = HashSet::new();
         while let Some((s, crossed)) = stack.pop() {
             match s {
@@ -1196,6 +1163,7 @@ impl<'a> Emitter<'a> {
 struct Defining<'a> {
     /// The schema being defined.
     key: &'a str,
+    view: View,
     /// Parents whose own part is being rendered in place of a reference.
     expanding: Vec<&'a str>,
     /// References left in eager positions, as (from, to).
@@ -1409,7 +1377,7 @@ fn status_alias(op: &Operation) -> (String, Type) {
         name.push('_');
         name.push_str(&key);
         let pair = Type::Tuple(vec![statuses(&ok), statuses(&failed)], None);
-        members.push(Member::new(Key::name(key), false, pair));
+        members.push(Member::new(key, false, pair));
     }
     (name, Type::object(members))
 }
