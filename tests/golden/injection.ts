@@ -321,7 +321,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     }).join("/");
     const search = querystring !== undefined
       ? encodeQuerystring(querystring, info.querystring, info.querystringEncoding)
-      : present(query).flatMap(([name, value]) => queryPairs(name, value, style("query", name))).join("&");
+      : present(query).flatMap(([name, value]) => pairs(name, value, style("query", name))).join("&");
     if (search) url += `?${search}`;
 
     const headers = new Headers(
@@ -330,12 +330,7 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
     for (const [name, value] of present(header)) {
       headers.set(name, simple(value, style("header", name).explode ?? false, String));
     }
-    const cookies = present(cookie).flatMap(([name, value]) => {
-      const s = style("cookie", name);
-      // `cookie` style sends values as-is; `form` percent-encodes them.
-      const enc = s.style === "cookie" ? String : encodeURIComponent;
-      return form(name, value, s.explode ?? true, enc);
-    });
+    const cookies = present(cookie).flatMap(([name, value]) => pairs(name, value, style("cookie", name)));
     if (cookies.length) {
       headers.set("cookie", [headers.get("cookie"), ...cookies].filter(Boolean).join("; "));
     }
@@ -425,7 +420,7 @@ function encodeQuerystring(
 function encodeReserved(s: string): string {
   return s.replace(
     /%[0-9A-Fa-f]{2}|[^A-Za-z0-9\-._~:/?@!$'()*,;=]/gu,
-    (c) => (c.length === 3 && c[0] === "%" ? c : encodeURIComponent(c)),
+    (c) => (c.length === 3 ? c : encodeURIComponent(c)),
   );
 }
 
@@ -440,37 +435,28 @@ function simple(value: unknown, explode: boolean, enc: Encode): string {
   return value === undefined ? "" : enc(String(value));
 }
 
-/** `form` style pairs; also used for cookies, which only differ in the delimiter. */
-function form(name: string, value: unknown, explode: boolean, enc: Encode): string[] {
-  if (Array.isArray(value)) {
-    return explode
-      ? value.map((v) => `${enc(name)}=${enc(String(v))}`)
-      : [`${enc(name)}=${value.map((v) => enc(String(v))).join(",")}`];
-  }
-  if (typeof value === "object" && value !== null) {
-    return explode
-      ? present(value).map(([k, v]) => `${enc(k)}=${enc(String(v))}`)
-      : [`${enc(name)}=${simple(value, false, enc)}`];
-  }
-  return [`${enc(name)}=${enc(String(value))}`];
-}
-
-function queryPairs(name: string, value: unknown, s: ParamStyle): string[] {
-  const enc = s.reserved ? encodeReserved : encodeURIComponent;
+/** `form`, `deepObject` and `cookie` style pairs, for query and cookie parameters and form fields. */
+function pairs(name: string, value: unknown, s: ParamStyle): string[] {
+  // `cookie` style sends values as-is.
+  const enc = s.reserved ? encodeReserved : s.style === "cookie" ? String : encodeURIComponent;
   if (s.style === "json") return [`${enc(name)}=${enc(JSON.stringify(value))}`];
-  if (s.style === "deepObject" && typeof value === "object" && value !== null) {
+  if (typeof value !== "object" || value === null) return [`${enc(name)}=${enc(String(value))}`];
+  if (s.style === "deepObject") {
     return present(value).flatMap(([k, v]) =>
       (Array.isArray(v) ? v : [v]).map((item) => `${encodeURIComponent(`${name}[${k}]`)}=${enc(String(item))}`)
     );
   }
-  return form(name, value, s.explode ?? true, enc);
+  if (!(s.explode ?? true)) return [`${enc(name)}=${simple(value, false, enc)}`];
+  return Array.isArray(value)
+    ? value.map((v) => `${enc(name)}=${enc(String(v))}`)
+    : present(value).map(([k, v]) => `${enc(k)}=${enc(String(v))}`);
 }
 
 /** `application/x-www-form-urlencoded` fields, encoded as {@link Encoding} says. */
 function formEncode(value: Record<string, unknown>, encoding: Record<string, Encoding> = {}): string {
   return present(value).flatMap(([name, v]) => {
     const e = encoding[name];
-    if (e && "style" in e) return queryPairs(name, v, e.style);
+    if (e && "style" in e) return pairs(name, v, e.style);
     const contentType = e?.contentType;
     return items(v).map((item) => {
       const json = contentType ? mediaKind(contentType) === "json" : typeof item === "object";
@@ -489,7 +475,7 @@ function formData(value: Record<string, unknown>, encoding: Record<string, Encod
     const e = encoding[name];
     if (e && "style" in e) {
       // Like a query parameter, but without percent-encoding.
-      for (const pair of queryPairs(name, v, e.style)) {
+      for (const pair of pairs(name, v, e.style)) {
         const i = pair.indexOf("=");
         data.append(decodeURIComponent(pair.slice(0, i)), decodeURIComponent(pair.slice(i + 1)));
       }
@@ -550,22 +536,17 @@ function encodeBody(
   encoding?: Record<string, Encoding>,
 ): BodyInit | null {
   if (body === undefined) return null;
-  const kind = contentType ? mediaKind(contentType) : isRawBody(body) ? "binary" : "json";
-  if (kind === "json") {
-    headers.set("content-type", contentType ?? "application/json");
-    return JSON.stringify(body);
-  }
-  if (kind === "form" && !isRawBody(body)) {
-    headers.set("content-type", contentType!);
-    return formEncode(body as Record<string, unknown>, encoding);
-  }
+  const raw = isRawBody(body);
+  const kind = contentType ? mediaKind(contentType) : raw ? "binary" : "json";
   if (kind === "multipart") {
     // Only fetch knows the boundary, so it sets the header.
     headers.delete("content-type");
-    return isRawBody(body) ? body : formData(body as Record<string, unknown>, encoding);
+    return raw ? body : formData(body as Record<string, unknown>, encoding);
   }
-  if (contentType) headers.set("content-type", contentType);
-  return body as BodyInit;
+  const type = contentType ?? (kind === "json" ? "application/json" : undefined);
+  if (type) headers.set("content-type", type);
+  if (kind === "json") return JSON.stringify(body);
+  return kind === "form" && !raw ? formEncode(body as Record<string, unknown>, encoding) : body as BodyInit;
 }
 
 /**
@@ -604,9 +585,9 @@ async function decodeBody(response: Response, method: string): Promise<unknown> 
       return text ? parseJson(response, text) : undefined;
     }
     case "jsonl":
-      return mapItems(split(response, "\n"), (line) => line.trim() ? parseJson(response, line) : undefined);
+      return jsonItems(response, "\n");
     case "json-seq":
-      return mapItems(split(response, "\x1e"), (rec) => rec.trim() ? parseJson(response, rec) : undefined);
+      return jsonItems(response, "\x1e");
     case "sse":
       return events(response);
     case "text":
@@ -620,7 +601,6 @@ async function decodeBody(response: Response, method: string): Promise<unknown> 
 async function* split(response: Response, separator: string): AsyncGenerator<string> {
   if (!response.body) return;
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-  let done = false;
   let buffer = "";
   try {
     while (true) {
@@ -633,18 +613,16 @@ async function* split(response: Response, separator: string): AsyncGenerator<str
         buffer = buffer.slice(i + separator.length);
       }
     }
-    done = true;
     if (buffer) yield buffer;
   } finally {
     // Stop the download when the consumer breaks out early.
-    if (!done) await reader.cancel().catch(() => {});
+    await reader.cancel().catch(() => {});
   }
 }
 
-async function* mapItems<T>(items: AsyncIterable<string>, parse: (item: string) => T | undefined): AsyncGenerator<T> {
-  for await (const item of items) {
-    const value = parse(item);
-    if (value !== undefined) yield value;
+async function* jsonItems(response: Response, separator: string): AsyncGenerator<unknown> {
+  for await (const item of split(response, separator)) {
+    if (item.trim()) yield parseJson(response, item);
   }
 }
 
@@ -666,7 +644,6 @@ async function* events(response: Response): AsyncGenerator<ServerSentEvent> {
       data = [];
       continue;
     }
-    if (line.startsWith(":")) continue;
     const colon = line.indexOf(":");
     const field = colon < 0 ? line : line.slice(0, colon);
     let value = colon < 0 ? "" : line.slice(colon + 1);
@@ -738,30 +715,17 @@ async function satisfy(
 }
 
 async function authenticate(request: Request, scheme: SecuritySchemeSpec, value: string): Promise<Request> {
-  switch (scheme.type) {
-    case "apiKey":
-      if (scheme.in === "query") {
-        return withQuery(request, `${encodeURIComponent(scheme.name)}=${encodeURIComponent(value)}`);
-      }
-      if (scheme.in === "cookie") setCookie(request.headers, scheme.name, encodeURIComponent(value));
-      else request.headers.set(scheme.name, value);
-      return request;
-    case "http": {
-      if (scheme.scheme === "basic") {
-        const bytes = new TextEncoder().encode(value);
-        request.headers.set("authorization", `Basic ${btoa(String.fromCharCode(...bytes))}`);
-      } else {
-        request.headers.set("authorization", `${scheme.scheme === "bearer" ? "Bearer" : scheme.scheme} ${value}`);
-      }
-      return request;
-    }
-    case "oauth2":
-    case "openIdConnect":
-      request.headers.set("authorization", `Bearer ${value}`);
-      return request;
-    default:
-      return request;
-  }
+  if (scheme.type !== "apiKey") request.headers.set("authorization", authorization(scheme, value));
+  else if (scheme.in === "query") return withQuery(request, `${encodeURIComponent(scheme.name)}=${encodeURIComponent(value)}`);
+  else if (scheme.in === "cookie") setCookie(request.headers, scheme.name, encodeURIComponent(value));
+  else request.headers.set(scheme.name, value);
+  return request;
+}
+
+function authorization(scheme: SecuritySchemeSpec, value: string): string {
+  if (scheme.type !== "http" || scheme.scheme === "bearer") return `Bearer ${value}`;
+  if (scheme.scheme !== "basic") return `${scheme.scheme} ${value}`;
+  return `Basic ${btoa(String.fromCharCode(...new TextEncoder().encode(value)))}`;
 }
 
 /** `request` with `pair` appended to its query; the rest of the URL stays as it is. */
