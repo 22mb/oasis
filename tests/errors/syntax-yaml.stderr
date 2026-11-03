@@ -1,0 +1,6 @@
+error: invalid YAML: error: line 2 column 7: unclosed bracket '{'
+ --> <input>:2:7
+  |
+1 | openapi: 3.1.0
+2 | info: {title: t
+  |       ^ unclosed bracket '{'

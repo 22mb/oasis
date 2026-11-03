@@ -1,0 +1,1 @@
+error: components.schemas.A: cannot resolve $ref `https://example.com/a.yaml#/A`: remote reference `https://example.com/a.yaml` is not supported; only local files are loaded

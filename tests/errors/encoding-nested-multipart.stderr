@@ -1,0 +1,1 @@
+error: paths./a: POST: requestBody: multipart/form-data: encoding.parts: nested multipart parts are not supported

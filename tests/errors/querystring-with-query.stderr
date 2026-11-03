@@ -1,0 +1,1 @@
+error: paths./a: GET: `in: querystring` cannot be combined with `in: query` parameters

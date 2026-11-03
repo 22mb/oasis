@@ -1,0 +1,1 @@
+error: components.securitySchemes.key: invalid security scheme type: Some("password")

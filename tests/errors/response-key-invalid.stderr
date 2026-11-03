@@ -1,0 +1,1 @@
+error: paths./a: GET: invalid response key `600`: expected a status code, `1XX`..`5XX` or `default`

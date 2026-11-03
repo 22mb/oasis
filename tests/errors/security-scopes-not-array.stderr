@@ -1,0 +1,1 @@
+error: security: scopes of `bearer` must be an array

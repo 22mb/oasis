@@ -1,0 +1,1 @@
+error: paths./a: GET: $ref chain too deep or cyclic
