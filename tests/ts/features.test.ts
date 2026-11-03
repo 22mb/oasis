@@ -121,6 +121,7 @@ test("only the document's methods are client properties", async () => {
   assert.equal(Reflect.get(api, "get"), undefined); // lowercase names do not send either
   assert.equal(Reflect.get(api, "toJSON"), undefined);
   assert.equal(typeof Reflect.get(api, "GET"), "function");
+  assert.ok(Object.keys(api).includes("GET")); // a plain property, so a test can replace it
   assert.equal(sent.length, 0);
   // Paths are the document's templates, which start with `/`.
   const GET = api.GET as unknown as (path: string) => Promise<unknown>;

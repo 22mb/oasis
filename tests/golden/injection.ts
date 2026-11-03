@@ -297,7 +297,7 @@ type Init = RequestOptions & {
   body?: unknown;
 };
 
-function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
+export function createClient(options: ClientOptions = {}): Client<paths> {
   const send = async (method: string, path: string, init: Init = {}) => {
     const { path: pathParams, query, header, cookie, querystring, contentType, body, middleware, ...rest } = init;
     const op = `${method} ${path}`;
@@ -380,19 +380,11 @@ function makeClient<P>(options: ClientOptions, spec: Spec): Client<P> {
       response,
     };
   };
-  return new Proxy({}, {
-    get: (target, method) => {
-      if (method === "with") {
-        return (...middleware: Middleware[]) =>
-          makeClient<P>({ ...options, middleware: [...(options.middleware ?? []), ...middleware] }, spec);
-      }
-      // Only the document's methods send. Everything else (`then`, `toJSON`, inspection
-      // hooks, lowercase names) resolves as on a plain object, so nothing sends by accident.
-      return typeof method === "string" && spec.methods.includes(method)
-        ? (path: string, init?: Init) => send(method, path, init)
-        : Reflect.get(target, method);
-    },
-  }) as Client<P>;
+  return {
+    ...Object.fromEntries(spec.methods.map((method) => [method, (path: string, init?: Init) => send(method, path, init)])),
+    with: (...middleware: Middleware[]) =>
+      createClient({ ...options, middleware: [...(options.middleware ?? []), ...middleware] }),
+  } as unknown as Client<paths>;
 }
 
 /** Entries whose value is neither `undefined` nor `null`. */
@@ -809,7 +801,3 @@ const spec: Spec = {
     "POST /forms": { encoding: { "multipart/form-data; x=\"*/\u2028'`\\\"": { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": { contentType: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" }, "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`": { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": { style: { style: "deepObject" } }, "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" } } } },
   },
 };
-
-export function createClient(options: ClientOptions = {}): Client<paths> {
-  return makeClient<paths>(options, spec);
-}

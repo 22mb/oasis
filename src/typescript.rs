@@ -294,13 +294,6 @@ impl<'a> Emitter<'a> {
         items.push(Item::Raw(RUNTIME.into()));
         items.push(Item::Blank);
         items.push(self.spec());
-        items.push(Item::Blank);
-        items.push(Item::Raw(
-            "export function createClient(options: ClientOptions = {}): Client<paths> {\n  \
-               return makeClient<paths>(options, spec);\n\
-             }\n"
-            .into(),
-        ));
         Ok(ast::print(&items))
     }
 
@@ -1476,13 +1469,7 @@ fn doc(meta: &Meta, extra: &[String]) -> Vec<String> {
 }
 
 /// Names the emitter exports besides the runtime's and the schemas'.
-const RESERVED: &[&str] = &[
-    "paths",
-    "components",
-    "schemas",
-    "SecuritySchemeName",
-    "createClient",
-];
+const RESERVED: &[&str] = &["paths", "components", "schemas", "SecuritySchemeName"];
 
 /// The names the runtime exports.
 fn runtime_exports() -> impl Iterator<Item = String> {
