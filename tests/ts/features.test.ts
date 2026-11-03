@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DecodeError, createClient } from "../golden/features.ts";
+import { DecodeError, createClient, type ClientOptions } from "../golden/features.ts";
 
 type Sent = { url: string; headers: Headers; body: string };
 
+const noContent = () => new Response(null, { status: 204 });
+
 /** A client whose fetch records the request and answers with `response`. */
-function recording(response: () => Response, baseUrl?: string) {
+function recording(response: () => Response = noContent, options: ClientOptions = {}) {
   const sent: Sent[] = [];
   const api = createClient({
-    ...(baseUrl ? { baseUrl } : {}),
+    ...options,
     fetch: async (request: Request) => {
       sent.push({ url: request.url, headers: request.headers, body: await request.text() });
       return response();
@@ -39,7 +41,7 @@ test("serializes exploded, reserved, JSON and cookie parameters", async () => {
 });
 
 test("rejects path parameters that would change the path", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   for (const dir of ["..", ".", ""]) {
     await assert.rejects(api.GET("/files/{dir}/{name}", { path: { dir, name: "a" } }), TypeError);
   }
@@ -66,7 +68,7 @@ test("uses path- and operation-level servers", async () => {
 });
 
 test("serializes a querystring parameter as its media type", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   await api.GET("/lookup", { querystring: { tags: ["a b", "#c"] } });
   await api.POST("/lookup", { querystring: "x=1&y=#2" });
   assert.deepEqual(sent.map((s) => s.url), [
@@ -76,7 +78,7 @@ test("serializes a querystring parameter as its media type", async () => {
 });
 
 test("a body is sent as the operation's media type when the call names none", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   // A string is JSON when the operation takes JSON, not text/plain.
   await api.POST("/notes", { body: "hi" });
   await api.PATCH("/notes", { body: { text: "hi" } });
@@ -87,7 +89,7 @@ test("a body is sent as the operation's media type when the call names none", as
 });
 
 test("baseUrl replaces every server", async () => {
-  const { api, sent } = recording(json({}), "http://localhost:4010/");
+  const { api, sent } = recording(json({}), { baseUrl: "http://localhost:4010/" });
   await api.POST("/upload", { body: { name: "a", password: "p" } });
   await api.GET("/shapes");
   assert.deepEqual(sent.map((s) => s.url), ["http://localhost:4010/upload", "http://localhost:4010/shapes"]);
@@ -130,17 +132,12 @@ test("only the document's methods are client properties", async () => {
 });
 
 test("sends static and per-call headers, and is not a thenable", async () => {
-  const sent: Headers[] = [];
-  const api = createClient({
+  const { api, sent } = recording(noContent, {
     headers: { "x-api-key": "k" },
-    fetch: async (request: Request) => {
-      sent.push(request.headers);
-      return new Response(null, { status: 204 });
-    },
   });
   await api.GET("/shapes", { headers: { "x-trace": "1" } });
-  assert.equal(sent[0]!.get("x-api-key"), "k");
-  assert.equal(sent[0]!.get("x-trace"), "1");
+  assert.equal(sent[0]!.headers.get("x-api-key"), "k");
+  assert.equal(sent[0]!.headers.get("x-trace"), "1");
   // Returning the client from an async function must not look up a `then` method.
   assert.equal(Reflect.get(api, "then"), undefined);
   assert.equal(await Promise.resolve(api), api);
@@ -201,21 +198,16 @@ test("serializes arrays and objects in every location", async () => {
 });
 
 test("adds cookie parameters to a cookie from async client headers", async () => {
-  const sent: Headers[] = [];
-  const api = createClient({
+  const { api, sent } = recording(noContent, {
     headers: async () => ({ cookie: "theme=dark", "x-api-key": "k" }),
-    fetch: async (request: Request) => {
-      sent.push(request.headers);
-      return new Response(null, { status: 204 });
-    },
   });
   await api.GET("/params/{list}/{pair}", { path: { list: ["a"], pair: { x: 1 } }, cookie: { multi: ["x"] } });
-  assert.equal(sent[0]!.get("cookie"), "theme=dark; multi=x");
-  assert.equal(sent[0]!.get("x-api-key"), "k");
+  assert.equal(sent[0]!.headers.get("cookie"), "theme=dark; multi=x");
+  assert.equal(sent[0]!.headers.get("x-api-key"), "k");
 });
 
 test("form bodies repeat array values and leave out null", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   await api.PUT("/forms/{id}", { path: { id: 1 }, contentType: "application/x-www-form-urlencoded", body: { tags: ["a", "b c"], note: null } });
   await api.PUT("/forms/{id}", { path: { id: 1 }, body: { tags: ["a"], note: null } });
   assert.deepEqual(sent.map((s) => [s.url, s.headers.get("content-type"), s.body]), [
@@ -225,7 +217,7 @@ test("form bodies repeat array values and leave out null", async () => {
 });
 
 test("form fields are JSON for objects, and follow their Encoding Objects", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   await api.POST("/uploads", {
     contentType: "application/x-www-form-urlencoded",
     body: { meta: { tags: ["a"], note: null }, filter: { kind: "cat", size: 2 }, path: "/a b?c=d", id: "i 1" },
@@ -249,7 +241,7 @@ function parts({ headers, body }: Sent): [string, string | null, string][] {
 }
 
 test("multipart parts take their media type from the value or the Encoding Object", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   await api.POST("/uploads", {
     contentType: "multipart/form-data",
     body: {
@@ -283,23 +275,18 @@ test("multipart parts take their media type from the value or the Encoding Objec
 });
 
 test("a multipart body replaces a Content-Type set before it, so fetch can add the boundary", async () => {
-  const sent: Headers[] = [];
-  const api = createClient({
+  const { api, sent } = recording(noContent, {
     // Header objects cannot name Content-Type, but `Headers` and arrays can.
     headers: new Headers({ "Content-Type": "application/json" }),
-    fetch: async (request: Request) => {
-      sent.push(request.headers);
-      return new Response(null, { status: 204 });
-    },
   });
   const body = { file: new Blob(["f"]), meta: {} };
   await api.POST("/uploads", { contentType: "multipart/form-data", body });
   await api.POST("/uploads", { contentType: "multipart/form-data", body, headers: [["Content-Type", "multipart/form-data"]] });
-  for (const headers of sent) assert.match(headers.get("content-type")!, /^multipart\/form-data; boundary=/);
+  for (const { headers } of sent) assert.match(headers.get("content-type")!, /^multipart\/form-data; boundary=/);
 });
 
 test("a body for a media type range is sent by its kind unless the call names one", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   await api.POST("/blobs", { body: new TextEncoder().encode("raw") });
   await api.POST("/blobs", { body: { a: 1 } });
   await api.POST("/blobs", { contentType: "text/csv", body: "a,b" });
@@ -311,7 +298,7 @@ test("a body for a media type range is sent by its kind unless the call names on
 });
 
 test("a form querystring takes fields or an encoded string", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   await api.GET("/blobs", { querystring: { a: 1, b: [2, 3], c: null } });
   // A form querystring whose schema is a string is passed as it is, without a leading "?".
   await api.GET("/blobs", { querystring: "?a=1&b=%202" as unknown as Record<string, unknown> });
@@ -322,7 +309,7 @@ test("a form querystring takes fields or an encoded string", async () => {
 });
 
 test("an optional body can be left out without a media type", async () => {
-  const { api, sent } = recording(() => new Response(null, { status: 204 }));
+  const { api, sent } = recording();
   await api.PUT("/photos/{id}", { path: { id: 1 } });
   await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new Uint8Array([1]) });
   assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body.length]), [
@@ -332,19 +319,14 @@ test("an optional body can be left out without a media type", async () => {
 });
 
 test("a call's Cookie header joins the cookie parameters", async () => {
-  const sent: Headers[] = [];
-  const api = createClient({
+  const { api, sent } = recording(noContent, {
     headers: { cookie: "theme=dark" },
-    fetch: async (request: Request) => {
-      sent.push(request.headers);
-      return new Response(null, { status: 204 });
-    },
   });
   const path = { list: ["a"], pair: { x: 1 } };
   await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "lang=ja; token=a=b" } });
   // A cookie of the same name is replaced; other headers of the same name still replace.
   await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "theme=light", "x-ids": "9" }, header: { "X-Ids": [1] } });
-  assert.deepEqual(sent.map((h) => [h.get("cookie"), h.get("x-ids")]), [
+  assert.deepEqual(sent.map(({ headers }) => [headers.get("cookie"), headers.get("x-ids")]), [
     ["theme=dark; multi=x; lang=ja; token=a=b", null],
     ["multi=x; theme=light", "9"],
   ]);

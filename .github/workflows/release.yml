@@ -112,7 +112,7 @@ jobs:
         run: |
           chmod +x artifacts/x86_64-unknown-linux-musl/oasis-gen
           artifacts/x86_64-unknown-linux-musl/oasis-gen tests/fixtures/petstore.yaml > /dev/null
-      - run: node npm/build.mjs "$VERSION" artifacts npm-dist
+      - run: node npm/build.mjs artifacts npm-dist
       - name: Package release archives
         run: |
           mkdir release

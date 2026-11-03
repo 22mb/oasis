@@ -1,17 +1,17 @@
 // Assembles the npm packages for a release:
 //
-//   node npm/build.mjs <version> <artifacts> <out> [--partial]
+//   node npm/build.mjs <artifacts> <out> [--partial]
 //
-// <artifacts>/<target>/oasis-gen[.exe] are the binaries built by CI. The output
-// has one directory per platform package under <out>/platforms and the main
-// package in <out>/oasis-gen, each ready for `npm publish`. `--partial` skips
-// missing binaries (for local testing).
+// <artifacts>/<target>/oasis-gen[.exe] are the binaries built by CI, and the
+// version is the one in Cargo.toml. The output has one directory per platform
+// package under <out>/platforms and the main package in <out>/oasis-gen, each
+// ready for `npm publish`. `--partial` skips missing binaries (for local testing).
 
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const targets = [
+const targets = [
   { target: "aarch64-apple-darwin", os: "darwin", cpu: "arm64" },
   { target: "x86_64-apple-darwin", os: "darwin", cpu: "x64" },
   { target: "aarch64-unknown-linux-musl", os: "linux", cpu: "arm64" },
@@ -21,20 +21,16 @@ export const targets = [
 ];
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [version, artifacts, out] = process.argv.slice(2);
+const [artifacts, out] = process.argv.slice(2);
 const partial = process.argv.includes("--partial");
-if (!version || !artifacts || !out) {
-  console.error("usage: node npm/build.mjs <version> <artifacts> <out> [--partial]");
+if (!artifacts || !out) {
+  console.error("usage: node npm/build.mjs <artifacts> <out> [--partial]");
   process.exit(2);
 }
 const cargo = readFileSync(path.join(root, "Cargo.toml"), "utf8");
-const cargoVersion = cargo.match(/^version = "(.+)"$/m)?.[1];
+const version = cargo.match(/^version = "(.+)"$/m)?.[1];
 // The single source of the repository URL; npm provenance checks it against the publishing repository.
 const repositoryUrl = cargo.match(/^repository = "(.+)"$/m)?.[1];
-if (version !== cargoVersion) {
-  console.error(`version ${version} does not match Cargo.toml (${cargoVersion})`);
-  process.exit(1);
-}
 
 const main = {
   ...JSON.parse(readFileSync(path.join(root, "npm/oasis-gen/package.json"), "utf8")),
