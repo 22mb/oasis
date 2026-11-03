@@ -194,18 +194,28 @@ impl Type {
 
 /// A member of an object type or interface.
 pub struct Member {
-    pub doc: Vec<String>,
-    pub key: Key,
-    pub optional: bool,
-    pub ty: Type,
+    doc: Vec<String>,
+    key: Key,
+    optional: bool,
+    ty: Type,
 }
 
 impl Member {
-    pub fn new(key: Key, optional: bool, ty: Type) -> Member {
+    pub fn new(name: impl Into<String>, optional: bool, ty: Type) -> Member {
         Member {
             doc: Vec::new(),
-            key,
+            key: Key::Name(name.into()),
             optional,
+            ty,
+        }
+    }
+
+    /// `[key: string]: T`.
+    pub fn index(ty: Type) -> Member {
+        Member {
+            doc: Vec::new(),
+            key: Key::Index,
+            optional: false,
             ty,
         }
     }
@@ -239,17 +249,11 @@ impl Member {
     }
 }
 
-pub enum Key {
+enum Key {
     /// Quoted unless it is an identifier.
     Name(String),
     /// `[key: string]`.
     Index,
-}
-
-impl Key {
-    pub fn name(k: impl Into<String>) -> Key {
-        Key::Name(k.into())
-    }
 }
 
 /// A value: the runtime data the file passes to the client.
