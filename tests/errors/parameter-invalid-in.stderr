@@ -1,1 +1,1 @@
-error: paths./a: GET: parameter `x`: invalid `in`: Some("body")
+error: parameter-invalid-in.yaml:6:34: paths./a: GET: parameter `x`: invalid `in`: Some("body")

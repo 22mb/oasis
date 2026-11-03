@@ -1,1 +1,1 @@
-error: components.schemas.A: schema nesting too deep
+error: schema-too-deep.json:1:1822: components.schemas.A: schema nesting too deep

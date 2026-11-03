@@ -1,1 +1,1 @@
-error: paths./a/{id}: GET: parameter `id`: path parameters must be `required: true`
+error: parameter-path-not-required.yaml:6:20: paths./a/{id}: GET: parameter `id`: path parameters must be `required: true`

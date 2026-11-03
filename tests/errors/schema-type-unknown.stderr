@@ -1,1 +1,1 @@
-error: components.schemas.A: unknown type `date`
+error: schema-type-unknown.yaml:6:15: components.schemas.A: unknown type `date`

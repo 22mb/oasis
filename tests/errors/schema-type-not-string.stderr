@@ -1,1 +1,1 @@
-error: components.schemas.A: `type` must be a string or array
+error: schema-type-not-string.yaml:6:15: components.schemas.A: `type` must be a string or array

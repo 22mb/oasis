@@ -1,1 +1,1 @@
-error: paths./a: GET: parameter `x`: parameters must not have both `schema` and `content`
+error: parameter-schema-and-content.yaml:6:20: paths./a: GET: parameter `x`: parameters must not have both `schema` and `content`

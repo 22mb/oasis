@@ -1,1 +1,1 @@
-error: security: unknown security scheme `nope`
+error: security-unknown-scheme.yaml:4:19: security: unknown security scheme `nope`

@@ -1,1 +1,1 @@
-error: components.schemas.A: invalid $ref `http://[x`: invalid IPv6 address
+error: ref-invalid.yaml:6:15: components.schemas.A: invalid $ref `http://[x`: invalid IPv6 address

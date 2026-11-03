@@ -1,1 +1,1 @@
-error: security: #/info: invalid security scheme type: None
+error: security-scheme-by-uri-invalid.yaml:2:7: security: #/info: invalid security scheme type: None

@@ -1,1 +1,1 @@
-error: security: security requirement "bearer" must map scheme names to scopes, e.g. `- bearer: []`
+error: security-requirement-not-object.yaml:4:12: security: security requirement "bearer" must map scheme names to scopes, e.g. `- bearer: []`

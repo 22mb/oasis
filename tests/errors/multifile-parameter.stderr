@@ -1,1 +1,1 @@
-error: paths./a: GET: parameter `x`: style `matrix` for query parameters is not supported
+error: multifile-parameter/paths.yaml:2:44: paths./a: GET: parameter `x`: style `matrix` for query parameters is not supported

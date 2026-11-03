@@ -31,14 +31,23 @@ impl Lang {
 /// Generates client source code from an OpenAPI 3.0, 3.1 or 3.2 document file in JSON or
 /// YAML, following `$ref`s into other local files.
 pub fn generate_file(path: &std::path::Path, lang: Lang) -> Result<String, Error> {
-    emit(&parse(&Documents::from_file(path)?)?, lang)
+    convert(&Documents::from_file(path)?, lang)
 }
 
 /// Like [`generate_file`] for document text; relative `$ref`s to other files
 /// resolve against the current directory.
 pub fn generate(source: &str, lang: Lang) -> Result<String, Error> {
     let value = load(source).map_err(|e| e.in_file("<input>"))?;
-    emit(&parse(&Documents::from_value(value)?)?, lang)
+    convert(
+        &Documents::from_value(value)?.named("<input>", source),
+        lang,
+    )
+}
+
+/// Parses and emits, placing an error in the document it is about.
+fn convert(docs: &Documents, lang: Lang) -> Result<String, Error> {
+    let api = parse(docs).map_err(|e| docs.locate(e))?;
+    emit(&api, lang).map_err(|e| docs.locate(e))
 }
 
 fn emit(api: &ir::Api, lang: Lang) -> Result<String, Error> {
@@ -55,18 +64,21 @@ pub fn load(source: &str) -> Result<serde_json::Value, Error> {
     if source.trim_start().starts_with('{') {
         serde_json::from_str(source).map_err(json_error)
     } else {
-        // YAML 1.2 booleans only (`yes`/`no`/`on`/`off`/`y`/`n` stay strings), and
-        // node/event budgets that scale with the input so large documents load.
-        // Alias expansion keeps its default limits.
-        let defaults = serde_saphyr::Budget::default();
-        let options = serde_saphyr::options! {
-            strict_booleans: true,
-            budget: serde_saphyr::budget! {
-                max_nodes: defaults.max_nodes.max(source.len()),
-                max_events: defaults.max_events.max(source.len()),
-            },
-        };
-        serde_saphyr::from_str_with_options(source, options).map_err(yaml_error)
+        serde_saphyr::from_str_with_options(source, yaml_options(source)).map_err(yaml_error)
+    }
+}
+
+/// YAML 1.2 booleans only (`yes`/`no`/`on`/`off`/`y`/`n` stay strings), and
+/// node/event budgets that scale with the input so large documents load.
+/// Alias expansion keeps its default limits.
+pub(crate) fn yaml_options(source: &str) -> serde_saphyr::Options {
+    let defaults = serde_saphyr::Budget::default();
+    serde_saphyr::options! {
+        strict_booleans: true,
+        budget: serde_saphyr::budget! {
+            max_nodes: defaults.max_nodes.max(source.len()),
+            max_events: defaults.max_events.max(source.len()),
+        },
     }
 }
 
@@ -123,9 +135,12 @@ fn yaml_error(e: serde_saphyr::Error) -> Error {
 pub struct Error {
     message: String,
     /// The file the error is in, if known.
-    file: Option<String>,
+    pub(crate) file: Option<String>,
     /// Line and column in that file, from 1.
-    position: Option<(usize, usize)>,
+    pub(crate) position: Option<(usize, usize)>,
+    /// Address of the document value the error is about, until
+    /// [`Documents::locate`] turns it into a file and position.
+    pub(crate) value: Option<usize>,
     /// Location in the document, outermost first.
     context: Vec<String>,
 }
@@ -136,8 +151,17 @@ impl Error {
             message: message.into(),
             file: None,
             position: None,
+            value: None,
             context: Vec::new(),
         }
+    }
+
+    /// Records that the error is about document value `v`, unless a more
+    /// specific value was recorded where the error was made.
+    pub(crate) fn about(mut self, v: &serde_json::Value) -> Error {
+        self.value
+            .get_or_insert(v as *const serde_json::Value as usize);
+        self
     }
 
     pub(crate) fn at(mut self, line: usize, column: usize) -> Error {

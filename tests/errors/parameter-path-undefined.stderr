@@ -1,1 +1,1 @@
-error: paths./a/{id}: GET: path parameter `id` is not defined
+error: parameter-path-undefined.yaml:6:7: paths./a/{id}: GET: path parameter `id` is not defined

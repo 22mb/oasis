@@ -1,1 +1,1 @@
-error: paths./a: GET: $ref chain too deep or cyclic
+error: ref-chain-cyclic.yaml:11:8: paths./a: GET: $ref chain too deep or cyclic

@@ -1,1 +1,1 @@
-error: paths./a: server requires `url`
+error: server-path-level.yaml:5:15: paths./a: server requires `url`

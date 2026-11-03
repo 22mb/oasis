@@ -1,1 +1,1 @@
-error: components.schemas.A: invalid `$id`: invalid IPv6 address
+error: schema-invalid-id.yaml:6:14: components.schemas.A: invalid `$id`: invalid IPv6 address

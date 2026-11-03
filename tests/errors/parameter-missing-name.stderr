@@ -1,1 +1,1 @@
-error: paths./a: GET: parameter ``: missing `name`
+error: parameter-missing-name.yaml:6:20: paths./a: GET: parameter ``: missing `name`

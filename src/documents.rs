@@ -37,6 +37,9 @@ struct Document {
     value: Value,
     /// Schema resources (`$id`) inside the document: pointer and base URI.
     ids: Vec<(String, Rc<Url>)>,
+    /// The name errors give the document, and its text, to find positions in.
+    name: Option<String>,
+    source: Option<String>,
 }
 
 /// A position in a loaded document.
@@ -51,11 +54,40 @@ impl Documents {
     pub fn from_file(path: &Path) -> Result<Documents, Error> {
         let source = std::fs::read_to_string(path)
             .map_err(|e| Error::new(format!("cannot read {}: {e}", path.display())))?;
-        let value = crate::load(&source).map_err(|e| e.in_file(path.display().to_string()))?;
-        let path = path
+        let name = path.display().to_string();
+        let value = crate::load(&source).map_err(|e| e.in_file(&name))?;
+        let canonical = path
             .canonicalize()
-            .map_err(|e| Error::new(format!("cannot read {}: {e}", path.display())))?;
-        Documents::new(value, file_url(&path)?)
+            .map_err(|e| Error::new(format!("cannot read {name}: {e}")))?;
+        Ok(Documents::new(value, file_url(&canonical)?)?.named(&name, &source))
+    }
+
+    /// Names the entry document in errors, and keeps its text to find their positions.
+    pub(crate) fn named(mut self, name: &str, source: &str) -> Documents {
+        self.docs[0].name = Some(name.to_string());
+        self.docs[0].source = Some(source.to_string());
+        self
+    }
+
+    /// Places `e` in the document it is about: its file name, and the line and
+    /// column of the value it was made for. An error about no particular value
+    /// is in the entry document.
+    pub(crate) fn locate(&self, mut e: Error) -> Error {
+        if e.file.is_some() {
+            return e;
+        }
+        let found = e.value.and_then(|address| {
+            self.docs
+                .iter()
+                .enumerate()
+                .find_map(|(i, d)| find(&d.value, address).map(|pointer| (i, pointer)))
+        });
+        let doc = &self.docs[found.as_ref().map_or(0, |(i, _)| *i)];
+        e.file = doc.name.clone();
+        if let (Some((_, pointer)), Some(source)) = (&found, &doc.source) {
+            e.position = position(source, pointer);
+        }
+        e
     }
 
     /// Like [`Documents::from_file`] for a document already in memory;
@@ -73,7 +105,7 @@ impl Documents {
             anchors: HashMap::new(),
             failures: HashMap::new(),
         };
-        docs.add(root, retrieval);
+        docs.add(root, retrieval, None);
         // Documents are appended while loading, so iterate by index.
         let mut i = 0;
         let mut mapped = 0;
@@ -130,7 +162,7 @@ impl Documents {
         }
     }
 
-    fn add(&mut self, value: Value, retrieval: Url) -> Target {
+    fn add(&mut self, value: Value, retrieval: Url, file: Option<(String, String)>) -> Target {
         let base = value
             .get("$self")
             .and_then(Value::as_str)
@@ -149,6 +181,8 @@ impl Documents {
             base: Rc::new(base),
             value,
             ids: Vec::new(),
+            name: file.as_ref().map(|(name, _)| name.clone()),
+            source: file.map(|(_, source)| source),
         });
         resource
     }
@@ -183,16 +217,16 @@ impl Documents {
 
     fn load_file(&mut self, file: &Url) -> Result<Target, String> {
         let path = file_path(file).ok_or_else(|| format!("`{file}` is not a local file"))?;
-        let unreadable = |e| format!("cannot read {}: {e}", path.display());
+        let unreadable = |e| format!("cannot read {}: {e}", display_path(&path));
         let canonical = path.canonicalize().map_err(unreadable)?;
         let url = file_url(&canonical).map_err(|e| e.to_string())?;
         if let Some(r) = self.resources.get(url.as_str()) {
             return Ok(r.clone()); // already loaded under another URI
         }
         let source = std::fs::read_to_string(&canonical).map_err(unreadable)?;
-        let value =
-            crate::load(&source).map_err(|e| e.in_file(path.display().to_string()).to_string())?;
-        Ok(self.add(value, url))
+        let name = display_path(&canonical);
+        let value = crate::load(&source).map_err(|e| e.in_file(&name).to_string())?;
+        Ok(self.add(value, url, Some((name, source))))
     }
 
     /// The local file for a URI: `file:` URIs as-is; others (and `file:` URIs
@@ -379,6 +413,113 @@ fn walk<'v>(value: &'v Value, base: &Rc<Url>, path: &mut Vec<Segment<'v>>, found
 #[cfg(any(unix, windows))]
 fn current_dir() -> std::io::Result<PathBuf> {
     std::env::current_dir()?.canonicalize()
+}
+
+/// `path` relative to the current directory when it is inside it, as a user
+/// would type it.
+fn display_path(path: &Path) -> String {
+    current_dir()
+        .ok()
+        .and_then(|cwd| path.strip_prefix(cwd).ok().map(Path::to_path_buf))
+        .unwrap_or_else(|| path.to_path_buf())
+        .display()
+        .to_string()
+}
+
+/// The JSON pointer of the value at `address` in `v`.
+fn find(v: &Value, address: usize) -> Option<String> {
+    if std::ptr::eq(v, address as *const Value) {
+        return Some(String::new());
+    }
+    let escape = |k: &str| k.replace('~', "~0").replace('/', "~1");
+    match v {
+        Value::Object(map) => map
+            .iter()
+            .find_map(|(k, v)| find(v, address).map(|p| format!("/{}{p}", escape(k)))),
+        Value::Array(items) => items
+            .iter()
+            .enumerate()
+            .find_map(|(i, v)| find(v, address).map(|p| format!("/{i}{p}"))),
+        _ => None,
+    }
+}
+
+/// Line and column of the value at JSON pointer `pointer` in document text
+/// `source`. JSON is read as YAML, of which it is a subset, since only the YAML
+/// parser reports positions. Only called for an error, so its cost does not matter.
+fn position(source: &str, pointer: &str) -> Option<(usize, usize)> {
+    let source = source.strip_prefix('\u{feff}').unwrap_or(source);
+    let mut options = crate::yaml_options(source);
+    // As deep as serde_json reads: an error can be about a value deeper than YAML allows.
+    options
+        .budget
+        .get_or_insert_with(Default::default)
+        .max_depth = 128;
+    let mut node: serde_saphyr::Spanned<Spans> =
+        serde_saphyr::from_str_with_options(source, options).ok()?;
+    for segment in pointer.split('/').skip(1) {
+        let key = segment.replace("~1", "/").replace("~0", "~");
+        node = match node.value {
+            Spans::Map(entries) => entries.into_iter().find(|(k, _)| *k == key)?.1,
+            Spans::Seq(items) => items.into_iter().nth(key.parse().ok()?)?,
+            Spans::Scalar => return None,
+        };
+    }
+    let at = node.referenced;
+    Some((at.line() as usize, at.column() as usize))
+}
+
+/// A document's structure, with the position of every value.
+enum Spans {
+    Scalar,
+    Seq(Vec<serde_saphyr::Spanned<Spans>>),
+    Map(Vec<(String, serde_saphyr::Spanned<Spans>)>),
+}
+
+impl<'de> serde::Deserialize<'de> for Spans {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Spans, D::Error> {
+        use serde::de::{MapAccess, SeqAccess, Visitor};
+        struct V;
+        impl<'de> Visitor<'de> for V {
+            type Value = Spans;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("any value")
+            }
+            fn visit_bool<E>(self, _: bool) -> Result<Spans, E> {
+                Ok(Spans::Scalar)
+            }
+            fn visit_i64<E>(self, _: i64) -> Result<Spans, E> {
+                Ok(Spans::Scalar)
+            }
+            fn visit_u64<E>(self, _: u64) -> Result<Spans, E> {
+                Ok(Spans::Scalar)
+            }
+            fn visit_f64<E>(self, _: f64) -> Result<Spans, E> {
+                Ok(Spans::Scalar)
+            }
+            fn visit_str<E>(self, _: &str) -> Result<Spans, E> {
+                Ok(Spans::Scalar)
+            }
+            fn visit_unit<E>(self) -> Result<Spans, E> {
+                Ok(Spans::Scalar)
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut s: A) -> Result<Spans, A::Error> {
+                let mut items = Vec::new();
+                while let Some(item) = s.next_element()? {
+                    items.push(item);
+                }
+                Ok(Spans::Seq(items))
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut m: A) -> Result<Spans, A::Error> {
+                let mut entries = Vec::new();
+                while let Some(entry) = m.next_entry()? {
+                    entries.push(entry);
+                }
+                Ok(Spans::Map(entries))
+            }
+        }
+        d.deserialize_any(V)
+    }
 }
 
 #[cfg(any(unix, windows))]

@@ -1,1 +1,1 @@
-error: missing `openapi` version field
+error: version-missing.yaml: missing `openapi` version field

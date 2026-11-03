@@ -1,1 +1,1 @@
-error: security: must be an array of security requirements
+error: security-not-array.yaml:4:11: security: must be an array of security requirements

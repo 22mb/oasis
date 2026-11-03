@@ -1,1 +1,1 @@
-error: paths./b: GET: duplicate operationId `same`
+error: operation-id-duplicate.yaml:7:24: paths./b: GET: duplicate operationId `same`

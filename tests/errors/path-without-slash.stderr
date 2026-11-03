@@ -1,1 +1,1 @@
-error: paths.a: path must start with `/`
+error: path-without-slash.yaml:4:6: paths.a: path must start with `/`
