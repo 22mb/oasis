@@ -72,11 +72,11 @@ impl Documents {
     /// Places `e` in the document it is about: its file name, and the line and
     /// column of the value it was made for. An error about no particular value
     /// is in the entry document.
-    pub(crate) fn locate(&self, mut e: Error) -> Error {
-        if e.0.file.is_some() {
+    pub(crate) fn locate(&self, e: Error) -> Error {
+        if e.is_placed() {
             return e;
         }
-        let found = match (e.0.value, &e.0.schema) {
+        let found = match (e.value_address(), e.schema_key()) {
             (Some(address), _) => self
                 .docs
                 .iter()
@@ -86,11 +86,18 @@ impl Documents {
             (None, None) => None,
         };
         let doc = &self.docs[found.as_ref().map_or(0, |(i, _)| *i)];
-        e.0.file = doc.name.clone();
-        if let (Some((_, pointer)), Some(source)) = (&found, &doc.source) {
-            e.0.position = position(source, pointer);
+        let e = match &doc.name {
+            Some(name) => e.in_file(name),
+            None => e,
+        };
+        let at = match (&found, &doc.source) {
+            (Some((_, pointer)), Some(source)) => position(source, pointer),
+            _ => None,
+        };
+        match at {
+            Some((line, column)) => e.at(line, column),
+            None => e,
         }
-        e
     }
 
     /// Like [`Documents::from_file`] for a document already in memory;

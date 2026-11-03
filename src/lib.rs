@@ -134,63 +134,82 @@ fn yaml_error(e: serde_saphyr::Error) -> Error {
 /// An error in a document or in reading it. Boxed, so that the `Result`s
 /// returned through every level of a document's nesting stay small.
 #[derive(Debug)]
-pub struct Error(Box<Details>);
+pub struct Error {
+    details: Box<Details>,
+}
 
 #[derive(Debug)]
-pub(crate) struct Details {
+struct Details {
     message: String,
     /// The file the error is in, if known.
-    pub(crate) file: Option<String>,
+    file: Option<String>,
     /// Line and column in that file, from 1.
-    pub(crate) position: Option<(usize, usize)>,
+    position: Option<(usize, usize)>,
     /// Address of the document value the error is about, until
     /// [`Documents::locate`] turns it into a file and position.
-    pub(crate) value: Option<usize>,
+    value: Option<usize>,
     /// Key in [`ir::Api::schemas`] of the schema an emitter error is about.
-    pub(crate) schema: Option<String>,
+    schema: Option<String>,
     /// Location in the document, outermost first.
     context: Vec<String>,
 }
 
 impl Error {
     pub(crate) fn new(message: impl Into<String>) -> Error {
-        Error(Box::new(Details {
-            message: message.into(),
-            file: None,
-            position: None,
-            value: None,
-            schema: None,
-            context: Vec::new(),
-        }))
+        Error {
+            details: Box::new(Details {
+                message: message.into(),
+                file: None,
+                position: None,
+                value: None,
+                schema: None,
+                context: Vec::new(),
+            }),
+        }
     }
 
     /// Records that the error is about document value `v`, unless a more
     /// specific value was recorded where the error was made.
     /// Records that an emitter error is about the schema with key `key`.
     pub(crate) fn about_schema(mut self, key: &str) -> Error {
-        self.0.schema = Some(key.to_string());
+        self.details.schema = Some(key.to_string());
         self
     }
 
     pub(crate) fn about(mut self, v: &serde_json::Value) -> Error {
-        self.0
+        self.details
             .value
             .get_or_insert(v as *const serde_json::Value as usize);
         self
     }
 
     pub(crate) fn at(mut self, line: usize, column: usize) -> Error {
-        self.0.position = Some((line, column));
+        self.details.position = Some((line, column));
         self
     }
 
     pub(crate) fn in_file(mut self, file: impl Into<String>) -> Error {
-        self.0.file = Some(file.into());
+        self.details.file = Some(file.into());
         self
     }
 
+    /// Whether the error already names its file, as a syntax error does.
+    pub(crate) fn is_placed(&self) -> bool {
+        self.details.file.is_some()
+    }
+
+    /// Address of the document value the error is about, if recorded.
+    pub(crate) fn value_address(&self) -> Option<usize> {
+        self.details.value
+    }
+
+    /// Key of the schema an emitter error is about, if recorded.
+    pub(crate) fn schema_key(&self) -> Option<&str> {
+        self.details.schema.as_deref()
+    }
+
     pub(crate) fn context(mut self, location: impl Into<String>) -> Error {
-        self.0.context.insert(0, location.into());
+        self.details.context.insert(0, location.into());
         self
     }
 }
@@ -198,16 +217,16 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // `file:line:column: `, the form editors and CI annotations recognize.
-        match (&self.0.file, self.0.position) {
+        match (&self.details.file, self.details.position) {
             (Some(file), Some((line, column))) => write!(f, "{file}:{line}:{column}: ")?,
             (Some(file), None) => write!(f, "{file}: ")?,
             (None, Some((line, column))) => write!(f, "{line}:{column}: ")?,
             (None, None) => {}
         }
-        for c in &self.0.context {
+        for c in &self.details.context {
             write!(f, "{c}: ")?;
         }
-        f.write_str(&self.0.message)
+        f.write_str(&self.details.message)
     }
 }
 
