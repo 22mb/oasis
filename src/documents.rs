@@ -49,6 +49,17 @@ pub(crate) struct Target {
     pub pointer: String,
 }
 
+/// Index of the entry document in [`Documents::docs`]: [`Documents::new`]
+/// adds it before the documents it references.
+const ENTRY: usize = 0;
+
+impl Target {
+    /// Whether the position is in the entry document.
+    pub(crate) fn in_entry(&self) -> bool {
+        self.doc == ENTRY
+    }
+}
+
 impl Documents {
     /// Loads a document and every local document it references.
     pub fn from_file(path: &Path) -> Result<Documents, Error> {
@@ -64,8 +75,9 @@ impl Documents {
 
     /// Names the entry document in errors, and keeps its text to find their positions.
     pub(crate) fn named(mut self, name: &str, source: &str) -> Documents {
-        self.docs[0].name = Some(name.to_string());
-        self.docs[0].source = Some(source.to_string());
+        let entry = &mut self.docs[ENTRY];
+        entry.name = Some(name.to_string());
+        entry.source = Some(source.to_string());
         self
     }
 
@@ -85,7 +97,7 @@ impl Documents {
             (None, Some(key)) => self.schema_target(key),
             (None, None) => None,
         };
-        let doc = &self.docs[found.as_ref().map_or(0, |(i, _)| *i)];
+        let doc = &self.docs[found.as_ref().map_or(ENTRY, |(i, _)| *i)];
         let e = match &doc.name {
             Some(name) => e.in_file(name),
             None => e,
@@ -273,11 +285,11 @@ impl Documents {
     }
 
     pub(crate) fn root(&self) -> &Value {
-        &self.docs[0].value
+        &self.docs[ENTRY].value
     }
 
     pub(crate) fn root_base(&self) -> Rc<Url> {
-        self.docs[0].base.clone()
+        self.docs[ENTRY].base.clone()
     }
 
     pub(crate) fn value(&self, loc: &Target) -> Option<&Value> {
@@ -334,14 +346,14 @@ impl Documents {
     fn schema_target(&self, key: &str) -> Option<(usize, String)> {
         let Some((file, pointer)) = key.split_once('#') else {
             let name = key.replace('~', "~0").replace('/', "~1");
-            return Some((0, format!("/components/schemas/{name}")));
+            return Some((ENTRY, format!("/components/schemas/{name}")));
         };
         let doc = (0..self.docs.len()).find(|&doc| {
             let start = self.display(&Target {
                 doc,
                 pointer: String::new(),
             });
-            start.strip_suffix('#') == Some(file) || (doc == 0 && file.is_empty())
+            start.strip_suffix('#') == Some(file) || (doc == ENTRY && file.is_empty())
         })?;
         Some((doc, pointer.to_string()))
     }
@@ -349,10 +361,10 @@ impl Documents {
     /// A stable, machine-independent name for a location: `#/pointer` in the
     /// entry document, `relative/path.yaml#/pointer` in others.
     pub(crate) fn display(&self, loc: &Target) -> String {
-        if loc.doc == 0 {
+        if loc.in_entry() {
             return format!("#{}", loc.pointer);
         }
-        let root = &self.docs[0].retrieval;
+        let root = &self.docs[ENTRY].retrieval;
         let target = &self.docs[loc.doc].retrieval;
         let path = root
             .make_relative(target)

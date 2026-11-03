@@ -280,7 +280,7 @@ impl<'a> Parser<'a> {
                 .about(from.v.get(name).unwrap_or(from.v)));
         }
         let (loc, target) = self.lookup(from, name)?;
-        if loc.doc == 0
+        if loc.in_entry()
             && let Some(component) = loc.pointer.strip_prefix("/components/securitySchemes/")
             && self.security_schemes.iter().any(|s| s.key == component)
         {
@@ -653,7 +653,7 @@ impl<'a> Parser<'a> {
     /// recurse.
     fn schema_ref(&mut self, from: &Node<'a>, reference: &str) -> Result<String, Error> {
         let (loc, target) = self.lookup(from, reference)?;
-        if loc.doc == 0
+        if loc.in_entry()
             && let Some(name) = loc.pointer.strip_prefix("/components/schemas/")
             && !name.contains('/')
         {
