@@ -1,5 +1,1 @@
-error: paths./a: cannot resolve $ref `paths.yaml`: ./multifile-syntax/paths.yaml: invalid YAML: error: line 1 column 6: unclosed bracket '{'
- --> <input>:1:6
-  |
-1 | get: {responses: {'204': {description: ok}}
-  |      ^ unclosed bracket '{'
+error: paths./a: cannot resolve $ref `paths.yaml`: ./multifile-syntax/paths.yaml:1:6: unclosed bracket '{'

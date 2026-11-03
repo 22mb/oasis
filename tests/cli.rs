@@ -126,5 +126,6 @@ fn reports_document_errors() {
     let out = run(&["-"], "{\"openapi\": ");
     assert_eq!(out.status.code(), Some(1));
     let stderr = text(&out.stderr);
-    assert!(stderr.contains("invalid JSON"), "{stderr}");
+    // Standard input has no file name of its own.
+    assert_eq!(stderr, "error: <input>:1:12: EOF while parsing a value\n");
 }

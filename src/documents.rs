@@ -51,7 +51,7 @@ impl Documents {
     pub fn from_file(path: &Path) -> Result<Documents, Error> {
         let source = std::fs::read_to_string(path)
             .map_err(|e| Error::new(format!("cannot read {}: {e}", path.display())))?;
-        let value = crate::load(&source)?;
+        let value = crate::load(&source).map_err(|e| e.in_file(path.display().to_string()))?;
         let path = path
             .canonicalize()
             .map_err(|e| Error::new(format!("cannot read {}: {e}", path.display())))?;
@@ -190,7 +190,8 @@ impl Documents {
             return Ok(r.clone()); // already loaded under another URI
         }
         let source = std::fs::read_to_string(&canonical).map_err(unreadable)?;
-        let value = crate::load(&source).map_err(|e| format!("{}: {e}", path.display()))?;
+        let value =
+            crate::load(&source).map_err(|e| e.in_file(path.display().to_string()).to_string())?;
         Ok(self.add(value, url))
     }
 

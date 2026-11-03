@@ -37,7 +37,8 @@ pub fn generate_file(path: &std::path::Path, lang: Lang) -> Result<String, Error
 /// Like [`generate_file`] for document text; relative `$ref`s to other files
 /// resolve against the current directory.
 pub fn generate(source: &str, lang: Lang) -> Result<String, Error> {
-    emit(&parse(&Documents::from_value(load(source)?)?)?, lang)
+    let value = load(source).map_err(|e| e.in_file("<input>"))?;
+    emit(&parse(&Documents::from_value(value)?)?, lang)
 }
 
 fn emit(api: &ir::Api, lang: Lang) -> Result<String, Error> {
@@ -46,10 +47,13 @@ fn emit(api: &ir::Api, lang: Lang) -> Result<String, Error> {
     }
 }
 
-/// Parses JSON or YAML text into a JSON value.
+/// Parses JSON or YAML text into a JSON value. A syntax error carries its
+/// line and column; the caller names the file.
 pub fn load(source: &str) -> Result<serde_json::Value, Error> {
+    // A byte order mark is not part of the document.
+    let source = source.strip_prefix('\u{feff}').unwrap_or(source);
     if source.trim_start().starts_with('{') {
-        serde_json::from_str(source).map_err(|e| Error::new(format!("invalid JSON: {e}")))
+        serde_json::from_str(source).map_err(json_error)
     } else {
         // YAML 1.2 booleans only (`yes`/`no`/`on`/`off`/`y`/`n` stay strings), and
         // node/event budgets that scale with the input so large documents load.
@@ -62,14 +66,66 @@ pub fn load(source: &str) -> Result<serde_json::Value, Error> {
                 max_events: defaults.max_events.max(source.len()),
             },
         };
-        serde_saphyr::from_str_with_options(source, options)
-            .map_err(|e| Error::new(format!("invalid YAML: {e}")))
+        serde_saphyr::from_str_with_options(source, options).map_err(yaml_error)
+    }
+}
+
+fn json_error(e: serde_json::Error) -> Error {
+    let message = e.to_string();
+    let suffix = format!(" at line {} column {}", e.line(), e.column());
+    let message = message.strip_suffix(&suffix).unwrap_or(&message);
+    // serde_json counts a position before a line's first character as column 0.
+    Error::new(message).at(e.line(), e.column().max(1))
+}
+
+fn yaml_error(e: serde_saphyr::Error) -> Error {
+    use serde_saphyr::budget::BudgetBreach;
+    use serde_saphyr::{DefaultMessageFormatter, Error as E, MessageFormatter};
+    // The error itself, without the snippet and alias wrappers.
+    let mut inner = &e;
+    while let E::WithSnippet { error, .. } | E::AliasError { error, .. } = inner {
+        inner = error;
+    }
+    // Replace the messages that name the library's API or print its types.
+    let message = match inner {
+        E::Budget {
+            breach: BudgetBreach::Depth { .. },
+            ..
+        } => format!(
+            "nested more than {} levels deep",
+            serde_saphyr::Budget::default().max_depth
+        ),
+        E::Budget { .. } => "the document is too large or too complex".into(),
+        E::DuplicateMappingKey { key: Some(k), .. } => format!("duplicate key `{k}`"),
+        E::DuplicateMappingKey { key: None, .. } => "duplicate key".into(),
+        E::MultipleDocuments { .. } => "more than one YAML document".into(),
+        _ => DefaultMessageFormatter.format_message(inner).into_owned(),
+    };
+    // The text can quote the document; keep control characters out of the terminal.
+    let message: String = message
+        .chars()
+        .flat_map(|c| {
+            let escaped = c.is_control().then(|| c.escape_default());
+            escaped
+                .into_iter()
+                .flatten()
+                .chain((!c.is_control()).then_some(c))
+        })
+        .collect();
+    let error = Error::new(message);
+    match e.location() {
+        Some(l) if l.line() > 0 => error.at(l.line() as usize, l.column() as usize),
+        _ => error,
     }
 }
 
 #[derive(Debug)]
 pub struct Error {
     message: String,
+    /// The file the error is in, if known.
+    file: Option<String>,
+    /// Line and column in that file, from 1.
+    position: Option<(usize, usize)>,
     /// Location in the document, outermost first.
     context: Vec<String>,
 }
@@ -78,8 +134,20 @@ impl Error {
     pub(crate) fn new(message: impl Into<String>) -> Error {
         Error {
             message: message.into(),
+            file: None,
+            position: None,
             context: Vec::new(),
         }
+    }
+
+    pub(crate) fn at(mut self, line: usize, column: usize) -> Error {
+        self.position = Some((line, column));
+        self
+    }
+
+    pub(crate) fn in_file(mut self, file: impl Into<String>) -> Error {
+        self.file = Some(file.into());
+        self
     }
 
     pub(crate) fn context(mut self, location: impl Into<String>) -> Error {
@@ -90,6 +158,13 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // `file:line:column: `, the form editors and CI annotations recognize.
+        match (&self.file, self.position) {
+            (Some(file), Some((line, column))) => write!(f, "{file}:{line}:{column}: ")?,
+            (Some(file), None) => write!(f, "{file}: ")?,
+            (None, Some((line, column))) => write!(f, "{line}:{column}: ")?,
+            (None, None) => {}
+        }
         for c in &self.context {
             write!(f, "{c}: ")?;
         }
@@ -113,9 +188,11 @@ mod tests {
     fn loads_json_and_reports_invalid_input() {
         assert_eq!(load(" {\"a\": [1]}").unwrap()["a"], serde_json::json!([1]));
         let err = load("{\"a\": ").unwrap_err().to_string();
-        assert!(err.starts_with("invalid JSON: "), "{err}");
+        assert_eq!(err, "1:6: EOF while parsing a value");
         let err = load("a: [\n").unwrap_err().to_string();
-        assert!(err.starts_with("invalid YAML: "), "{err}");
+        assert!(err.starts_with("1:4: "), "{err}");
+        // A byte order mark does not hide JSON.
+        assert!(load("\u{feff}{\"a\": 1}").is_ok());
     }
 
     #[test]

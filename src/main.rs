@@ -17,16 +17,24 @@ Options:
 ";
 
 fn main() -> ExitCode {
-    match run() {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
+    // Reading and converting a document recurse once per level of nesting. Windows
+    // gives the main thread 1 MiB, which a debug build uses up before the depth limits
+    // report the document, so the work runs on a thread with a larger stack.
+    let worker = std::thread::Builder::new()
+        .stack_size(64 << 20)
+        .spawn(run)
+        .expect("cannot start a thread");
+    match worker.join() {
+        Ok(Ok(())) => ExitCode::SUCCESS,
+        Ok(Err(e)) => {
             eprintln!("error: {e}");
             ExitCode::FAILURE
         }
+        Err(panic) => std::panic::resume_unwind(panic),
     }
 }
 
-fn run() -> Result<(), Box<dyn std::error::Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut spec = None;
     let mut output = None;
     let mut lang = oasis_gen::Lang::TypeScript;
