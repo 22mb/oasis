@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths: {}
+x:
+  A:
+    oneOf: [{$ref: '#/components/schemas/B'}]
+    discriminator: {propertyName: on, mapping: {yes: B}}
+components:
+  schemas:
+    R: {$ref: '#/x/A'}
+    B: {type: object, properties: {on: {type: boolean}}}

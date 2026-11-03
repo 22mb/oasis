@@ -1,0 +1,1 @@
+error: paths./a: GET: parameter `x`: parameters must not have both `schema` and `content`

@@ -1,0 +1,1 @@
+error: paths./a: POST: unresolved $ref `#/components/requestBodies/Nope`

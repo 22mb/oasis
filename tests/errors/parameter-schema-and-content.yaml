@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths:
+  /a:
+    get:
+      parameters: [{name: x, in: query, schema: {}, content: {text/plain: {}}}]
+      responses: {'204': {description: ok}}

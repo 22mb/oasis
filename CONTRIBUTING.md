@@ -21,14 +21,16 @@ You need a stable Rust toolchain and Node.js 24 or later.
 
 ```sh
 cargo test                         # unit tests and golden files
-UPDATE_GOLDEN=1 cargo test         # regenerate tests/golden after an intended change
+UPDATE_GOLDEN=1 cargo test         # regenerate tests/golden and tests/errors after an intended change
 cd tests/ts && npm ci && npm test  # type-check and run the generated client against a test server
 cd site && npm ci && npm run dev   # the documentation site
 ```
 
 `tests/golden` holds the generated client for each fixture in
 `tests/fixtures`. A change to the generator usually changes these files.
-Review the diff and commit it with the change.
+Review the diff and commit it with the change. In the same way,
+`tests/errors` holds an invalid document for each error the generator
+reports, next to the exact text it prints (`<case>.stderr`).
 
 ## Design
 

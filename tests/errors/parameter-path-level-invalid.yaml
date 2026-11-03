@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths:
+  /a:
+    parameters: [{name: x, in: body}]
+    get:
+      responses: {'204': {description: ok}}

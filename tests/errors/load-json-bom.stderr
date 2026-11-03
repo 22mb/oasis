@@ -1,0 +1,5 @@
+error: invalid YAML: error: line 1 column 1: unclosed bracket '{'
+ --> <input>:1:1
+  |
+1 | {"openapi": "3.1.0", "info": {"title": "t", "version": "1"}, "pat…
+  | ^ unclosed bracket '{'

@@ -1,0 +1,1 @@
+error: paths./a: GET: parameter `x`: invalid `in`: Some("body")

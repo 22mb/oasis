@@ -1,0 +1,1 @@
+error: components.schemas.A: cannot resolve $ref `a.yaml`: cannot read ./multifile-not-utf8/a.yaml: stream did not contain valid UTF-8

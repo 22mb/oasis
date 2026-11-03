@@ -1,0 +1,1 @@
+error: paths./a: additionalOperations must not define `GET`: it is sent as `GET`, use the `get` field

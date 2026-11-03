@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths:
+  /a:
+    post:
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            encoding: {tags: {style: pipeDelimited}}
+      responses: {'204': {description: ok}}

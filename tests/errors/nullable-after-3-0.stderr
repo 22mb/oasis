@@ -1,0 +1,1 @@
+error: components.schemas.A: `nullable` is OpenAPI 3.0 syntax; use `type: [..., "null"]`

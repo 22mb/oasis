@@ -1,0 +1,9 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths:
+  /a:
+    get:
+      parameters:
+        - {name: a, in: querystring, content: {application/x-www-form-urlencoded: {}}}
+        - {name: b, in: querystring, content: {application/x-www-form-urlencoded: {}}}
+      responses: {'204': {description: ok}}

@@ -1,0 +1,1 @@
+error: components.schemas.A: unresolved $ref `#nope`: no `$anchor: nope`

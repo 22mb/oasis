@@ -1,0 +1,1 @@
+error: security: security requirement "bearer" must map scheme names to scopes, e.g. `- bearer: []`

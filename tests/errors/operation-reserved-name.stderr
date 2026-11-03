@@ -1,0 +1,1 @@
+error: paths./a: additionalOperations must not define `with`: the generated client reserves that name

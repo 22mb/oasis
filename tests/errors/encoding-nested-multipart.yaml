@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths:
+  /a:
+    post:
+      requestBody:
+        content:
+          multipart/form-data:
+            encoding: {parts: {contentType: multipart/mixed}}
+      responses: {'204': {description: ok}}

@@ -1,0 +1,1 @@
+error: paths./a: GET: unresolved $ref `#/components/parameters/Nope`
