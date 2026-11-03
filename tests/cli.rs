@@ -113,6 +113,39 @@ fn rejects_bad_invocations() {
 }
 
 #[test]
+fn reports_unreadable_standard_input() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_oasis-gen"))
+        .arg("-")
+        .stdin(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(b"\xff").unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(
+        text(&out.stderr),
+        "error: cannot read standard input: stream did not contain valid UTF-8\n"
+    );
+}
+
+/// A reader that stops early, like `head`, is not an error.
+#[cfg(unix)]
+#[test]
+fn stops_quietly_when_the_reader_does() {
+    let (reader, writer) = std::io::pipe().unwrap();
+    drop(reader);
+    let out = Command::new(env!("CARGO_BIN_EXE_oasis-gen"))
+        .arg(PETSTORE)
+        .stdout(writer)
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert!(out.stderr.is_empty(), "{}", text(&out.stderr));
+}
+
+#[test]
 fn reports_document_errors() {
     let out = run(&["-"], "openapi: 4.0.0\n");
     assert_eq!(out.status.code(), Some(1));

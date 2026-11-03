@@ -131,8 +131,13 @@ fn yaml_error(e: serde_saphyr::Error) -> Error {
     }
 }
 
+/// An error in a document or in reading it. Boxed, so that the `Result`s
+/// returned through every level of a document's nesting stay small.
 #[derive(Debug)]
-pub struct Error {
+pub struct Error(Box<Details>);
+
+#[derive(Debug)]
+pub(crate) struct Details {
     message: String,
     /// The file the error is in, if known.
     pub(crate) file: Option<String>,
@@ -141,41 +146,51 @@ pub struct Error {
     /// Address of the document value the error is about, until
     /// [`Documents::locate`] turns it into a file and position.
     pub(crate) value: Option<usize>,
+    /// Key in [`ir::Api::schemas`] of the schema an emitter error is about.
+    pub(crate) schema: Option<String>,
     /// Location in the document, outermost first.
     context: Vec<String>,
 }
 
 impl Error {
     pub(crate) fn new(message: impl Into<String>) -> Error {
-        Error {
+        Error(Box::new(Details {
             message: message.into(),
             file: None,
             position: None,
             value: None,
+            schema: None,
             context: Vec::new(),
-        }
+        }))
     }
 
     /// Records that the error is about document value `v`, unless a more
     /// specific value was recorded where the error was made.
+    /// Records that an emitter error is about the schema with key `key`.
+    pub(crate) fn about_schema(mut self, key: &str) -> Error {
+        self.0.schema = Some(key.to_string());
+        self
+    }
+
     pub(crate) fn about(mut self, v: &serde_json::Value) -> Error {
-        self.value
+        self.0
+            .value
             .get_or_insert(v as *const serde_json::Value as usize);
         self
     }
 
     pub(crate) fn at(mut self, line: usize, column: usize) -> Error {
-        self.position = Some((line, column));
+        self.0.position = Some((line, column));
         self
     }
 
     pub(crate) fn in_file(mut self, file: impl Into<String>) -> Error {
-        self.file = Some(file.into());
+        self.0.file = Some(file.into());
         self
     }
 
     pub(crate) fn context(mut self, location: impl Into<String>) -> Error {
-        self.context.insert(0, location.into());
+        self.0.context.insert(0, location.into());
         self
     }
 }
@@ -183,16 +198,16 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // `file:line:column: `, the form editors and CI annotations recognize.
-        match (&self.file, self.position) {
+        match (&self.0.file, self.0.position) {
             (Some(file), Some((line, column))) => write!(f, "{file}:{line}:{column}: ")?,
             (Some(file), None) => write!(f, "{file}: ")?,
             (None, Some((line, column))) => write!(f, "{line}:{column}: ")?,
             (None, None) => {}
         }
-        for c in &self.context {
+        for c in &self.0.context {
             write!(f, "{c}: ")?;
         }
-        f.write_str(&self.message)
+        f.write_str(&self.0.message)
     }
 }
 

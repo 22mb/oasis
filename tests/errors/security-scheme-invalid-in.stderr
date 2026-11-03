@@ -1,1 +1,1 @@
-error: security-scheme-invalid-in.yaml:4:65: components.securitySchemes.key: invalid apiKey `in`: Some("body")
+error: security-scheme-invalid-in.yaml:4:65: components.securitySchemes.key: invalid apiKey `in` `body`: expected `query`, `header` or `cookie`

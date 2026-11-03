@@ -1,0 +1,1 @@
+error: components-schemas-list.yaml:6:5: components.schemas: must be a mapping of names to schemas

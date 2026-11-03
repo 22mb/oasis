@@ -1,1 +1,1 @@
-error: multifile-cycle/openapi.yaml: schemas.yaml#/B -> schemas.yaml#/C -> schemas.yaml#/B: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone
+error: multifile-cycle/schemas.yaml:1:4: schemas.yaml#/B -> schemas.yaml#/C -> schemas.yaml#/B: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone

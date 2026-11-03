@@ -1,1 +1,1 @@
-error: security-scheme-invalid-type.yaml:4:44: components.securitySchemes.key: invalid security scheme type: Some("password")
+error: security-scheme-invalid-type.yaml:4:44: components.securitySchemes.key: unknown security scheme type `password`

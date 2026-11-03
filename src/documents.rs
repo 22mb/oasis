@@ -73,19 +73,22 @@ impl Documents {
     /// column of the value it was made for. An error about no particular value
     /// is in the entry document.
     pub(crate) fn locate(&self, mut e: Error) -> Error {
-        if e.file.is_some() {
+        if e.0.file.is_some() {
             return e;
         }
-        let found = e.value.and_then(|address| {
-            self.docs
+        let found = match (e.0.value, &e.0.schema) {
+            (Some(address), _) => self
+                .docs
                 .iter()
                 .enumerate()
-                .find_map(|(i, d)| find(&d.value, address).map(|pointer| (i, pointer)))
-        });
+                .find_map(|(i, d)| find(&d.value, address).map(|pointer| (i, pointer))),
+            (None, Some(key)) => self.schema_target(key),
+            (None, None) => None,
+        };
         let doc = &self.docs[found.as_ref().map_or(0, |(i, _)| *i)];
-        e.file = doc.name.clone();
+        e.0.file = doc.name.clone();
         if let (Some((_, pointer)), Some(source)) = (&found, &doc.source) {
-            e.position = position(source, pointer);
+            e.0.position = position(source, pointer);
         }
         e
     }
@@ -206,7 +209,10 @@ impl Documents {
             format!("remote reference `{target}` is not supported; only local files are loaded")
         })?;
         self.load_file(&file).map_err(|reason| {
-            if file == *target {
+            // A file that does not exist may be a document identified by `$self`
+            // that was never loaded under its file name.
+            let missing = file_path(&file).is_some_and(|p| !p.exists());
+            if file == *target || !missing {
                 return reason;
             }
             format!(
@@ -314,6 +320,23 @@ impl Documents {
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| doc.base.clone());
         Ok((loc, base))
+    }
+
+    /// Document and pointer of the schema with key `key` in [`crate::ir::Api::schemas`]:
+    /// a component name, or a name made by [`Documents::display`].
+    fn schema_target(&self, key: &str) -> Option<(usize, String)> {
+        let Some((file, pointer)) = key.split_once('#') else {
+            let name = key.replace('~', "~0").replace('/', "~1");
+            return Some((0, format!("/components/schemas/{name}")));
+        };
+        let doc = (0..self.docs.len()).find(|&doc| {
+            let start = self.display(&Target {
+                doc,
+                pointer: String::new(),
+            });
+            start.strip_suffix('#') == Some(file) || (doc == 0 && file.is_empty())
+        })?;
+        Some((doc, pointer.to_string()))
     }
 
     /// A stable, machine-independent name for a location: `#/pointer` in the

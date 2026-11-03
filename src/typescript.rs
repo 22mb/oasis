@@ -1035,7 +1035,8 @@ impl<'a> Emitter<'a> {
                         result = Err(Error::new(format!(
                             "{}: discriminator mapping key `{value}` is not a value of property `{}`",
                             s.key, d.property_name
-                        )));
+                        ))
+                        .about_schema(&s.key));
                     }
                 }
             });
@@ -1199,7 +1200,8 @@ fn check_cycles(api: &Api, edges: &[(&str, &str)]) -> Result<(), Error> {
                     return Err(Error::new(format!(
                         "{}: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone",
                         cycle.join(" -> ")
-                    )));
+                    ))
+                    .about_schema(to));
                 }
                 Some(_) => {}
             }

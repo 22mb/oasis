@@ -1,1 +1,1 @@
-error: parameter-component-invalid.yaml:10:22: paths./a: GET: parameter `x`: invalid `in`: Some("body")
+error: parameter-component-invalid.yaml:10:22: paths./a: GET: parameter `x`: invalid `in` `body`: expected `path`, `query`, `querystring`, `header` or `cookie`

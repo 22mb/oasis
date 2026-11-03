@@ -1,1 +1,1 @@
-error: parameter-path-level-invalid.yaml:5:32: paths./a: GET: parameter `x`: invalid `in`: Some("body")
+error: parameter-path-level-invalid.yaml:5:32: paths./a: GET: parameter `x`: invalid `in` `body`: expected `path`, `query`, `querystring`, `header` or `cookie`
