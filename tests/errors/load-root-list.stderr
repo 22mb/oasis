@@ -1,1 +1,1 @@
-error: load-root-list.yaml: missing `openapi` version field
+error: load-root-list.yaml:1:1: an OpenAPI document must be a mapping

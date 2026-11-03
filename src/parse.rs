@@ -25,6 +25,9 @@ const IGNORED_HEADERS: [&str; 3] = ["accept", "content-type", "authorization"];
 const MAX_DEPTH: usize = 64;
 
 pub fn parse(docs: &Documents) -> Result<Api, Error> {
+    if !docs.root().is_object() {
+        return Err(Error::new("an OpenAPI document must be a mapping").about(docs.root()));
+    }
     let version = version(docs.root())?;
     Parser::new(docs, version).api()
 }
@@ -150,6 +153,12 @@ impl<'a> Parser<'a> {
 
         let mut schemas = Vec::new();
         if let Some(map) = root.get("components").and_then(|c| c.get("schemas")) {
+            // `$ref`s name components by key, which a list does not have.
+            if !map.v.is_object() {
+                return Err(Error::new("must be a mapping of names to schemas")
+                    .about(map.v)
+                    .context("components.schemas"));
+            }
             for (name, s) in map.entries() {
                 let schema = self
                     .schema(s.clone(), 0)
@@ -228,9 +237,12 @@ impl<'a> Parser<'a> {
         let mut out = Vec::new();
         for item in list.items() {
             if !item.v.is_object() {
+                let shown = item
+                    .v
+                    .as_str()
+                    .map_or_else(|| item.v.to_string(), String::from);
                 return Err(Error::new(format!(
-                    "security requirement {} must map scheme names to scopes, e.g. `- bearer: []`",
-                    item.v
+                    "security requirement `{shown}` must map scheme names to scopes, e.g. `- bearer: []`"
                 ))
                 .about(item.v));
             }
@@ -399,10 +411,13 @@ impl<'a> Parser<'a> {
                     return Err(Error::new("more than one `in: querystring` parameter").about(p.v));
                 }
                 querystring = Some(self.querystring(&p).map_err(|e| e.about(p.v))?);
-            } else if let Some(param) = self
-                .param(&p)
-                .map_err(|e| e.about(p.v).context(format!("parameter `{name}`")))?
-            {
+            } else if let Some(param) = self.param(&p).map_err(|e| {
+                let at = match name {
+                    "" => "parameter".to_string(),
+                    _ => format!("parameter `{name}`"),
+                };
+                e.about(p.v).context(at)
+            })? {
                 params.push(param);
             }
         }
@@ -478,10 +493,13 @@ impl<'a> Parser<'a> {
             Some("query") => Location::Query,
             Some("header") => Location::Header,
             Some("cookie") => Location::Cookie,
-            other => {
-                return Err(Error::new(format!("invalid `in`: {other:?}"))
-                    .about(p.v.get("in").unwrap_or(p.v)));
+            Some(other) => {
+                return Err(Error::new(format!(
+                    "invalid `in` `{other}`: expected `path`, `query`, `querystring`, `header` or `cookie`"
+                ))
+                .about(&p.v["in"]));
             }
+            None => return Err(Error::new("missing `in`").about(p.v)),
         };
         if location == Location::Header
             && IGNORED_HEADERS.contains(&name.to_ascii_lowercase().as_str())
@@ -1007,10 +1025,13 @@ fn security_scheme(s: &Node) -> Result<SecuritySchemeKind, Error> {
                 Some("query") => ApiKeyLocation::Query,
                 Some("header") => ApiKeyLocation::Header,
                 Some("cookie") => ApiKeyLocation::Cookie,
-                other => {
-                    return Err(Error::new(format!("invalid apiKey `in`: {other:?}"))
-                        .about(s.v.get("in").unwrap_or(s.v)));
+                Some(other) => {
+                    return Err(Error::new(format!(
+                        "invalid apiKey `in` `{other}`: expected `query`, `header` or `cookie`"
+                    ))
+                    .about(&s.v["in"]));
                 }
+                None => return Err(Error::new("security scheme requires `in`").about(s.v)),
             },
         },
         Some("http") => SecuritySchemeKind::Http {
@@ -1021,12 +1042,12 @@ fn security_scheme(s: &Node) -> Result<SecuritySchemeKind, Error> {
         Some("openIdConnect") => SecuritySchemeKind::OpenIdConnect {
             url: required("openIdConnectUrl")?,
         },
-        other => {
+        Some(other) => {
             return Err(
-                Error::new(format!("invalid security scheme type: {other:?}"))
-                    .about(s.v.get("type").unwrap_or(s.v)),
+                Error::new(format!("unknown security scheme type `{other}`")).about(&s.v["type"]),
             );
         }
+        None => return Err(Error::new("security scheme requires `type`").about(s.v)),
     })
 }
 
@@ -1625,7 +1646,7 @@ mod tests {
             ),
             (
                 with_scheme(json!({"type": "basic"})),
-                "invalid security scheme type",
+                "unknown security scheme type",
             ),
         ];
         for (doc, needle) in cases {

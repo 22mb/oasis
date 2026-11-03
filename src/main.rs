@@ -67,7 +67,9 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let code = if spec == "-" {
         let mut source = String::new();
-        std::io::stdin().read_to_string(&mut source)?;
+        std::io::stdin()
+            .read_to_string(&mut source)
+            .map_err(|e| format!("cannot read standard input: {e}"))?;
         oasis_gen::generate(&source, lang)?
     } else {
         oasis_gen::generate_file(std::path::Path::new(&spec), lang)?
@@ -76,7 +78,11 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Some(path) => {
             std::fs::write(&path, code).map_err(|e| format!("cannot write {path}: {e}"))?
         }
-        None => std::io::stdout().write_all(code.as_bytes())?,
+        None => match std::io::stdout().write_all(code.as_bytes()) {
+            // The reader stopped early, as `head` does: not an error to report.
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {}
+            result => result.map_err(|e| format!("cannot write to standard output: {e}"))?,
+        },
     }
     Ok(())
 }

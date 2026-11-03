@@ -65,6 +65,29 @@ TypeScript. Adding a target language means adding one emitter next to
 - Inputs the specification does not define, such as the credentials passed to
   `auth()`, are handled as documented for the runtime.
 
+### Error messages
+
+The generator stops at the first error and prints it on one line:
+
+```
+error: openapi.yaml:6:34: paths./a: GET: parameter `x`: invalid `in` `body`: expected `path`, `query`, `querystring`, `header` or `cookie`
+```
+
+- `file:line:column` is the value the error is about, in the file that
+  contains it. The entry document is named as given, a file read through a
+  `$ref` by its path from the current directory, and standard input
+  `<input>`. Syntax errors take the position from the YAML or JSON parser.
+  Other errors name the value with `Error::about`, or the schema with
+  `Error::about_schema`, and `Documents::locate` finds its position.
+- The location in the document comes next, as reached from the entry
+  document: keys joined with `.`, then the method, `parameter `name``,
+  `response 200` and so on. A schema reached through a `$ref` outside
+  `components.schemas` is named by its reference, such as `schemas.yaml#/B`.
+- The message quotes names and values from the document in backticks and
+  says what was expected where that helps. It does not show Rust types or
+  the API of the libraries the generator uses.
+- Every error has a case in `tests/errors`.
+
 ## Pull requests
 
 - Keep a pull request to one change, and add a test or a fixture for it.
