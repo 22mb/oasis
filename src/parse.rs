@@ -3,8 +3,8 @@
 use crate::Error;
 use crate::documents::{Documents, Target};
 use crate::ir::*;
-use serde_json::{Map, Value};
-use std::collections::HashSet;
+use serde_json::Value;
+use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
 use url::Url;
 
@@ -83,6 +83,10 @@ impl<'a> Node<'a> {
         self.v.get(key).and_then(Value::as_str)
     }
 
+    fn bool(&self, key: &str) -> Option<bool> {
+        self.v.get(key).and_then(Value::as_bool)
+    }
+
     fn entries(&self) -> impl Iterator<Item = (&'a String, Node<'a>)> + '_ {
         self.v
             .as_object()
@@ -109,7 +113,7 @@ struct Parser<'a> {
     /// Non-component `$ref` targets already queued for hoisting.
     hoisted: HashSet<Target>,
     /// Key and target of each hoisted schema, converted in this order.
-    pending: Vec<(String, Node<'a>)>,
+    pending: VecDeque<(String, Node<'a>)>,
     operation_ids: HashSet<String>,
     security_schemes: Vec<SecurityScheme>,
 }
@@ -124,7 +128,7 @@ impl<'a> Parser<'a> {
                 base: docs.root_base(),
             },
             hoisted: HashSet::new(),
-            pending: Vec::new(),
+            pending: VecDeque::new(),
             operation_ids: HashSet::new(),
             security_schemes: Vec::new(),
         }
@@ -178,11 +182,6 @@ impl<'a> Parser<'a> {
         let mut paths = Vec::new();
         if let Some(map) = root.get("paths") {
             for (path, item) in map.fields() {
-                if !path.starts_with('/') {
-                    return Err(Error::new(format!(
-                        "paths.{path}: path must start with `/`"
-                    )));
-                }
                 let item = self
                     .path_item(path, item)
                     .map_err(|e| e.context(format!("paths.{path}")))?;
@@ -191,8 +190,7 @@ impl<'a> Parser<'a> {
         }
 
         // Converting a target can hoist more, which this loop then reaches.
-        let mut i = 0;
-        while let Some((key, node)) = self.pending.get(i).cloned() {
+        while let Some((key, node)) = self.pending.pop_front() {
             let schema = self
                 .schema(node.clone(), 0)
                 .map_err(|e| e.context(key.clone()))?;
@@ -202,12 +200,11 @@ impl<'a> Parser<'a> {
                 meta: meta(node.v),
                 schema,
             });
-            i += 1;
         }
         Ok(Api {
             title: text("title"),
             version: text("version"),
-            servers: servers(root.v.get("servers"))?,
+            servers: servers(root.get("servers"))?,
             schemas,
             paths,
             security_schemes: self.security_schemes,
@@ -301,6 +298,9 @@ impl<'a> Parser<'a> {
     }
 
     fn path_item(&mut self, path: &str, item: Node<'a>) -> Result<PathItem, Error> {
+        if !path.starts_with('/') {
+            return Err(Error::new("path must start with `/`"));
+        }
         let item = self.deref(item)?;
         let shared = item.get("parameters");
 
@@ -341,7 +341,7 @@ impl<'a> Parser<'a> {
         }
         Ok(PathItem {
             path: path.to_string(),
-            servers: servers(item.v.get("servers"))?,
+            servers: servers(item.get("servers"))?,
             operations,
         })
     }
@@ -407,11 +407,7 @@ impl<'a> Parser<'a> {
             Some(b) => {
                 let b = self.deref(b)?;
                 Some(Body {
-                    required: b
-                        .v
-                        .get("required")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false),
+                    required: b.bool("required").unwrap_or(false),
                     meta: meta(b.v),
                     content: self
                         .content(b.get("content"))
@@ -444,7 +440,7 @@ impl<'a> Parser<'a> {
             method: method.to_string(),
             operation_id,
             meta: meta(op.v),
-            servers: servers(op.v.get("servers"))?,
+            servers: servers(op.get("servers"))?,
             params,
             querystring,
             body,
@@ -467,10 +463,7 @@ impl<'a> Parser<'a> {
         {
             return Ok(None);
         }
-        let required =
-            p.v.get("required")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
+        let required = p.bool("required").unwrap_or(false);
         if location == Location::Path && !required {
             return Err(Error::new("path parameters must be `required: true`"));
         }
@@ -483,19 +476,13 @@ impl<'a> Parser<'a> {
             }
             (None, Some(content)) => ParamValue::Content(self.single_content(content)?),
             (schema, None) => {
-                let style = param_style(p.v, location)?;
+                let style = param_style(p, location)?;
                 ParamValue::Schema {
                     style,
                     explode: p
-                        .v
-                        .get("explode")
-                        .and_then(Value::as_bool)
+                        .bool("explode")
                         .unwrap_or(matches!(style, Style::Form | Style::Cookie)),
-                    allow_reserved: p
-                        .v
-                        .get("allowReserved")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false),
+                    allow_reserved: p.bool("allowReserved").unwrap_or(false),
                     schema: match schema {
                         Some(s) => self.schema(s, 0)?,
                         None => Schema::Any,
@@ -518,11 +505,7 @@ impl<'a> Parser<'a> {
             .get("content")
             .ok_or_else(|| Error::new("`in: querystring` parameter must use `content`"))?;
         Ok(QueryString {
-            required: p
-                .v
-                .get("required")
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
+            required: p.bool("required").unwrap_or(false),
             meta: meta(p.v),
             content: self.single_content(content)?,
         })
@@ -575,15 +558,15 @@ impl<'a> Parser<'a> {
             if multipart {
                 for (header, h) in e.get("headers").iter().flat_map(|h| h.entries()) {
                     let h = self.deref(h)?;
-                    let required = h.v.get("required").and_then(Value::as_bool) == Some(true);
-                    if required && !header.eq_ignore_ascii_case("content-type") {
+                    if h.bool("required") == Some(true)
+                        && !header.eq_ignore_ascii_case("content-type")
+                    {
                         return Err(fail(format!(
                             "required part header `{header}` is not supported"
                         )));
                     }
                 }
             }
-            let flag = |key| e.v.get(key).and_then(Value::as_bool);
             let encoding = if ["style", "explode", "allowReserved"]
                 .iter()
                 .any(|k| e.v.get(*k).is_some())
@@ -599,8 +582,8 @@ impl<'a> Parser<'a> {
                 };
                 Encoding::Style {
                     style,
-                    explode: flag("explode").unwrap_or(style == Style::Form),
-                    allow_reserved: flag("allowReserved").unwrap_or(false),
+                    explode: e.bool("explode").unwrap_or(style == Style::Form),
+                    allow_reserved: e.bool("allowReserved").unwrap_or(false),
                 }
             } else if let Some(ct) = e.str("contentType") {
                 if multipart && ct.split(',').any(|t| essence(t).starts_with("multipart/")) {
@@ -631,7 +614,7 @@ impl<'a> Parser<'a> {
         let key = self.docs.display(&loc);
         // Queue each target once; later references, cycles included, reuse the key.
         if self.hoisted.insert(loc) {
-            self.pending.push((key.clone(), target));
+            self.pending.push_back((key.clone(), target));
         }
         Ok(key)
     }
@@ -640,12 +623,12 @@ impl<'a> Parser<'a> {
         if depth > MAX_DEPTH {
             return Err(Error::new("schema nesting too deep"));
         }
-        let obj = match node.v {
+        match node.v {
             Value::Bool(true) => return Ok(Schema::Any),
             Value::Bool(false) => return Ok(Schema::Never),
-            Value::Object(o) => o,
+            Value::Object(_) => {}
             _ => return Err(Error::new("schema must be an object or boolean")),
-        };
+        }
         // `$id` sets the base URI for this schema and everything inside it.
         let node = match node.str("$id").map(|id| node.base.join(id)) {
             Some(Ok(base)) => Node {
@@ -661,7 +644,7 @@ impl<'a> Parser<'a> {
         if let Some(r) = node.str("$ref") {
             parts.push(Schema::Ref(self.schema_ref(&node, r)?));
         }
-        if let Some(base) = self.base_schema(&node, obj, depth)? {
+        if let Some(base) = self.base_schema(&node, depth)? {
             parts.push(base);
         }
         if let Some(all) = node.get("allOf") {
@@ -693,7 +676,7 @@ impl<'a> Parser<'a> {
             _ => Schema::Intersection(parts),
         };
         // OpenAPI 3.0 has no `"null"` type; `nullable: true` adds it.
-        match (self.version, obj.get("nullable")) {
+        match (self.version, node.v.get("nullable")) {
             (_, None) => Ok(schema),
             (Version::V30, Some(Value::Bool(true))) => Ok(nullable(schema)),
             (Version::V30, Some(Value::Bool(false))) => Ok(schema),
@@ -702,6 +685,11 @@ impl<'a> Parser<'a> {
                 "`nullable` is OpenAPI 3.0 syntax; use `type: [..., \"null\"]`",
             )),
         }
+    }
+
+    fn boxed(&mut self, s: Option<Node<'a>>, depth: usize) -> Result<Option<Box<Schema>>, Error> {
+        s.map(|s| self.schema(s, depth + 1).map(Box::new))
+            .transpose()
     }
 
     fn discriminator(&mut self, d: &Node<'a>, variants: &[Schema]) -> Result<Discriminator, Error> {
@@ -747,38 +735,27 @@ impl<'a> Parser<'a> {
     }
 
     /// The part of a schema described by `const`, `enum` and `type`, without composition.
-    fn base_schema(
-        &mut self,
-        node: &Node<'a>,
-        obj: &'a Map<String, Value>,
-        depth: usize,
-    ) -> Result<Option<Schema>, Error> {
-        let types: Vec<&str> = match obj.get("type") {
+    fn base_schema(&mut self, node: &Node<'a>, depth: usize) -> Result<Option<Schema>, Error> {
+        let has = |keys: &[&str]| keys.iter().any(|k| node.v.get(k).is_some());
+        let types: Vec<&str> = match node.v.get("type") {
             Some(Value::String(t)) => vec![t],
             Some(Value::Array(ts)) => ts.iter().filter_map(Value::as_str).collect(),
             Some(_) => return Err(Error::new("`type` must be a string or array")),
-            None if [
+            None if has(&[
                 "properties",
                 "patternProperties",
                 "additionalProperties",
                 "required",
-            ]
-            .iter()
-            .any(|k| obj.contains_key(*k)) =>
+            ]) =>
             {
                 vec!["object"]
             }
-            None if ["items", "prefixItems"]
-                .iter()
-                .any(|k| obj.contains_key(*k)) =>
-            {
-                vec!["array"]
-            }
+            None if has(&["items", "prefixItems"]) => vec!["array"],
             None => vec![],
         };
         let mut variants = types
             .into_iter()
-            .map(|t| self.typed_schema(t, node, obj, depth))
+            .map(|t| self.typed_schema(t, node, depth))
             .collect::<Result<Vec<_>, _>>()?;
         let typed = match variants.len() {
             0 => None,
@@ -790,30 +767,23 @@ impl<'a> Parser<'a> {
             }),
         };
 
-        let base = || typed.clone().map(Box::new);
-        if let Some(c) = obj.get("const") {
+        if let Some(c) = node.v.get("const") {
             return Ok(Some(Schema::Const {
                 value: c.clone(),
-                base: base(),
+                base: typed.map(Box::new),
             }));
         }
-        if let Some(e) = obj.get("enum").and_then(Value::as_array) {
+        if let Some(e) = node.v.get("enum").and_then(Value::as_array) {
             return Ok(Some(Schema::Enum {
                 values: e.clone(),
-                base: base(),
+                base: typed.map(Box::new),
             }));
         }
         Ok(typed)
     }
 
-    fn typed_schema(
-        &mut self,
-        t: &str,
-        node: &Node<'a>,
-        obj: &'a Map<String, Value>,
-        depth: usize,
-    ) -> Result<Schema, Error> {
-        let text = |key| obj.get(key).and_then(Value::as_str).map(String::from);
+    fn typed_schema(&mut self, t: &str, node: &Node<'a>, depth: usize) -> Result<Schema, Error> {
+        let text = |key| node.str(key).map(String::from);
         Ok(match t {
             "null" => Schema::Null,
             "boolean" => Schema::Boolean,
@@ -832,35 +802,31 @@ impl<'a> Parser<'a> {
             }
             "string" => Schema::String {
                 format: text("format"),
-                content_media_type: text("contentMediaType"),
                 content_encoding: match (self.version, text("format").as_deref()) {
                     (Version::V30, Some("byte")) => Some("base64".into()),
                     _ => text("contentEncoding"),
                 },
             },
             "array" => {
-                let prefix_items = match node.get("prefixItems") {
-                    Some(list) => list
-                        .items()
-                        .map(|s| self.schema(s, depth + 1))
-                        .collect::<Result<_, _>>()?,
-                    None => Vec::new(),
-                };
-                let items = match node.get("items") {
-                    Some(s) => Some(Box::new(self.schema(s, depth + 1)?)),
-                    None => None,
-                };
+                let prefix_items = node
+                    .get("prefixItems")
+                    .iter()
+                    .flat_map(|l| l.items())
+                    .map(|s| self.schema(s, depth + 1))
+                    .collect::<Result<_, _>>()?;
+                let items = self.boxed(node.get("items"), depth)?;
                 Schema::Array {
                     prefix_items,
                     items,
                 }
             }
             "object" => {
-                let required: Vec<&str> = obj
+                let required: Vec<&str> = node
                     .get("required")
-                    .and_then(Value::as_array)
-                    .map(|r| r.iter().filter_map(Value::as_str).collect())
-                    .unwrap_or_default();
+                    .iter()
+                    .flat_map(|r| r.items())
+                    .filter_map(|r| r.v.as_str())
+                    .collect();
                 let mut properties = Vec::new();
                 if let Some(props) = node.get("properties") {
                     for (name, s) in props.entries() {
@@ -889,10 +855,7 @@ impl<'a> Parser<'a> {
                         pattern_properties.push((pattern.clone(), self.schema(s, depth + 1)?));
                     }
                 }
-                let additional = match node.get("additionalProperties") {
-                    Some(s) => Some(Box::new(self.schema(s, depth + 1)?)),
-                    None => None,
-                };
+                let additional = self.boxed(node.get("additionalProperties"), depth)?;
                 Schema::Object {
                     properties,
                     pattern_properties,
@@ -952,9 +915,8 @@ fn nullable(s: Schema) -> Schema {
     }
 }
 
-fn param_style(p: &Value, location: Location) -> Result<Style, Error> {
-    let name = p.get("style").and_then(Value::as_str);
-    let style = match (location, name) {
+fn param_style(p: &Node, location: Location) -> Result<Style, Error> {
+    let style = match (location, p.str("style")) {
         (Location::Query, None | Some("form")) => Style::Form,
         (Location::Query, Some("deepObject")) => Style::DeepObject,
         (Location::Path | Location::Header, None | Some("simple")) => Style::Simple,
@@ -970,42 +932,21 @@ fn param_style(p: &Value, location: Location) -> Result<Style, Error> {
     Ok(style)
 }
 
-fn servers(v: Option<&Value>) -> Result<Vec<Server>, Error> {
+fn servers(list: Option<Node>) -> Result<Vec<Server>, Error> {
+    let text = |n: &Node, key| n.str(key).map(String::from);
     let mut out = Vec::new();
-    for s in v.and_then(Value::as_array).into_iter().flatten() {
-        let text = |v: &Value, key| v.get(key).and_then(Value::as_str).map(String::from);
-        let url = text(s, "url").ok_or_else(|| Error::new("server requires `url`"))?;
+    for s in list.iter().flat_map(|l| l.items()) {
+        let url = text(&s, "url").ok_or_else(|| Error::new("server requires `url`"))?;
         let mut variables = Vec::new();
-        for (name, var) in s
-            .get("variables")
-            .and_then(Value::as_object)
-            .into_iter()
-            .flatten()
-        {
+        for (name, var) in s.get("variables").iter().flat_map(|v| v.entries()) {
             variables.push(ServerVariable {
                 name: name.clone(),
-                default: text(var, "default").ok_or_else(|| {
+                default: text(&var, "default").ok_or_else(|| {
                     Error::new(format!("server variable `{name}` requires `default`"))
                 })?,
-                values: var
-                    .get("enum")
-                    .and_then(Value::as_array)
-                    .map(|e| {
-                        e.iter()
-                            .filter_map(Value::as_str)
-                            .map(String::from)
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                description: text(var, "description"),
             });
         }
-        out.push(Server {
-            url,
-            name: text(s, "name"),
-            description: text(s, "description"),
-            variables,
-        });
+        out.push(Server { url, variables });
     }
     Ok(out)
 }
@@ -1028,12 +969,9 @@ fn security_scheme(s: &Node) -> Result<SecuritySchemeKind, Error> {
         },
         Some("http") => SecuritySchemeKind::Http {
             scheme: required("scheme")?.to_ascii_lowercase(),
-            bearer_format: s.str("bearerFormat").map(String::from),
         },
         Some("mutualTLS") => SecuritySchemeKind::MutualTls,
-        Some("oauth2") => SecuritySchemeKind::OAuth2 {
-            metadata_url: s.str("oauth2MetadataUrl").map(String::from),
-        },
+        Some("oauth2") => SecuritySchemeKind::OAuth2,
         Some("openIdConnect") => SecuritySchemeKind::OpenIdConnect {
             url: required("openIdConnectUrl")?,
         },
@@ -1114,7 +1052,6 @@ mod tests {
     fn string() -> Schema {
         Schema::String {
             format: None,
-            content_media_type: None,
             content_encoding: None,
         }
     }
@@ -1213,7 +1150,6 @@ mod tests {
             first(doc("3.0.3", "byte")),
             Schema::String {
                 format: Some("byte".into()),
-                content_media_type: None,
                 content_encoding: Some("base64".into()),
             }
         );

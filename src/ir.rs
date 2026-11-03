@@ -44,8 +44,6 @@ pub struct NamedSchema {
 pub struct Server {
     /// URL template, possibly with `{variable}` placeholders.
     pub url: String,
-    pub name: Option<String>,
-    pub description: Option<String>,
     pub variables: Vec<ServerVariable>,
 }
 
@@ -53,8 +51,6 @@ pub struct Server {
 pub struct ServerVariable {
     pub name: String,
     pub default: String,
-    pub values: Vec<String>,
-    pub description: Option<String>,
 }
 
 impl Server {
@@ -122,12 +118,9 @@ pub enum SecuritySchemeKind {
     Http {
         /// Lowercased, e.g. `bearer` or `basic`.
         scheme: String,
-        bearer_format: Option<String>,
     },
     MutualTls,
-    OAuth2 {
-        metadata_url: Option<String>,
-    },
+    OAuth2,
     OpenIdConnect {
         url: String,
     },
@@ -412,7 +405,6 @@ pub enum Schema {
     },
     String {
         format: Option<String>,
-        content_media_type: Option<String>,
         content_encoding: Option<String>,
     },
     Const {

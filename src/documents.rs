@@ -22,7 +22,7 @@ use url::Url;
 pub struct Documents {
     docs: Vec<Document>,
     /// Absolute URI without fragment -> resource it identifies.
-    resources: HashMap<String, Resource>,
+    resources: HashMap<String, Target>,
     /// (resource URI, `$anchor`) -> JSON pointer in the resource's document.
     anchors: HashMap<(String, String), String>,
     /// URIs that could not be loaded, with the reason.
@@ -37,12 +37,6 @@ struct Document {
     value: Value,
     /// Schema resources (`$id`) inside the document: pointer and base URI.
     ids: Vec<(String, Rc<Url>)>,
-}
-
-#[derive(Clone)]
-struct Resource {
-    doc: usize,
-    pointer: String,
 }
 
 /// A position in a loaded document.
@@ -118,7 +112,7 @@ impl Documents {
         for (pointer, base) in found.ids {
             self.resources.insert(
                 base.to_string(),
-                Resource {
+                Target {
                     doc: i,
                     pointer: pointer.clone(),
                 },
@@ -136,80 +130,68 @@ impl Documents {
         }
     }
 
-    fn add(&mut self, value: Value, retrieval: Url) -> usize {
-        let index = self.docs.len();
+    fn add(&mut self, value: Value, retrieval: Url) -> Target {
         let base = value
             .get("$self")
             .and_then(Value::as_str)
             .and_then(|s| retrieval.join(s).ok())
             .map(without_fragment)
             .unwrap_or_else(|| retrieval.clone());
-        let resource = Resource {
-            doc: index,
+        let resource = Target {
+            doc: self.docs.len(),
             pointer: String::new(),
         };
         self.resources
             .insert(retrieval.to_string(), resource.clone());
-        self.resources.insert(base.to_string(), resource);
+        self.resources.insert(base.to_string(), resource.clone());
         self.docs.push(Document {
             retrieval,
             base: Rc::new(base),
             value,
             ids: Vec::new(),
         });
-        index
+        resource
     }
 
     /// Loads the document identified by `target`, recording a failure instead of
     /// returning it: a `$ref`-like string inside an example must not break loading.
     fn fetch(&mut self, target: &Url) {
         let key = target.to_string();
-        let Some(file) = self.to_file(target) else {
-            let reason = format!(
-                "remote reference `{target}` is not supported; only local files are loaded"
-            );
-            self.failures.insert(key, reason);
-            return;
-        };
-        let loaded = file_path(&file)
-            .ok_or_else(|| format!("`{file}` is not a local file"))
-            .and_then(|path| {
-                let canonical = path
-                    .canonicalize()
-                    .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
-                let url = file_url(&canonical).map_err(|e| e.to_string())?;
-                if let Some(r) = self.resources.get(url.as_str()) {
-                    return Ok(Err(r.clone()));
-                }
-                let source = std::fs::read_to_string(&canonical)
-                    .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
-                let value = crate::load(&source).map_err(|e| format!("{}: {e}", path.display()))?;
-                Ok(Ok((value, url)))
-            });
-        match loaded {
-            Ok(Ok((value, url))) => {
-                let index = self.add(value, url);
-                self.resources.insert(
-                    key,
-                    Resource {
-                        doc: index,
-                        pointer: String::new(),
-                    },
-                );
-            }
-            // Already loaded under another URI.
-            Ok(Err(resource)) => {
+        match self.load(target) {
+            Ok(resource) => {
                 self.resources.insert(key, resource);
             }
-            Err(mut reason) => {
-                if file != *target {
-                    reason.push_str(&format!(
-                        " (mapped from `{target}`; a document identified only by `$self` or `$id` must also be referenced by its file path)"
-                    ));
-                }
+            Err(reason) => {
                 self.failures.insert(key, reason);
             }
         }
+    }
+
+    fn load(&mut self, target: &Url) -> Result<Target, String> {
+        let file = self.to_file(target).ok_or_else(|| {
+            format!("remote reference `{target}` is not supported; only local files are loaded")
+        })?;
+        self.load_file(&file).map_err(|reason| {
+            if file == *target {
+                return reason;
+            }
+            format!(
+                "{reason} (mapped from `{target}`; a document identified only by `$self` or `$id` must also be referenced by its file path)"
+            )
+        })
+    }
+
+    fn load_file(&mut self, file: &Url) -> Result<Target, String> {
+        let path = file_path(file).ok_or_else(|| format!("`{file}` is not a local file"))?;
+        let unreadable = |e| format!("cannot read {}: {e}", path.display());
+        let canonical = path.canonicalize().map_err(unreadable)?;
+        let url = file_url(&canonical).map_err(|e| e.to_string())?;
+        if let Some(r) = self.resources.get(url.as_str()) {
+            return Ok(r.clone()); // already loaded under another URI
+        }
+        let source = std::fs::read_to_string(&canonical).map_err(unreadable)?;
+        let value = crate::load(&source).map_err(|e| format!("{}: {e}", path.display()))?;
+        Ok(self.add(value, url))
     }
 
     /// The local file for a URI: `file:` URIs as-is; others (and `file:` URIs
