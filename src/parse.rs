@@ -1,7 +1,7 @@
 //! Builds the [`ir::Api`](crate::ir::Api) from loaded OpenAPI documents (3.0 to 3.2).
 
 use crate::Error;
-use crate::documents::{Documents, Target};
+use crate::documents::{DocId, Documents, Target};
 use crate::ir::*;
 use serde_json::Value;
 use std::collections::{HashSet, VecDeque};
@@ -63,7 +63,7 @@ fn version(root: &Value) -> Result<Version, Error> {
         _ => Err(Error::new(format!(
             "unsupported OpenAPI version {version}: oasis-gen supports 3.0.x, 3.1.x and 3.2.x"
         ))
-        .about(&root["openapi"])),
+        .about(root.get("openapi").unwrap_or(root))),
     }
 }
 
@@ -280,7 +280,7 @@ impl<'a> Parser<'a> {
                 .about(from.v.get(name).unwrap_or(from.v)));
         }
         let (loc, target) = self.lookup(from, name)?;
-        if loc.doc == 0
+        if loc.doc == DocId::Entry
             && let Some(component) = loc.pointer.strip_prefix("/components/securitySchemes/")
             && self.security_schemes.iter().any(|s| s.key == component)
         {
@@ -386,9 +386,8 @@ impl<'a> Parser<'a> {
         if let Some(id) = &operation_id
             && !self.operation_ids.insert(id.clone())
         {
-            return Err(
-                Error::new(format!("duplicate operationId `{id}`")).about(&op.v["operationId"])
-            );
+            return Err(Error::new(format!("duplicate operationId `{id}`"))
+                .about(op.v.get("operationId").unwrap_or(op.v)));
         }
 
         // Operation-level parameters override path-level ones with the same name and location.
@@ -497,7 +496,7 @@ impl<'a> Parser<'a> {
                 return Err(Error::new(format!(
                     "invalid `in` `{other}`: expected `path`, `query`, `querystring`, `header` or `cookie`"
                 ))
-                .about(&p.v["in"]));
+                .about(p.v.get("in").unwrap_or(p.v)));
             }
             None => return Err(Error::new("missing `in`").about(p.v)),
         };
@@ -654,7 +653,7 @@ impl<'a> Parser<'a> {
     /// recurse.
     fn schema_ref(&mut self, from: &Node<'a>, reference: &str) -> Result<String, Error> {
         let (loc, target) = self.lookup(from, reference)?;
-        if loc.doc == 0
+        if loc.doc == DocId::Entry
             && let Some(name) = loc.pointer.strip_prefix("/components/schemas/")
             && !name.contains('/')
         {
@@ -691,7 +690,8 @@ impl<'a> Parser<'a> {
                 base: Rc::new(base),
             },
             Some(Err(e)) => {
-                return Err(Error::new(format!("invalid `$id`: {e}")).about(&node.v["$id"]));
+                return Err(Error::new(format!("invalid `$id`: {e}"))
+                    .about(node.v.get("$id").unwrap_or(node.v)));
             }
             None => node,
         };
@@ -921,7 +921,8 @@ impl<'a> Parser<'a> {
                 }
             }
             other => {
-                return Err(Error::new(format!("unknown type `{other}`")).about(&node.v["type"]));
+                return Err(Error::new(format!("unknown type `{other}`"))
+                    .about(node.v.get("type").unwrap_or(node.v)));
             }
         })
     }
@@ -987,7 +988,7 @@ fn param_style(p: &Node, location: Location) -> Result<Style, Error> {
                 "style `{s}` for {} parameters is not supported",
                 location.as_str()
             ))
-            .about(&p.v["style"]));
+            .about(p.v.get("style").unwrap_or(p.v)));
         }
     };
     Ok(style)
@@ -1029,7 +1030,7 @@ fn security_scheme(s: &Node) -> Result<SecuritySchemeKind, Error> {
                     return Err(Error::new(format!(
                         "invalid apiKey `in` `{other}`: expected `query`, `header` or `cookie`"
                     ))
-                    .about(&s.v["in"]));
+                    .about(s.v.get("in").unwrap_or(s.v)));
                 }
                 None => return Err(Error::new("security scheme requires `in`").about(s.v)),
             },
@@ -1044,7 +1045,8 @@ fn security_scheme(s: &Node) -> Result<SecuritySchemeKind, Error> {
         },
         Some(other) => {
             return Err(
-                Error::new(format!("unknown security scheme type `{other}`")).about(&s.v["type"]),
+                Error::new(format!("unknown security scheme type `{other}`"))
+                    .about(s.v.get("type").unwrap_or(s.v)),
             );
         }
         None => return Err(Error::new("security scheme requires `type`").about(s.v)),
