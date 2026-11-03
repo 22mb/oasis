@@ -1,5 +1,1 @@
-error: invalid YAML: error: line 1 column 1: unclosed bracket '{'
- --> <input>:1:1
-  |
-1 | {"openapi": "3.1.0", "info": {"title": "t", "version": "1"}, "pat…
-  | ^ unclosed bracket '{'
+error: load-json-bom.json:1:72: EOF while parsing an object

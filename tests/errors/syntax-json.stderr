@@ -1,1 +1,1 @@
-error: invalid JSON: EOF while parsing an object at line 2 column 0
+error: syntax-json.json:2:1: EOF while parsing an object
