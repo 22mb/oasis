@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "wasm": "cargo build --release --locked --target wasm32-unknown-unknown --manifest-path ../playground/Cargo.toml && cp ../playground/target/wasm32-unknown-unknown/release/oasis_playground.wasm .vitepress/theme/oasis.wasm",
+    "wasm": "cargo build --profile wasm --locked --target wasm32-unknown-unknown -p oasis-playground && cp ../target/wasm32-unknown-unknown/wasm/oasis_playground.wasm .vitepress/theme/oasis.wasm",
     "dev": "npm run wasm && vitepress dev",
     "build": "npm run wasm && vitepress build",
     "preview": "vitepress preview"

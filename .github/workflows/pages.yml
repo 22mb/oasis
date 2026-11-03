@@ -6,9 +6,9 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: [site/**, playground/**, src/**, Cargo.toml, tests/fixtures/**, tests/golden/**, .github/workflows/pages.yml]
+    paths: [site/**, playground/**, src/**, Cargo.toml, Cargo.lock, tests/fixtures/**, tests/golden/**, .github/workflows/pages.yml]
   pull_request:
-    paths: [site/**, playground/**, src/**, Cargo.toml, tests/fixtures/**, tests/golden/**, .github/workflows/pages.yml]
+    paths: [site/**, playground/**, src/**, Cargo.toml, Cargo.lock, tests/fixtures/**, tests/golden/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions: {}
@@ -46,8 +46,8 @@ jobs:
           path: |
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
-            playground/target/
-          key: cargo-wasm-${{ env.RUSTC_VERSION }}-${{ hashFiles('playground/Cargo.lock') }}
+            target/
+          key: cargo-wasm-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-wasm-${{ env.RUSTC_VERSION }}-
       # Every English page has a Japanese translation, and the other way around.
       - run: diff <(ls *.md) <(cd ja && ls *.md)

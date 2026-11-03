@@ -41,11 +41,9 @@ jobs:
           key: cargo-rust-v2-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-rust-v2-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
       - run: cargo fmt --check
-      - run: cargo clippy --all-targets --locked -- -D warnings
+      # With the workspace, so that the playground still compiles against the library.
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --locked
-      # The playground is a separate workspace. This checks that its lockfile is
-      # current and that it still compiles against the library.
-      - run: cargo check --locked --manifest-path playground/Cargo.toml
 
   # The release builds these platforms too; testing them here catches path and
   # line-ending differences before a tag is pushed. Linux runs the tests for the

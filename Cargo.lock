@@ -283,6 +283,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "oasis-playground"
+version = "0.0.0"
+dependencies = [
+ "oasis-gen",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

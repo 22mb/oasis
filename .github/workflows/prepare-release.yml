@@ -45,7 +45,6 @@ jobs:
           fi
           sed -i "s/^version = \".*\"$/version = \"$version\"/" Cargo.toml # the package's; dependencies are inline
           cargo check
-          cargo check --manifest-path playground/Cargo.toml
           npx -y git-cliff@2.14.2 --unreleased --tag "v$version" --prepend CHANGELOG.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

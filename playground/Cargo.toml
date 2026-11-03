@@ -11,12 +11,3 @@ crate-type = ["cdylib"]
 
 [dependencies]
 oasis-gen = { path = ".." }
-
-[profile.release]
-lto = true
-codegen-units = 1
-strip = true
-opt-level = "s"
-
-# Not a member of the generator's package.
-[workspace]
