@@ -20,7 +20,10 @@ use std::rc::Rc;
 use url::Url;
 
 pub struct Documents {
-    docs: Vec<Document>,
+    /// The document generation starts from.
+    entry: Document,
+    /// Documents loaded through references, in the order they were found.
+    referenced: Vec<Document>,
     /// Absolute URI without fragment -> resource it identifies.
     resources: HashMap<String, Target>,
     /// (resource URI, `$anchor`) -> JSON pointer in the resource's document.
@@ -42,21 +45,36 @@ struct Document {
     source: Option<String>,
 }
 
+/// A loaded document: the entry document, or one loaded through a reference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum DocId {
+    Entry,
+    Referenced(usize),
+}
+
 /// A position in a loaded document.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Target {
-    pub doc: usize,
+    pub doc: DocId,
     pub pointer: String,
 }
 
-/// Index of the entry document in [`Documents::docs`]: [`Documents::new`]
-/// adds it before the documents it references.
-const ENTRY: usize = 0;
-
-impl Target {
-    /// Whether the position is in the entry document.
-    pub(crate) fn in_entry(&self) -> bool {
-        self.doc == ENTRY
+impl Document {
+    fn new(value: Value, retrieval: Url, file: Option<(String, String)>) -> Document {
+        let base = value
+            .get("$self")
+            .and_then(Value::as_str)
+            .and_then(|s| retrieval.join(s).ok())
+            .map(without_fragment)
+            .unwrap_or_else(|| retrieval.clone());
+        Document {
+            retrieval,
+            base: Rc::new(base),
+            value,
+            ids: Vec::new(),
+            name: file.as_ref().map(|(name, _)| name.clone()),
+            source: file.map(|(_, source)| source),
+        }
     }
 }
 
@@ -75,9 +93,8 @@ impl Documents {
 
     /// Names the entry document in errors, and keeps its text to find their positions.
     pub(crate) fn named(mut self, name: &str, source: &str) -> Documents {
-        let entry = &mut self.docs[ENTRY];
-        entry.name = Some(name.to_string());
-        entry.source = Some(source.to_string());
+        self.entry.name = Some(name.to_string());
+        self.entry.source = Some(source.to_string());
         self
     }
 
@@ -90,14 +107,12 @@ impl Documents {
         }
         let found = match (e.value_address(), e.schema_key()) {
             (Some(address), _) => self
-                .docs
-                .iter()
-                .enumerate()
-                .find_map(|(i, d)| find(&d.value, address).map(|pointer| (i, pointer))),
+                .all()
+                .find_map(|(id, d)| find(&d.value, address).map(|pointer| (id, pointer))),
             (None, Some(key)) => self.schema_target(key),
             (None, None) => None,
         };
-        let doc = &self.docs[found.as_ref().map_or(ENTRY, |(i, _)| *i)];
+        let doc = found.as_ref().map_or(&self.entry, |(id, _)| self.doc(*id));
         let e = match &doc.name {
             Some(name) => e.in_file(name),
             None => e,
@@ -122,24 +137,26 @@ impl Documents {
 
     fn new(root: Value, retrieval: Url) -> Result<Documents, Error> {
         let mut docs = Documents {
-            docs: Vec::new(),
+            entry: Document::new(root, retrieval, None),
+            referenced: Vec::new(),
             resources: HashMap::new(),
             anchors: HashMap::new(),
             failures: HashMap::new(),
         };
-        docs.add(root, retrieval, None);
+        docs.register(DocId::Entry);
+        docs.scan(DocId::Entry);
         // Documents are appended while loading, so iterate by index.
         let mut i = 0;
         let mut mapped = 0;
         loop {
-            while i < docs.docs.len() {
-                docs.scan(i);
+            while i < docs.referenced.len() {
+                docs.scan(DocId::Referenced(i));
                 i += 1;
             }
             // A later document's `$self` can map a URI that failed earlier, and
             // OAS 3.2 §4.1.2.1 forbids giving up before every document is parsed:
             // retry the failures whenever another `$self` has been loaded.
-            let mapping = docs.docs.iter().filter(|d| *d.base != d.retrieval).count();
+            let mapping = docs.all().filter(|(_, d)| *d.base != d.retrieval).count();
             if mapping == mapped {
                 return Ok(docs);
             }
@@ -157,21 +174,21 @@ impl Documents {
         }
     }
 
-    /// Registers the `$id`s and `$anchor`s of document `i` and loads the
+    /// Registers the `$id`s and `$anchor`s of document `id` and loads the
     /// documents it references.
-    fn scan(&mut self, i: usize) {
-        let doc = &self.docs[i];
+    fn scan(&mut self, id: DocId) {
+        let doc = self.doc(id);
         let mut found = Found::default();
         walk(&doc.value, &doc.base, &mut Vec::new(), &mut found);
         for (pointer, base) in found.ids {
             self.resources.insert(
                 base.to_string(),
                 Target {
-                    doc: i,
+                    doc: id,
                     pointer: pointer.clone(),
                 },
             );
-            self.docs[i].ids.push((pointer, base));
+            self.doc_mut(id).ids.push((pointer, base));
         }
         for (resource, anchor, pointer) in found.anchors {
             self.anchors.insert((resource, anchor), pointer);
@@ -184,29 +201,45 @@ impl Documents {
         }
     }
 
+    /// Adds a document loaded through a reference.
     fn add(&mut self, value: Value, retrieval: Url, file: Option<(String, String)>) -> Target {
-        let base = value
-            .get("$self")
-            .and_then(Value::as_str)
-            .and_then(|s| retrieval.join(s).ok())
-            .map(without_fragment)
-            .unwrap_or_else(|| retrieval.clone());
+        self.referenced.push(Document::new(value, retrieval, file));
+        self.register(DocId::Referenced(self.referenced.len() - 1))
+    }
+
+    /// Makes document `id` reachable by its retrieval URI and its `$self`.
+    fn register(&mut self, id: DocId) -> Target {
+        let doc = self.doc(id);
+        let uris = [doc.retrieval.to_string(), doc.base.to_string()];
         let resource = Target {
-            doc: self.docs.len(),
+            doc: id,
             pointer: String::new(),
         };
-        self.resources
-            .insert(retrieval.to_string(), resource.clone());
-        self.resources.insert(base.to_string(), resource.clone());
-        self.docs.push(Document {
-            retrieval,
-            base: Rc::new(base),
-            value,
-            ids: Vec::new(),
-            name: file.as_ref().map(|(name, _)| name.clone()),
-            source: file.map(|(_, source)| source),
-        });
+        for uri in uris {
+            self.resources.insert(uri, resource.clone());
+        }
         resource
+    }
+
+    fn doc(&self, id: DocId) -> &Document {
+        match id {
+            DocId::Entry => &self.entry,
+            DocId::Referenced(i) => &self.referenced[i],
+        }
+    }
+
+    fn doc_mut(&mut self, id: DocId) -> &mut Document {
+        match id {
+            DocId::Entry => &mut self.entry,
+            DocId::Referenced(i) => &mut self.referenced[i],
+        }
+    }
+
+    /// Every loaded document, the entry document first.
+    fn all(&self) -> impl Iterator<Item = (DocId, &Document)> {
+        let referenced = self.referenced.iter().enumerate();
+        std::iter::once((DocId::Entry, &self.entry))
+            .chain(referenced.map(|(i, d)| (DocId::Referenced(i), d)))
     }
 
     /// Loads the document identified by `target`, recording a failure instead of
@@ -260,7 +293,7 @@ impl Documents {
     /// directory contains them.
     fn to_file(&self, target: &Url) -> Option<Url> {
         let mut best: Option<(usize, &Document)> = None;
-        for doc in &self.docs {
+        for (_, doc) in self.all() {
             if *doc.base == doc.retrieval {
                 continue;
             }
@@ -285,15 +318,15 @@ impl Documents {
     }
 
     pub(crate) fn root(&self) -> &Value {
-        &self.docs[ENTRY].value
+        &self.entry.value
     }
 
     pub(crate) fn root_base(&self) -> Rc<Url> {
-        self.docs[ENTRY].base.clone()
+        self.entry.base.clone()
     }
 
     pub(crate) fn value(&self, loc: &Target) -> Option<&Value> {
-        self.docs[loc.doc].value.pointer(&loc.pointer)
+        self.doc(loc.doc).value.pointer(&loc.pointer)
     }
 
     /// Resolves a URI reference against `base`, returning the target and the
@@ -330,7 +363,7 @@ impl Documents {
         if self.value(&loc).is_none() {
             return Err(Error::new(format!("unresolved $ref `{reference}`")));
         }
-        let doc = &self.docs[loc.doc];
+        let doc = self.doc(loc.doc);
         let base = doc
             .ids
             .iter()
@@ -343,17 +376,17 @@ impl Documents {
 
     /// Document and pointer of the schema with key `key` in [`crate::ir::Api::schemas`]:
     /// a component name, or a name made by [`Documents::display`].
-    fn schema_target(&self, key: &str) -> Option<(usize, String)> {
+    fn schema_target(&self, key: &str) -> Option<(DocId, String)> {
         let Some((file, pointer)) = key.split_once('#') else {
             let name = key.replace('~', "~0").replace('/', "~1");
-            return Some((ENTRY, format!("/components/schemas/{name}")));
+            return Some((DocId::Entry, format!("/components/schemas/{name}")));
         };
-        let doc = (0..self.docs.len()).find(|&doc| {
+        let (doc, _) = self.all().find(|&(doc, _)| {
             let start = self.display(&Target {
                 doc,
                 pointer: String::new(),
             });
-            start.strip_suffix('#') == Some(file) || (doc == ENTRY && file.is_empty())
+            start.strip_suffix('#') == Some(file)
         })?;
         Some((doc, pointer.to_string()))
     }
@@ -361,11 +394,11 @@ impl Documents {
     /// A stable, machine-independent name for a location: `#/pointer` in the
     /// entry document, `relative/path.yaml#/pointer` in others.
     pub(crate) fn display(&self, loc: &Target) -> String {
-        if loc.in_entry() {
+        if loc.doc == DocId::Entry {
             return format!("#{}", loc.pointer);
         }
-        let root = &self.docs[ENTRY].retrieval;
-        let target = &self.docs[loc.doc].retrieval;
+        let root = &self.entry.retrieval;
+        let target = &self.doc(loc.doc).retrieval;
         let path = root
             .make_relative(target)
             .unwrap_or_else(|| target.to_string());
@@ -694,7 +727,7 @@ mod tests {
         let (by_path, _) = docs.resolve(&docs.root_base(), "lib/pet.yaml").unwrap();
         let (by_uri, _) = docs.resolve(&docs.root_base(), pet).unwrap();
         assert_eq!(by_path, by_uri);
-        assert_eq!(docs.docs.len(), 3); // the entry, lib/index.yaml and lib/pet.yaml
+        assert_eq!(docs.referenced.len(), 2); // lib/index.yaml and lib/pet.yaml
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

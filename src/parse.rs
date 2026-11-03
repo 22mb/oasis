@@ -1,7 +1,7 @@
 //! Builds the [`ir::Api`](crate::ir::Api) from loaded OpenAPI documents (3.0 to 3.2).
 
 use crate::Error;
-use crate::documents::{Documents, Target};
+use crate::documents::{DocId, Documents, Target};
 use crate::ir::*;
 use serde_json::Value;
 use std::collections::{HashSet, VecDeque};
@@ -280,7 +280,7 @@ impl<'a> Parser<'a> {
                 .about(from.v.get(name).unwrap_or(from.v)));
         }
         let (loc, target) = self.lookup(from, name)?;
-        if loc.in_entry()
+        if loc.doc == DocId::Entry
             && let Some(component) = loc.pointer.strip_prefix("/components/securitySchemes/")
             && self.security_schemes.iter().any(|s| s.key == component)
         {
@@ -653,7 +653,7 @@ impl<'a> Parser<'a> {
     /// recurse.
     fn schema_ref(&mut self, from: &Node<'a>, reference: &str) -> Result<String, Error> {
         let (loc, target) = self.lookup(from, reference)?;
-        if loc.in_entry()
+        if loc.doc == DocId::Entry
             && let Some(name) = loc.pointer.strip_prefix("/components/schemas/")
             && !name.contains('/')
         {
