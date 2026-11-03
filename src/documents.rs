@@ -217,13 +217,14 @@ impl Documents {
 
     fn load_file(&mut self, file: &Url) -> Result<Target, String> {
         let path = file_path(file).ok_or_else(|| format!("`{file}` is not a local file"))?;
-        let unreadable = |e| format!("cannot read {}: {e}", display_path(&path));
-        let canonical = path.canonicalize().map_err(unreadable)?;
+        let unreadable = |path: &Path, e| format!("cannot read {}: {e}", display_path(path));
+        let canonical = path.canonicalize().map_err(|e| unreadable(&path, e))?;
         let url = file_url(&canonical).map_err(|e| e.to_string())?;
         if let Some(r) = self.resources.get(url.as_str()) {
             return Ok(r.clone()); // already loaded under another URI
         }
-        let source = std::fs::read_to_string(&canonical).map_err(unreadable)?;
+        // Canonical, like the current directory it is shown relative to.
+        let source = std::fs::read_to_string(&canonical).map_err(|e| unreadable(&canonical, e))?;
         let name = display_path(&canonical);
         let value = crate::load(&source).map_err(|e| e.in_file(&name).to_string())?;
         Ok(self.add(value, url, Some((name, source))))
