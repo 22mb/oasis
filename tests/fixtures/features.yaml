@@ -461,6 +461,22 @@ components:
       allOf:
         - $ref: "#/components/schemas/Entity"
         - required: [serial, secret, label]
+    # A `$ref` member requires what another member flags: the reference leaves
+    # it out where the flag hides it, so that the type can be satisfied.
+    Signup:
+      allOf:
+        - $ref: "#/components/schemas/Credentials"
+        - type: object
+          properties:
+            id: { type: integer, readOnly: true }
+            password: { type: string, writeOnly: true }
+    Credentials:
+      type: object
+      required: [id, password, email]
+      properties:
+        id: { type: integer }
+        password: { type: string }
+        email: { type: string }
     Holder:
       type: object
       required: [serial]

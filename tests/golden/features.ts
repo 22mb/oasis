@@ -400,6 +400,8 @@ export interface components {
     Serial: $Serial;
     Entity: $Entity;
     Entry: $Entry;
+    Signup: $Signup;
+    Credentials: $Credentials;
     Holder: $Holder;
     Client: $Client;
     Photo: $Photo;
@@ -436,6 +438,7 @@ export interface components {
     Owner: $Owner$Request;
     Entity: $Entity$Request;
     Entry: $Entry$Request;
+    Signup: $Signup$Request;
     Holder: $Holder$Request;
     Stamped: $Stamped$Request;
     Nested: $Nested$Request;
@@ -543,6 +546,19 @@ type $Entry$Request = $Entity$Request & {
   serial?: never;
   secret: {} | null;
   label: {} | null;
+};
+type $Signup = Omit<$Credentials, "password"> & {
+  id?: number;
+  password?: never;
+};
+type $Signup$Request = Omit<$Credentials, "id"> & {
+  id?: never;
+  password?: string;
+};
+type $Credentials = {
+  id: number;
+  password: string;
+  email: string;
 };
 type $Holder = {
   serial: $Serial;
@@ -670,6 +686,8 @@ export type {
   $Serial as Serial,
   $Entity as Entity,
   $Entry as Entry,
+  $Signup as Signup,
+  $Credentials as Credentials,
   $Holder as Holder,
   $Client as Client_2,
   $Photo as Photo,
@@ -704,6 +722,7 @@ export type {
   $Owner$Request as OwnerRequest,
   $Entity$Request as EntityRequest,
   $Entry$Request as EntryRequest,
+  $Signup$Request as SignupRequest,
   $Holder$Request as HolderRequest,
   $Stamped$Request as StampedRequest,
   $Nested$Request as NestedRequest,
