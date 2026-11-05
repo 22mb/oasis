@@ -86,7 +86,7 @@ OpenAPI 3.0 のドキュメントでは、以下のキーワードを次のよ�
 | --- | --- | --- |
 | 逐次的なメディアタイプ（sequential media types）と `itemSchema` | 対応 | JSON Lines、NDJSON、JSON テキストシーケンス、サーバー送信イベント。非同期反復可能オブジェクトとしてストリーミング |
 | `multipart/form-data` のリクエスト本体 | 対応 | スキーマに基づいて型付けし、`FormData` として送信。[フォームの本体](./client#form-bodies)を参照 |
-| その他の `multipart` のリクエスト本体（`multipart/mixed` など） | 未対応 | `FormData` として渡す（`FormData` は常に `multipart/form-data` として送信される） |
+| その他の `multipart` のリクエスト本体（`multipart/mixed` など） | 未対応 | 利用者が組み立てた `Blob` として渡す（`type` にメディアタイプと `boundary` パラメーターを指定） |
 | Encoding Object（`encoding`） | 対応 | `contentType`、`style`、`explode`、`allowReserved` に対応。`FormData` ではパートのヘッダーや入れ子のパートを送信できないため、省略可能な `headers` は除外され、必須のヘッダーや `multipart` のパートは拒否 |
 | `prefixEncoding`、`itemEncoding` | 未対応 | その他の `multipart` メディアタイプにのみ適用される機能 |
 | 型付きのレスポンスヘッダー | 未対応 | |

@@ -24,7 +24,7 @@ export interface paths {
           petId: number;
         };
         contentType?: "application/octet-stream";
-        body: BodyInit;
+        body: Exclude<BodyInit, FormData | URLSearchParams>;
       };
       responses: {
         /** Uploaded. */

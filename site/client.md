@@ -89,10 +89,10 @@ The type of `body` depends on the media type of the request:
 | `application/json`, `*+json` | The schema type |
 | `application/x-www-form-urlencoded` | The schema type, sent form-encoded |
 | `multipart/form-data` | The schema type, with binary parts as `Blob`; `FormData` without a schema |
-| Other `multipart/*` | `FormData` |
+| Other `multipart/*` | `Blob`, whose `type` gives the media type with its `boundary` |
 | `text/*` | `string` |
 | `*/*`, `application/*` | The schema type, or `unknown` |
-| Anything else | `BodyInit` |
+| Anything else | `BodyInit`, except `FormData` and `URLSearchParams` |
 
 `contentType` selects the media type, and the type of `body` follows it. You
 can omit `contentType` when the operation declares only one media type. When

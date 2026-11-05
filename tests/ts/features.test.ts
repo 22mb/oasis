@@ -318,6 +318,13 @@ test("a body for a media type range other than `*/*` is sent as the call names i
   assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [["image/png", "png"]]);
 });
 
+test("a multipart body other than multipart/form-data is a Blob that carries its Content-Type", async () => {
+  const { api, sent } = recording();
+  const type = "multipart/mixed; boundary=b";
+  await api.POST("/batch", { contentType: "multipart/mixed", body: new Blob(["--b--"], { type }) });
+  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [[type, "--b--"]]);
+});
+
 test("a form querystring takes fields or an encoded string", async () => {
   const { api, sent } = recording();
   await api.GET("/blobs", { querystring: { a: 1, b: [2, 3], c: null } });

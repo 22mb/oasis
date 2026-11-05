@@ -244,10 +244,10 @@ export interface paths {
         };
       } & ({
         contentType: "image/png";
-        body?: BodyInit;
+        body?: Exclude<BodyInit, FormData | URLSearchParams>;
       } | {
         contentType: "image/jpeg";
-        body?: BodyInit;
+        body?: Exclude<BodyInit, FormData | URLSearchParams>;
       } | {
         contentType?: never;
         body?: never;
@@ -268,10 +268,26 @@ export interface paths {
         };
       } | {
         contentType: `image/${string}`;
-        body: BodyInit;
+        body: Exclude<BodyInit, FormData | URLSearchParams>;
       };
       responses: {
         /** Saved. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+  };
+  "/batch": {
+    POST: {
+      request: {
+        contentType: "multipart/mixed";
+        body: Blob;
+      } | {
+        contentType: "multipart/related";
+        body: Blob;
+      };
+      responses: {
+        /** Done. */
         "204": undefined;
       };
       statuses: Statuses_204_default;

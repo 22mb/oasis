@@ -238,12 +238,13 @@ export type Operations = [
   // Several response media types are a union; a sequence without a schema has unknown items.
   Expect<Equal<Operation<"/params/{list}/{pair}", "GET">["responses"], { "200": { n?: number } | string; "202": AsyncIterable<unknown> }>>,
   // An optional body without an implied media type: either a media type and its body, or neither.
-  // (`BodyInit` as the generated file derives it, for the check without the dom lib.)
+  // A binary body is a `BodyInit` that fetch sends as it is, not a `FormData` or
+  // `URLSearchParams` (derived as the generated file does, for the check without the dom lib).
   Expect<Equal<
     Operation<"/photos/{id}", "PUT">["request"],
     { path: { id: number } } & (
-      | { contentType: "image/png"; body?: NonNullable<RequestInit["body"]> }
-      | { contentType: "image/jpeg"; body?: NonNullable<RequestInit["body"]> }
+      | { contentType: "image/png"; body?: Exclude<NonNullable<RequestInit["body"]>, FormData | URLSearchParams> }
+      | { contentType: "image/jpeg"; body?: Exclude<NonNullable<RequestInit["body"]>, FormData | URLSearchParams> }
       | { contentType?: never; body?: never }
     )
   >>,
@@ -284,6 +285,11 @@ export async function formBodies() {
   await api.POST("/uploads", { contentType: "multipart/form-data", body: new FormData() });
   // @ts-expect-error a binary part is a Blob, not text
   await api.POST("/uploads", { contentType: "multipart/form-data", body: { file: "png", meta: {} } });
+  // Other multipart media types take a `Blob` that carries the media type and its boundary;
+  // a `FormData` would be sent as `multipart/form-data`.
+  await api.POST("/batch", { contentType: "multipart/mixed", body: new Blob([], { type: "multipart/mixed; boundary=b" }) });
+  // @ts-expect-error a FormData is always sent as multipart/form-data
+  await api.POST("/batch", { contentType: "multipart/related", body: new FormData() });
 }
 
 export async function contentTypeHeader() {
@@ -303,6 +309,10 @@ export async function optionalBodies() {
   await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new Blob() });
   // @ts-expect-error a body needs its media type when none is implied
   await api.PUT("/photos/{id}", { path: { id: 1 }, body: new Blob() });
+  // @ts-expect-error fetch would send a FormData as multipart/form-data, not image/png
+  await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new FormData() });
+  // @ts-expect-error ... and URLSearchParams form-encoded
+  await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new URLSearchParams() });
 }
 
 export async function mediaTypeRanges() {
