@@ -312,6 +312,12 @@ test("a body for a media type range is sent by its kind unless the call names on
   ]);
 });
 
+test("a body for a media type range other than `*/*` is sent as the call names it", async () => {
+  const { api, sent } = recording();
+  await api.PUT("/avatar", { contentType: "image/png", body: new Blob(["png"]) });
+  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [["image/png", "png"]]);
+});
+
 test("a form querystring takes fields or an encoded string", async () => {
   const { api, sent } = recording();
   await api.GET("/blobs", { querystring: { a: 1, b: [2, 3], c: null } });

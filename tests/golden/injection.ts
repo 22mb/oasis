@@ -13,9 +13,13 @@ export interface paths {
           /** *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); // */
           "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"?: string;
         };
-        contentType?: string;
+      } & ({
+        contentType: `text/x${string}/\u2028\"'\`\\\${globalthis.__oasis_pwned = 1}`;
         body?: string;
-      };
+      } | {
+        contentType?: never;
+        body?: never;
+      });
       responses: {
         /** *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); // */
         "200": $Pet;
@@ -26,7 +30,7 @@ export interface paths {
   "/forms": {
     POST: {
       request: {
-        contentType?: string;
+        contentType: "multipart/form-data; x=\"*/\u2028'`\\\"";
         body?: {
           "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"?: Blob;
           "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`"?: string;
@@ -34,6 +38,9 @@ export interface paths {
       } | {
         contentType: "application/x-www-form-urlencoded";
         body?: unknown;
+      } | {
+        contentType?: never;
+        body?: never;
       };
       responses: {
         default: unknown;

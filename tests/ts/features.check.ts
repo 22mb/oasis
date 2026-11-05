@@ -304,3 +304,14 @@ export async function optionalBodies() {
   // @ts-expect-error a body needs its media type when none is implied
   await api.PUT("/photos/{id}", { path: { id: 1 }, body: new Blob() });
 }
+
+export async function mediaTypeRanges() {
+  await api.PUT("/avatar", { contentType: "image/png", body: new Blob() });
+  await api.PUT("/avatar", { body: { url: "u" } });
+  // @ts-expect-error a range other than `*/*` needs a media type in it, not the default
+  await api.PUT("/avatar", { body: new Blob() });
+  // @ts-expect-error the media type is outside the range
+  await api.PUT("/avatar", { contentType: "text/plain", body: new Blob() });
+  // `*/*` without a default media type: the body's kind picks one.
+  await api.POST("/blobs", { body: new Blob() });
+}
