@@ -98,7 +98,11 @@ The type of `body` depends on the media type of the request:
 can omit `contentType` when the operation declares only one media type. When
 the operation declares several, you can omit `contentType` to use its first
 `application/json` media type. The body is then sent as that media type,
-exactly as the document declares it, including its parameters (such as `charset`). For a range such as `*/*`, `contentType` accepts any string.
+exactly as the document declares it, including its parameters (such as `charset`). For a range, `contentType` takes a
+media type in it: `` `image/${string}` `` for `image/*`, any string for `*/*`.
+It is required, except for `*/*` when the operation has no `application/json`
+media type: left out, the body is sent as JSON, or as it is when it is a string,
+`Blob`, `FormData` or another `BodyInit`.
 When the request body is optional, you can omit both `body` and `contentType`.
 
 ```ts twoslash

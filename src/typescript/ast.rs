@@ -10,6 +10,9 @@ pub enum Type {
     Name(String),
     /// A string, number, boolean or `null` literal.
     Literal(Value),
+    /// A template literal type: the parts joined by `${string}`, as in
+    /// `` `image/${string}` ``.
+    Template(Vec<String>),
     /// `Name<A, B>`.
     Generic(&'static str, Vec<Type>),
     /// `T["key"]`.
@@ -59,7 +62,7 @@ impl Type {
     pub fn refers_to(&self, name: &str) -> bool {
         match self {
             Type::Name(n) => n == name,
-            Type::Literal(_) => false,
+            Type::Literal(_) | Type::Template(_) => false,
             Type::Generic(_, ts) | Type::Union(ts) | Type::Intersection(ts) => {
                 ts.iter().any(|t| t.refers_to(name))
             }
@@ -75,6 +78,19 @@ impl Type {
         match self {
             Type::Name(n) => out.push_str(n),
             Type::Literal(v) => out.push_str(&literal(v)),
+            Type::Template(parts) => {
+                out.push('`');
+                for (i, part) in parts.iter().enumerate() {
+                    if i > 0 {
+                        out.push_str("${string}");
+                    }
+                    // A string literal's escapes, and those of the template's own syntax.
+                    let quoted = quote(part);
+                    let inner = &quoted[1..quoted.len() - 1];
+                    out.push_str(&inner.replace('`', "\\`").replace('$', "\\$"));
+                }
+                out.push('`');
+            }
             Type::Generic(name, args) => {
                 out.push_str(name);
                 out.push('<');

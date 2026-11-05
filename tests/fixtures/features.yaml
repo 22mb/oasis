@@ -276,6 +276,21 @@ paths:
       responses:
         "204":
           description: Saved, or cleared without a body.
+  /avatar:
+    # A range other than `*/*` takes a media type in it: none is implied.
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+          image/*: {}
+      responses:
+        "204":
+          description: Saved.
   /blobs:
     # No `responses`, and a form querystring without a schema.
     get:

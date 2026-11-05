@@ -24,7 +24,7 @@ paths:
           schema: { type: string, default: *text }
       requestBody:
         content:
-          "text/x*/\u2028\"'`\\":
+          "text/x*/\u2028\"'`\\${globalThis.__oasis_pwned = 1}":
             schema: { type: string }
       responses:
         "200":

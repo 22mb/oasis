@@ -259,6 +259,24 @@ export interface paths {
       statuses: Statuses_204_default;
     };
   };
+  "/avatar": {
+    PUT: {
+      request: {
+        contentType?: "application/json";
+        body: {
+          url?: string;
+        };
+      } | {
+        contentType: `image/${string}`;
+        body: BodyInit;
+      };
+      responses: {
+        /** Saved. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+  };
   "/blobs": {
     GET: {
       request: {
@@ -1386,6 +1404,7 @@ const spec: Spec = {
     "GET /params/{list}/{pair}": { server: "https://operation.example.com", styles: { "query:flat": { explode: false }, "query:deep": { style: "deepObject" } } },
     "PUT /forms/{id}": { contentType: "application/json" },
     "POST /uploads": { encoding: { "multipart/form-data": { file: { contentType: "image/png, image/jpeg" }, photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
+    "PUT /avatar": { contentType: "application/json" },
     "GET /blobs": { querystring: "application/x-www-form-urlencoded" },
     "GET /report": { binary: ["text/csv"] },
   },

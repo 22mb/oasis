@@ -611,11 +611,19 @@ impl<'a> Emitter<'a> {
         // One set of fields per request media type; several become a union.
         let mut variants: Vec<Vec<Member>> = Vec::new();
         if let Some(body) = &op.body {
+            let default = default_media_type(body);
             for c in &body.content {
-                let ct = if c.media_type.contains('*') {
-                    Member::new("contentType", true, Type::name("string"))
+                let range = essence(&c.media_type);
+                let ct = if range == "*/*" {
+                    // Without a default media type, leaving it out sends the body by
+                    // its kind (JSON, or bytes as they are), which `*/*` covers.
+                    Member::new("contentType", default.is_none(), Type::name("string"))
+                } else if range.contains('*') {
+                    // A media type in the range, such as `image/png` for `image/*`.
+                    let parts = range.split('*').map(String::from).collect();
+                    Member::new("contentType", false, Type::Template(parts))
                 } else {
-                    let implied = default_media_type(body) == Some(c.media_type.as_str());
+                    let implied = default == Some(c.media_type.as_str());
                     Member::new("contentType", implied, Type::string(&c.media_type))
                 };
                 let body_field = Member::new("body", !body.required, self.request_body(c));
@@ -623,8 +631,8 @@ impl<'a> Emitter<'a> {
             }
             // An optional body can be left out without naming a media type, also
             // when no media type is implied.
-            let implied = default_media_type(body).is_some()
-                || body.content.iter().any(|c| c.media_type.contains('*'));
+            let implied =
+                default.is_some() || body.content.iter().any(|c| essence(&c.media_type) == "*/*");
             if !body.required && !implied && !variants.is_empty() {
                 variants.push(vec![
                     Member::new("contentType", true, Type::name("never")),
@@ -1398,7 +1406,7 @@ fn default_media_type(body: &Body) -> Option<&str> {
         .content
         .iter()
         .map(|c| c.media_type.as_str())
-        .filter(|m| !m.contains('*'))
+        .filter(|m| !essence(m).contains('*'))
         .collect();
     match declared.as_slice() {
         [only] if body.content.len() == 1 => Some(only),
