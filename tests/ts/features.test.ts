@@ -144,6 +144,20 @@ test("sends static and per-call headers, and is not a thenable", async () => {
   assert.equal(await Promise.resolve(api), api);
 });
 
+test("reads a text/* response the document declares binary as a Blob", async () => {
+  const report = async (status: number, contentType: string) => {
+    const response = () => new Response("a,b\n", { status, headers: { "content-type": contentType } });
+    return (await recording(response).api.GET("/report")).data;
+  };
+  const csv = await report(200, "text/csv; charset=Shift_JIS");
+  assert.ok(csv instanceof Blob);
+  assert.equal(await csv.text(), "a,b\n");
+  // The same media type in another response, declared as text, is still binary.
+  assert.ok((await report(400, "TEXT/CSV")) instanceof Blob);
+  assert.equal(await report(200, "text/plain"), "a,b\n");
+  assert.equal(await report(200, "text/html"), "a,b\n");
+});
+
 test("decodes bodies by status and Content-Type", async () => {
   // `*/*` is typed `unknown`, so every decoding applies.
   const item = (response: () => Response) =>

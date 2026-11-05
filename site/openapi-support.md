@@ -23,7 +23,7 @@ In an OpenAPI 3.0 document, these keywords are handled as follows:
 | --- | --- |
 | `nullable: true` | Adds `null` to the type. On an `enum`, `null` is added even if the list omits it. Other generators read it this way, although under 3.0.3 itself such an `enum` still disallows `null` |
 | `nullable: true` next to a `$ref`, or on an `allOf` with one `$ref` | Adds `null` to the referenced type |
-| `type: string, format: binary` | Raw binary, read as a schema without a `type`: `unknown`, or `Blob` in a multipart body |
+| `type: string, format: binary` | Raw binary, read as a schema without a `type`: `unknown`, or `Blob` in a multipart body or a `text/*` response |
 | `type: string, format: byte` | Base64 text, read as `contentEncoding: base64`: a `string`, sent as an `application/octet-stream` multipart part |
 | `example`, a boolean `exclusiveMinimum` | Ignored |
 

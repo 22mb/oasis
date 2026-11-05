@@ -291,6 +291,24 @@ paths:
       responses:
         "204":
           description: Stored.
+  /report:
+    # A `text/*` schema without a `type` is binary: the operation reads every
+    # response of that media type as a `Blob`. Without a schema, it is text.
+    get:
+      responses:
+        "200":
+          description: The report as a file, or a summary.
+          content:
+            text/csv:
+              schema: {}
+            text/plain:
+              schema: { type: string }
+            text/html: {}
+        "4XX":
+          description: The rows that failed.
+          content:
+            text/csv:
+              schema: { type: string }
 components:
   schemas:
     Account:

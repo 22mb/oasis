@@ -147,13 +147,13 @@ Encoding Object を指定すると、プロパティの送信方法が次のよ�
 | メディアタイプ | `data` |
 | --- | --- |
 | `application/json`、`*+json` | JSON として解析した値。本体が空のときは `undefined` |
-| `text/*`、`application/x-www-form-urlencoded` | `string` |
+| `text/*`、`application/x-www-form-urlencoded` | `string`。スキーマに `type` がない `text/*` は `Blob` |
 | `application/jsonl`、`application/x-ndjson`、`application/json-seq`、`*+json-seq` | 解析した各項目の `AsyncIterable` |
 | `text/event-stream` | `AsyncIterable<{ data, event?, id?, retry? }>` |
 | `*/*`、`application/*` | 型は `unknown`。実際の `Content-Type` に基づいてデコード |
 | その他 | `Blob` |
 
-`HEAD` リクエストと、ステータスコードが `204`、`205`、`304` のレスポンスでは、`data` は `undefined` です。また、`Content-Type` ヘッダーのないレスポンスはテキストとして読み込まれ、本体が空のときは `undefined` になります。逐次的なメディアタイプ（sequential media types）の各項目は、ドキュメントに `itemSchema` があるときは、その `itemSchema` に基づいて型付けされます。
+`HEAD` リクエストと、ステータスコードが `204`、`205`、`304` のレスポンスでは、`data` は `undefined` です。また、`Content-Type` ヘッダーのないレスポンスはテキストとして読み込まれ、本体が空のときは `undefined` になります。スキーマに `type` がない `text/*` のレスポンス（OpenAPI 3.0 では `type: string, format: binary`）は、ダウンロードする CSV ファイルなどのバイナリーデータとして扱われ、`data` は `Blob` になります。このとき、同じ操作で同じメディアタイプを持つほかのレスポンスも `Blob` になります。スキーマのない `text/*` のレスポンスは、テキストとして読み込まれます。逐次的なメディアタイプ（sequential media types）の各項目は、ドキュメントに `itemSchema` があるときは、その `itemSchema` に基づいて型付けされます。
 
 ## エラー {#errors}
 

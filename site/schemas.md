@@ -44,7 +44,7 @@ type PetKind = Pet["kind"];
 | `allOf` | An intersection |
 | `$ref` to a component | That schema's type |
 | A property in `required` but not in `properties` | `{} \| null` (any value except `undefined`) |
-| No schema, or `{}` (also `type: string, format: binary` in OpenAPI 3.0) | `unknown`; `Blob` as a part of a multipart body |
+| No schema, or `{}` (also `type: string, format: binary` in OpenAPI 3.0) | `unknown`; `Blob` as a part of a multipart body or as a `text/*` response |
 
 `title`, `description`, `default`, and `deprecated` become JSDoc comments, so
 they appear in editor hovers. Formats are not converted; see

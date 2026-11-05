@@ -24,10 +24,12 @@ export type Exact = [
   }>>,
 ];
 
-// `format: binary` is raw binary, a `Blob` in a multipart body; `format: byte` is base64 text.
+// `format: binary` is raw binary, a `Blob` in a multipart body and in a `text/*` response;
+// `format: byte` is base64 text.
 export type Binary = [
   Expect<Equal<
     paths["/pets/{petId}/photo"]["POST"]["request"]["body"],
     { file: Blob; extras?: Blob[]; checksum?: string }
   >>,
+  Expect<Equal<paths["/pets/export"]["GET"]["responses"], { "200": Blob }>>,
 ];

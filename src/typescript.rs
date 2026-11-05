@@ -452,6 +452,11 @@ impl<'a> Emitter<'a> {
                 if !encodings.is_empty() {
                     info.push(("encoding".into(), Expr::inline(encodings)));
                 }
+                let binary = self.binary_text(op);
+                if !binary.is_empty() {
+                    let types = binary.iter().map(|mt| Expr::string(mt)).collect();
+                    info.push(("binary".into(), Expr::Array(types)));
+                }
                 if !info.is_empty() {
                     operations.push((format!("{} {}", op.method, item.path), Expr::inline(info)));
                 }
@@ -513,13 +518,19 @@ impl<'a> Emitter<'a> {
         if op.responses.is_empty() {
             responses.push(Member::new("default", false, Type::name("unknown")));
         }
+        let binary = self.binary_text(op);
         for r in &op.responses {
             // Never carries a body on the wire, whatever the document declares.
             let bodiless = op.method == "HEAD" || matches!(r.status, Status::Code(204 | 205 | 304));
             let data = if bodiless || r.content.is_empty() {
                 Type::name("undefined")
             } else {
-                Type::Union(r.content.iter().map(|c| self.response_data(c)).collect())
+                Type::Union(
+                    r.content
+                        .iter()
+                        .map(|c| self.response_data(c, &binary))
+                        .collect(),
+                )
             };
             responses.push(Member::new(r.status.key(), false, data).doc(doc(&r.meta, &[])));
         }
@@ -737,7 +748,27 @@ impl<'a> Emitter<'a> {
         (!fields.is_empty()).then(|| Expr::inline(fields))
     }
 
-    fn response_data(&self, c: &Content) -> Type {
+    /// The `text/*` response media types of `op` whose schema says the body is
+    /// binary (no `type`, or `format: binary` in 3.0), as essences. The runtime
+    /// reads a response of one of them as a `Blob` instead of text, whichever
+    /// response declares it, since it decodes by the actual `Content-Type`.
+    fn binary_text(&self, op: &Operation) -> Vec<String> {
+        let mut found = Vec::new();
+        for c in op.responses.iter().flat_map(|r| &r.content) {
+            let binary = c.kind() == MediaKind::Text
+                && c.schema
+                    .as_ref()
+                    .is_some_and(|s| *self.resolve(s) == Schema::Any);
+            let mt = essence(&c.media_type);
+            if binary && !found.contains(&mt) {
+                found.push(mt);
+            }
+        }
+        found
+    }
+
+    /// `binary` is [`Emitter::binary_text`] of the operation.
+    fn response_data(&self, c: &Content, binary: &[String]) -> Type {
         let kind = c.kind();
         if kind.is_sequential() {
             let item = match (kind, c.sequence_item()) {
@@ -749,6 +780,7 @@ impl<'a> Emitter<'a> {
         }
         match kind {
             MediaKind::Json => self.schema_or_unknown(c.schema.as_ref(), View::Response),
+            MediaKind::Text if covers(binary, &essence(&c.media_type)) => Type::name("Blob"),
             MediaKind::Text | MediaKind::FormUrlEncoded => Type::name("string"),
             // A range such as `*/*` is decoded by the actual Content-Type.
             MediaKind::Unknown => Type::name("unknown"),
@@ -1243,6 +1275,16 @@ fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
 
 /// The media type a request body is sent as when the call names none: the
 /// only one declared, or else the first `application/json` one.
+/// Whether media type `mt`, an essence, is in `types`, itself or within a
+/// range such as `text/*`. The runtime's `decodeBody` matches the same way.
+fn covers(types: &[String], mt: &str) -> bool {
+    types.iter().any(|t| {
+        t == mt
+            || t.strip_suffix('*')
+                .is_some_and(|prefix| prefix.ends_with('/') && mt.starts_with(prefix))
+    })
+}
+
 fn default_media_type(body: &Body) -> Option<&str> {
     let declared: Vec<&str> = body
         .content
@@ -1501,6 +1543,16 @@ fn identifier(key: &str) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn binary_media_types_cover_their_ranges() {
+        let types = ["text/csv".to_string(), "text/*".to_string()];
+        assert!(covers(&types[..1], "text/csv"));
+        assert!(!covers(&types[..1], "text/plain"));
+        assert!(covers(&types[1..], "text/plain"));
+        assert!(!covers(&types[1..], "textual/plain"));
+        assert!(!covers(&types[1..], "application/json"));
+    }
 
     fn generate(schemas: Value) -> Result<String, Error> {
         let doc = json!({"openapi": "3.2.0", "paths": {}, "components": {"schemas": schemas}});
