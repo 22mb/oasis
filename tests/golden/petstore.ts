@@ -148,7 +148,7 @@ export interface paths {
           petId: number;
         };
         contentType?: "image/png";
-        body: BodyInit;
+        body: Exclude<BodyInit, FormData | URLSearchParams>;
       };
       responses: {
         /** Uploaded. */

@@ -683,10 +683,20 @@ impl<'a> Emitter<'a> {
                 {
                     self.ty(s, View::Request)
                 }
-                _ => Type::name("FormData"),
+                _ if essence(&c.media_type) == "multipart/form-data" => Type::name("FormData"),
+                // `FormData` is always sent as `multipart/form-data`. A `Blob` whose
+                // `type` names the media type and its boundary becomes `Content-Type`.
+                _ => Type::name("Blob"),
             },
             MediaKind::Text => Type::name("string"),
-            _ => Type::name("BodyInit"),
+            // Sent as it is. Fetch encodes these two in formats of their own.
+            _ => Type::Generic(
+                "Exclude",
+                vec![
+                    Type::name("BodyInit"),
+                    Type::Union(vec![Type::name("FormData"), Type::name("URLSearchParams")]),
+                ],
+            ),
         }
     }
 

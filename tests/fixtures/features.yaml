@@ -291,6 +291,21 @@ paths:
       responses:
         "204":
           description: Saved.
+  /batch:
+    # A multipart body other than `multipart/form-data`, with or without a schema.
+    post:
+      requestBody:
+        required: true
+        content:
+          multipart/mixed:
+            schema:
+              type: object
+              properties:
+                a: { type: string }
+          multipart/related: {}
+      responses:
+        "204":
+          description: Done.
   /blobs:
     # No `responses`, and a form querystring without a schema.
     get:
