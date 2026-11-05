@@ -61,11 +61,13 @@ fn emit(api: &ir::Api, lang: Lang) -> Result<String, Error> {
 pub fn load(source: &str) -> Result<serde_json::Value, Error> {
     // A byte order mark is not part of the document.
     let source = source.strip_prefix('\u{feff}').unwrap_or(source);
-    if source.trim_start().starts_with('{') {
-        serde_json::from_str(source).map_err(json_error)
-    } else {
-        serde_saphyr::from_str_with_options(source, yaml_options(source)).map_err(yaml_error)
+    let yaml = || serde_saphyr::from_str_with_options(source, yaml_options(source));
+    if !source.trim_start().starts_with('{') {
+        return yaml().map_err(yaml_error);
     }
+    // JSON is YAML, and so is a flow-style YAML document that is not JSON. When
+    // neither reads it, the JSON error is the one that describes the input.
+    serde_json::from_str(source).or_else(|e| yaml().map_err(|_| json_error(e)))
 }
 
 /// YAML 1.2 booleans only (`yes`/`no`/`on`/`off`/`y`/`n` stay strings), and
@@ -251,6 +253,15 @@ mod tests {
         assert!(err.starts_with("1:4: "), "{err}");
         // A byte order mark does not hide JSON.
         assert!(load("\u{feff}{\"a\": 1}").is_ok());
+    }
+
+    #[test]
+    fn loads_flow_style_yaml() {
+        let v = load("{openapi: 3.1.0, tags: [a, yes]}\n").unwrap();
+        assert_eq!(
+            v,
+            serde_json::json!({"openapi": "3.1.0", "tags": ["a", "yes"]})
+        );
     }
 
     #[test]
