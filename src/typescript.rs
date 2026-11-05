@@ -6,7 +6,7 @@ use crate::Error;
 use crate::ir::*;
 use ast::{Expr, Item, Member, Type, quote};
 use serde_json::Value;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 const RUNTIME: &str = include_str!("typescript/runtime.ts");
 
@@ -141,6 +141,25 @@ fn mark(s: &mut Schema, flagged: &(HashSet<String>, HashSet<String>)) {
         Schema::Intersection(parts) => parts.iter_mut().for_each(|p| mark(p, flagged)),
         _ => {}
     }
+}
+
+/// The properties of the object members of `parts`, an `allOf`, that are
+/// absent from `view`: `readOnly` ones from requests, `writeOnly` ones from
+/// responses.
+fn hidden_in(parts: &[Schema], view: View) -> BTreeSet<&str> {
+    parts
+        .iter()
+        .filter_map(|p| match p {
+            Schema::Object { properties, .. } => Some(properties),
+            _ => None,
+        })
+        .flatten()
+        .filter(|p| match view {
+            View::Request => p.meta.read_only,
+            View::Response => p.meta.write_only,
+        })
+        .map(|p| p.name.as_str())
+        .collect()
 }
 
 /// Which side of the wire a type describes. `readOnly` properties are absent
@@ -858,8 +877,88 @@ impl<'a> Emitter<'a> {
                     .collect(),
             ),
             Schema::Intersection(parts) => {
-                Type::Intersection(parts.iter().map(|p| self.composed(p, view)).collect())
+                let hidden = hidden_in(parts, view);
+                Type::Intersection(
+                    parts
+                        .iter()
+                        .map(|p| {
+                            let t = self.composed(p, view);
+                            match p {
+                                Schema::Ref(_) => self.omit(t, p, &hidden, view),
+                                _ => t,
+                            }
+                        })
+                        .collect(),
+                )
             }
+        }
+    }
+
+    /// `t`, the type of `$ref` member `s` of an `allOf`, without the properties
+    /// in `hidden` that it shows in `view`. Another member flags them
+    /// `readOnly` or `writeOnly`, so they are `?: never` in this view, but the
+    /// shared target cannot be flagged and may require them: `number & never`
+    /// would make every value fail. A union target keeps its type, since
+    /// `Omit` would merge its members, and so does one with an index
+    /// signature, which `Omit` would keep alone.
+    fn omit(&self, t: Type, s: &Schema, hidden: &BTreeSet<&str>, view: View) -> Type {
+        let mut declared = HashSet::new();
+        if hidden.is_empty() || !self.declared(s, view, &mut declared, &mut Vec::new()) {
+            return t;
+        }
+        let names: Vec<Type> = hidden
+            .iter()
+            .filter(|n| declared.contains(**n))
+            .map(|n| Type::string(n))
+            .collect();
+        match names.len() {
+            0 => t,
+            1 => Type::Generic("Omit", vec![t, names.into_iter().next().unwrap()]),
+            _ => Type::Generic("Omit", vec![t, Type::Union(names)]),
+        }
+    }
+
+    /// Adds the names of the properties `s` declares and shows in `view`,
+    /// through `$ref` and `allOf`, to `names`; false where `s` is or contains a
+    /// union or an object with an index signature.
+    fn declared<'s>(
+        &'s self,
+        s: &'s Schema,
+        view: View,
+        names: &mut HashSet<&'s str>,
+        visiting: &mut Vec<&'s str>,
+    ) -> bool {
+        match s {
+            Schema::Ref(k) if visiting.contains(&k.as_str()) => true,
+            Schema::Ref(k) => {
+                visiting.push(k);
+                let target = &self.schemas[k.as_str()].schema;
+                let ok = self.declared(target, view, names, visiting);
+                visiting.pop();
+                ok
+            }
+            Schema::Object {
+                pattern_properties,
+                additional,
+                ..
+            } if !pattern_properties.is_empty()
+                || additional.as_deref().is_some_and(|a| *a != Schema::Never) =>
+            {
+                false
+            }
+            Schema::Object { properties, .. } => {
+                let shown = properties.iter().filter(|p| match view {
+                    View::Request => !p.meta.read_only,
+                    View::Response => !p.meta.write_only,
+                });
+                names.extend(shown.map(|p| p.name.as_str()));
+                true
+            }
+            Schema::Intersection(parts) => parts
+                .iter()
+                .all(|p| self.declared(p, view, names, visiting)),
+            Schema::Union { .. } => false,
+            _ => true,
         }
     }
 
@@ -1135,17 +1234,26 @@ impl<'a> Emitter<'a> {
                     .collect();
                 vec![Type::Union(types)]
             }
-            Schema::Intersection(parts) => parts
-                .iter()
-                .flat_map(|p| match p {
-                    Schema::Object { .. }
-                    | Schema::Union {
-                        kind: UnionKind::Types,
-                        ..
-                    } => vec![self.composed(p, view)],
-                    _ => self.eager(p, d, true),
-                })
-                .collect(),
+            Schema::Intersection(parts) => {
+                let hidden = hidden_in(parts, view);
+                let mut types = Vec::new();
+                for p in parts {
+                    match p {
+                        Schema::Object { .. }
+                        | Schema::Union {
+                            kind: UnionKind::Types,
+                            ..
+                        } => types.push(self.composed(p, view)),
+                        Schema::Ref(k) if !self.enumerates(k, d.key) => types.extend(
+                            self.eager(p, d, true)
+                                .into_iter()
+                                .map(|t| self.omit(t, p, &hidden, view)),
+                        ),
+                        _ => types.extend(self.eager(p, d, true)),
+                    }
+                }
+                types
+            }
             _ => vec![self.ty(s, view)],
         }
     }
