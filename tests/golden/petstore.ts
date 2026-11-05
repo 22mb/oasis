@@ -884,7 +884,8 @@ async function* events(response: Response): AsyncGenerator<ServerSentEvent> {
     let value = colon < 0 ? "" : line.slice(colon + 1);
     if (value.startsWith(" ")) value = value.slice(1);
     if (field === "data") data.push(value);
-    else if (field === "event") event = value;
+    // An empty type is the default `message`, the same as no `event` line.
+    else if (field === "event") event = value || undefined;
     else if (field === "id") state.id = value;
     else if (field === "retry" && /^\d+$/.test(value)) state.retry = Number(value);
   }

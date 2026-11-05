@@ -51,7 +51,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     case "GET /v1/stream/sse":
       return stream("text/event-stream", [
         "retry: 10\n\n: comment\r\nevent: greet\r\ndata: hello\r\ndata: wor",
-        "ld\r\nid: 7\r\n\r\ndata: {\"n\":1}\n\nid: 8\n\ndata: x\n\n",
+        "ld\r\nid: 7\r\n\r\ndata: {\"n\":1}\n\nid: 8\n\ndata: x\n\nevent: greet\nevent:\ndata: y\n\n",
         "data: trailing-without-blank-line",
       ]);
     default:
@@ -188,11 +188,13 @@ test("streams server-sent events", async () => {
   const events = [];
   for await (const e of res.data) events.push(e);
   // `retry` and `id` persist: the second event has no `id` line of its own, and the
-  // `id: 8` block dispatches nothing but applies to the event after it.
+  // `id: 8` block dispatches nothing but applies to the event after it. An empty
+  // `event:` resets the type to the default, the same as no `event` line.
   assert.deepEqual(events, [
     { retry: 10, event: "greet", id: "7", data: "hello\nworld" },
     { retry: 10, id: "7", data: '{"n":1}' },
     { retry: 10, id: "8", data: "x" },
+    { retry: 10, id: "8", data: "y" },
   ]);
 });
 
