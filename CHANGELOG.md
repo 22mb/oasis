@@ -5,6 +5,18 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.6.0](https://github.com/22mb/oasis/compare/v0.5.1...v0.6.0) - 2026-11-06
+
+### Fixed
+
+- **Breaking:** Read a text response the document declares binary as a Blob ([#69](https://github.com/22mb/oasis/pull/69))
+- Leave a flagged property out of an allOf member's $ref ([#70](https://github.com/22mb/oasis/pull/70))
+- Treat an empty server-sent event type as the default ([#71](https://github.com/22mb/oasis/pull/71))
+- Read a flow-style YAML document that is not JSON ([#72](https://github.com/22mb/oasis/pull/72))
+- **Breaking:** Take a media type in the range for a request body declared by a range ([#73](https://github.com/22mb/oasis/pull/73))
+- **Breaking:** Accept only a request body that is sent as its declared media type ([#74](https://github.com/22mb/oasis/pull/74))
+- Leave out a property that another allOf $ref member flags ([#75](https://github.com/22mb/oasis/pull/75))
+
 ## [0.5.1](https://github.com/22mb/oasis/compare/v0.5.0...v0.5.1) - 2026-11-03
 
 ### Fixed
