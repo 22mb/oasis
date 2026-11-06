@@ -21,11 +21,8 @@ pub fn emit(api: &Api) -> Result<String, Error> {
 /// a flagged schema, and one that an `allOf` member names (often only in
 /// `required`) while another member flags it.
 fn inherit_access(api: &mut Api) {
-    let schemas: HashMap<String, NamedSchema> = api
-        .schemas
-        .iter()
-        .map(|s| (s.key.clone(), s.clone()))
-        .collect();
+    let owned = api.schemas.clone();
+    let schemas: HashMap<&str, &NamedSchema> = owned.iter().map(|s| (s.key.as_str(), s)).collect();
     let mut fix = |s: &mut Schema| match s {
         Schema::Object { properties, .. } => {
             for p in properties {
@@ -35,10 +32,7 @@ fn inherit_access(api: &mut Api) {
             }
         }
         Schema::Intersection(parts) => {
-            let mut flagged = (HashSet::new(), HashSet::new());
-            for p in parts.iter() {
-                flagged_properties(p, &schemas, &mut flagged, &mut Vec::new());
-            }
+            let flagged = flagged_in(parts, &schemas);
             for p in parts {
                 mark(p, &flagged);
             }
@@ -71,12 +65,12 @@ fn inherit_access(api: &mut Api) {
 /// `allOf` alone; `visiting` guards against `$ref` cycles.
 fn access<'s>(
     s: &'s Schema,
-    schemas: &'s HashMap<String, NamedSchema>,
+    schemas: &HashMap<&str, &'s NamedSchema>,
     visiting: &mut Vec<&'s str>,
 ) -> (bool, bool) {
     match s {
         Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
-            let Some(n) = schemas.get(k) else {
+            let Some(n) = schemas.get(k.as_str()) else {
                 return (false, false);
             };
             visiting.push(k);
@@ -92,12 +86,25 @@ fn access<'s>(
     }
 }
 
+/// The names of the `readOnly` and `writeOnly` properties of `parts`, an
+/// `allOf`, with nested `allOf` members and `$ref` targets flattened.
+fn flagged_in(
+    parts: &[Schema],
+    schemas: &HashMap<&str, &NamedSchema>,
+) -> (BTreeSet<String>, BTreeSet<String>) {
+    let mut flagged = (BTreeSet::new(), BTreeSet::new());
+    for p in parts {
+        flagged_properties(p, schemas, &mut flagged, &mut Vec::new());
+    }
+    flagged
+}
+
 /// Adds the names of the `readOnly` and `writeOnly` properties of `s`, with
 /// `allOf` members and `$ref` targets flattened, to `flagged`.
 fn flagged_properties<'s>(
     s: &'s Schema,
-    schemas: &'s HashMap<String, NamedSchema>,
-    flagged: &mut (HashSet<String>, HashSet<String>),
+    schemas: &HashMap<&str, &'s NamedSchema>,
+    flagged: &mut (BTreeSet<String>, BTreeSet<String>),
     visiting: &mut Vec<&'s str>,
 ) {
     match s {
@@ -118,7 +125,7 @@ fn flagged_properties<'s>(
             }
         }
         Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
-            if let Some(n) = schemas.get(k) {
+            if let Some(n) = schemas.get(k.as_str()) {
                 visiting.push(k);
                 flagged_properties(&n.schema, schemas, flagged, visiting);
                 visiting.pop();
@@ -130,7 +137,7 @@ fn flagged_properties<'s>(
 
 /// Flags the properties of the object members of `s` (an `allOf` member) that
 /// `flagged` names.
-fn mark(s: &mut Schema, flagged: &(HashSet<String>, HashSet<String>)) {
+fn mark(s: &mut Schema, flagged: &(BTreeSet<String>, BTreeSet<String>)) {
     match s {
         Schema::Object { properties, .. } => {
             for p in properties {
@@ -141,25 +148,6 @@ fn mark(s: &mut Schema, flagged: &(HashSet<String>, HashSet<String>)) {
         Schema::Intersection(parts) => parts.iter_mut().for_each(|p| mark(p, flagged)),
         _ => {}
     }
-}
-
-/// The properties of the object members of `parts`, an `allOf`, that are
-/// absent from `view`: `readOnly` ones from requests, `writeOnly` ones from
-/// responses.
-fn hidden_in(parts: &[Schema], view: View) -> BTreeSet<&str> {
-    parts
-        .iter()
-        .filter_map(|p| match p {
-            Schema::Object { properties, .. } => Some(properties),
-            _ => None,
-        })
-        .flatten()
-        .filter(|p| match view {
-            View::Request => p.meta.read_only,
-            View::Response => p.meta.write_only,
-        })
-        .map(|p| p.name.as_str())
-        .collect()
 }
 
 /// Which side of the wire a type describes. `readOnly` properties are absent
@@ -895,7 +883,7 @@ impl<'a> Emitter<'a> {
                     .collect(),
             ),
             Schema::Intersection(parts) => {
-                let hidden = hidden_in(parts, view);
+                let hidden = self.hidden_in(parts, view);
                 Type::Intersection(
                     parts
                         .iter()
@@ -912,6 +900,16 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// The properties of `parts`, an `allOf`, that are absent from `view`:
+    /// `readOnly` ones from requests, `writeOnly` ones from responses.
+    fn hidden_in(&self, parts: &[Schema], view: View) -> BTreeSet<String> {
+        let (read_only, write_only) = flagged_in(parts, &self.schemas);
+        match view {
+            View::Request => read_only,
+            View::Response => write_only,
+        }
+    }
+
     /// `t`, the type of `$ref` member `s` of an `allOf`, without the properties
     /// in `hidden` that it shows in `view`. Another member flags them
     /// `readOnly` or `writeOnly`, so they are `?: never` in this view, but the
@@ -919,14 +917,14 @@ impl<'a> Emitter<'a> {
     /// would make every value fail. A union target keeps its type, since
     /// `Omit` would merge its members, and so does one with an index
     /// signature, which `Omit` would keep alone.
-    fn omit(&self, t: Type, s: &Schema, hidden: &BTreeSet<&str>, view: View) -> Type {
+    fn omit(&self, t: Type, s: &Schema, hidden: &BTreeSet<String>, view: View) -> Type {
         let mut declared = HashSet::new();
         if hidden.is_empty() || !self.declared(s, view, &mut declared, &mut Vec::new()) {
             return t;
         }
         let names: Vec<Type> = hidden
             .iter()
-            .filter(|n| declared.contains(**n))
+            .filter(|n| declared.contains(n.as_str()))
             .map(|n| Type::string(n))
             .collect();
         match names.len() {
@@ -1253,7 +1251,7 @@ impl<'a> Emitter<'a> {
                 vec![Type::Union(types)]
             }
             Schema::Intersection(parts) => {
-                let hidden = hidden_in(parts, view);
+                let hidden = self.hidden_in(parts, view);
                 let mut types = Vec::new();
                 for p in parts {
                     match p {
