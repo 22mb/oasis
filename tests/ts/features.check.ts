@@ -29,6 +29,8 @@ export type Exact = [
   // A `$ref` member that requires a property another member flags leaves it out where it is hidden.
   Expect<Equal<Flat<schemas["Signup"]>, { id: number; email: string; password?: never }>>,
   Expect<Equal<Flat<components["requestSchemas"]["Signup"]>, { password: string; email: string; id?: never }>>,
+  Expect<Equal<Flat<schemas["Login"]>, { id: number; email: string; password?: never }>>,
+  Expect<Equal<Flat<components["requestSchemas"]["Login"]>, { password: string; email: string; id?: never }>>,
   Expect<Equal<schemas["Holder"], { serial: number }>>,
   Expect<Equal<components["requestSchemas"]["Holder"], { serial?: never }>>,
   // Recursion through an array or index signature at the top of a schema.
