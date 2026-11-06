@@ -5,6 +5,32 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.6.0](https://github.com/22mb/oasis/compare/v0.5.1...v0.6.0) - 2026-11-06
+
+### Fixed
+
+- **Breaking:** A `text/*` response whose schema has no `type` (binary data;
+  `type: string, format: binary` in 3.0) was read as UTF-8 text, so a CSV in
+  Shift_JIS, for example, lost its bytes. It is now typed and read as a `Blob`.
+  Use `await data.text()` where text was wanted.
+  ([#69](https://github.com/22mb/oasis/pull/69))
+- Leave a flagged property out of an allOf member's $ref ([#70](https://github.com/22mb/oasis/pull/70))
+- Treat an empty server-sent event type as the default ([#71](https://github.com/22mb/oasis/pull/71))
+- Read a flow-style YAML document that is not JSON ([#72](https://github.com/22mb/oasis/pull/72))
+- **Breaking:** A request body declared by a media type range such as
+  `image/*` could leave out `contentType`, and was then sent as another of the
+  operation's media types. `contentType` is now required and typed by the range
+  (`` `image/${string}` ``). For `*/*` it stays a `string`, required only when
+  the operation also has `application/json`.
+  ([#73](https://github.com/22mb/oasis/pull/73))
+- **Breaking:** A request body could be a value that fetch sends as another
+  media type. A multipart body other than `multipart/form-data` is now a `Blob`
+  instead of `FormData`: build it yourself and give the `Blob` a `type` with
+  the boundary, such as `multipart/mixed; boundary=b`. A binary body no longer
+  takes `FormData` or `URLSearchParams`.
+  ([#74](https://github.com/22mb/oasis/pull/74))
+- Leave out a property that another allOf $ref member flags ([#75](https://github.com/22mb/oasis/pull/75))
+
 ## [0.5.1](https://github.com/22mb/oasis/compare/v0.5.0...v0.5.1) - 2026-11-03
 
 ### Fixed
