@@ -790,10 +790,9 @@ impl<'a> Emitter<'a> {
                 (name.clone(), Expr::inline(vec![e]))
             })
             .collect();
-        if multipart
-            && let Some(Schema::Object { properties, .. }) =
-                c.schema.as_ref().map(|s| self.resolve(s))
-        {
+        if multipart && let Some(s) = &c.schema {
+            let mut properties = Vec::new();
+            self.parts(s, &mut Vec::new(), &mut properties);
             for p in properties {
                 let encoded = |s: &Schema| {
                     matches!(
@@ -808,7 +807,7 @@ impl<'a> Emitter<'a> {
                     Schema::Array { items: Some(i), .. } => encoded(i),
                     s => encoded(s),
                 };
-                if binary && !c.encoding.iter().any(|(name, _)| *name == p.name) {
+                if binary && !fields.iter().any(|(name, _)| *name == p.name) {
                     let octets = Expr::string("application/octet-stream");
                     fields.push((
                         p.name.clone(),
@@ -818,6 +817,30 @@ impl<'a> Emitter<'a> {
             }
         }
         (!fields.is_empty()).then(|| Expr::inline(fields))
+    }
+
+    /// The properties of `multipart/form-data` body schema `s`, through the
+    /// schemas that [`Emitter::form_data`] follows.
+    fn parts<'s>(
+        &'s self,
+        s: &'s Schema,
+        visiting: &mut Vec<&'s str>,
+        out: &mut Vec<&'s Property>,
+    ) {
+        match s {
+            Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
+                visiting.push(k);
+                self.parts(&self.schemas[k.as_str()].schema, visiting, out);
+                visiting.pop();
+            }
+            Schema::Object { properties, .. } => out.extend(properties),
+            Schema::Union { variants: ss, .. } | Schema::Intersection(ss) => {
+                for s in ss {
+                    self.parts(s, visiting, out);
+                }
+            }
+            _ => {}
+        }
     }
 
     /// The `text/*` response media types of `op` whose schema says the body is

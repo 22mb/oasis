@@ -208,6 +208,7 @@ export interface paths {
           file: Blob;
         }, "id"> & {
           thumbnail?: Blob;
+          checksum?: string;
           id?: never;
         };
       };
@@ -1519,7 +1520,7 @@ const spec: Spec = {
     "POST /lookup": { querystring: "text/plain" },
     "GET /params/{list}/{pair}": { server: "https://operation.example.com", styles: { "query:flat": { explode: false }, "query:deep": { style: "deepObject" } } },
     "PUT /forms/{id}": { contentType: "application/json" },
-    "POST /avatars": { contentType: "multipart/form-data" },
+    "POST /avatars": { contentType: "multipart/form-data", encoding: { "multipart/form-data": { checksum: { contentType: "application/octet-stream" } } } },
     "POST /imports": { contentType: "multipart/form-data" },
     "POST /uploads": { encoding: { "multipart/form-data": { file: { contentType: "image/png, image/jpeg" }, photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
     "PUT /avatar": { contentType: "application/json" },

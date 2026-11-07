@@ -220,7 +220,8 @@ paths:
         "204":
           description: Saved.
   # Parts are typed so also in a body composed with `allOf` or `oneOf`, through
-  # the schemas it references.
+  # the schemas it references, and encoded binary strings among them are sent
+  # as `application/octet-stream`.
   /avatars:
     post:
       requestBody:
@@ -232,6 +233,7 @@ paths:
                 - $ref: "#/components/schemas/Upload"
                 - properties:
                     thumbnail: {}
+                    checksum: { type: string, contentEncoding: base64 }
                     id: { type: integer, readOnly: true }
       responses:
         "204": { description: Saved. }
