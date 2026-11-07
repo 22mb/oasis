@@ -209,6 +209,44 @@ test("auth sets cookie API keys once, encoded, replacing an existing cookie", as
   expect(s.requests[1]!.headers.get("cookie")).toBe("theme=dark; sid=s%201%3Bx");
 });
 
+test("auth sends a resent request with only the credentials chosen for it", async () => {
+  // The same Request object is sent twice, so record what each send carried.
+  const sent: [string, string | null][] = [];
+  const fetch = async (request: Request) => {
+    const url = new URL(request.url);
+    sent.push([url.pathname + url.search, request.headers.get("authorization")]);
+    return new Response(null, { status: 401 });
+  };
+  const retry: Middleware = async (request, next) => {
+    const first = await next(request);
+    return first.status === 401 ? next(request) : first;
+  };
+  // Basic first; then the query key, which comes first in the requirements.
+  let tries = 0;
+  const reports = createClient({
+    fetch,
+    middleware: [retry, auth({ queryKey: () => (tries++ === 0 ? undefined : "k"), basic: "u:p" })],
+  });
+  await reports.GET("/reports");
+  // A token, then none: the request goes without credentials.
+  let token: string | undefined = "t1";
+  const pets = createClient({
+    fetch: async (request) => {
+      const response = await fetch(request);
+      token = undefined;
+      return response;
+    },
+    middleware: [retry, auth({ bearer: () => token })],
+  });
+  await pets.GET("/pets");
+  expect(sent).toStrictEqual([
+    ["/reports", "Basic dTpw"],
+    ["/reports?api_key=k", null],
+    ["/pets", "Bearer t1"],
+    ["/pets", null],
+  ]);
+});
+
 test("synchronous throws reach middleware as rejections", async () => {
   const fallback: Middleware = (request, next) => next(request).catch(() => Response.json([]));
   const broken: Middleware = () => {
