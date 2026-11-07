@@ -147,17 +147,19 @@ test("reads a text/* response the document declares binary as a Blob", async () 
   const csv = await report(200, "text/csv; charset=Shift_JIS");
   expect(csv).toBeInstanceOf(Blob);
   expect(await (csv as Blob).text()).toBe("a,b\n");
-  // The same media type in another response, declared as text, is still binary.
-  expect(await report(400, "TEXT/CSV")).toBeInstanceOf(Blob);
+  // The same media type in another response, declared as text, is text there.
+  expect(await report(400, "TEXT/CSV")).toBe("a,b\n");
   expect(await report(200, "text/plain")).toBe("a,b\n");
   expect(await report(200, "text/html")).toBe("a,b\n");
   // A binary range covers every media type in it, and no other.
-  const exported = async (contentType: string) => {
-    const response = () => new Response("1", { headers: { "content-type": contentType } });
+  const exported = async (contentType: string, status = 200) => {
+    const response = () => new Response("1", { status, headers: { "content-type": contentType } });
     return (await recording(response).api.GET("/exports")).data as unknown;
   };
   expect(await exported("text/markdown; charset=utf-8")).toBeInstanceOf(Blob);
   expect(await exported("application/json")).toBe(1);
+  // ... in the responses it is declared for.
+  expect(await exported("text/plain", 404)).toBe("1");
 });
 
 test("decodes bodies by status and Content-Type", async () => {

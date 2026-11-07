@@ -383,7 +383,8 @@ paths:
             text/csv:
               schema: { type: string }
   /exports:
-    # A binary range: every media type in it is read as a `Blob`.
+    # A binary range: every media type in it is read as a `Blob`, in the
+    # responses it is declared for only.
     get:
       responses:
         "200":
@@ -391,6 +392,11 @@ paths:
           content:
             text/*:
               schema: {}
+        "4XX":
+          description: Why there is no export.
+          content:
+            text/plain:
+              schema: { type: string }
 components:
   schemas:
     Account:

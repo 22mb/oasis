@@ -332,8 +332,11 @@ type Spec = {
     querystringEncoding?: Record<string, Encoding>;
     /** Form body encodings, keyed by media type and then by property. */
     encoding?: Record<string, Record<string, Encoding>>;
-    /** `text/*` response media types the document declares binary, read as a `Blob`. */
-    binary?: string[];
+    /**
+     * By response key, the `text/*` media types the document declares binary,
+     * read as a `Blob`. Present with every key of the operation once any has one.
+     */
+    binary?: Record<string, string[]>;
   }>;
 };
 
@@ -616,13 +619,19 @@ function parseJson(response: Response, text: string): unknown {
   }
 }
 
-/** `binary` lists media types, or ranges such as `text/*`, to read as a `Blob`. */
-async function decodeBody(response: Response, method: string, binary: string[] = []): Promise<unknown> {
-  if (method === "HEAD" || [204, 205, 304].includes(response.status)) return undefined;
+/**
+ * `binary` lists, by response key, media types or ranges such as `text/*` to
+ * read as a `Blob`. Those of the key that covers the status apply, as in the
+ * response type: its code, else its range, else `default`.
+ */
+async function decodeBody(response: Response, method: string, binary: Record<string, string[]> = {}): Promise<unknown> {
+  const { status } = response;
+  if (method === "HEAD" || [204, 205, 304].includes(status)) return undefined;
   const contentType = response.headers.get("content-type");
   if (!contentType) return (await response.text()) || undefined;
   const mt = essence(contentType);
-  if (binary.some((t) => t === mt || (t.endsWith("/*") && mt.startsWith(t.slice(0, -1))))) {
+  const types = binary[status] ?? binary[`${Math.trunc(status / 100)}XX`] ?? binary["default"] ?? [];
+  if (types.some((t) => t === mt || (t.endsWith("/*") && mt.startsWith(t.slice(0, -1))))) {
     return response.blob();
   }
   switch (mediaKind(contentType)) {
@@ -820,6 +829,6 @@ const spec: Spec = {
     "GET /pets": { operationId: "listPets" },
     "PUT /pets/{petId}/photo": { operationId: "uploadPhoto", contentType: "application/octet-stream" },
     "POST /pets/{petId}/photo": { operationId: "uploadPhotoForm", contentType: "multipart/form-data", encoding: { "multipart/form-data": { checksum: { contentType: "application/octet-stream" } } } },
-    "GET /pets/export": { operationId: "exportPets", binary: ["text/csv"] },
+    "GET /pets/export": { operationId: "exportPets", binary: { "200": ["text/csv"] } },
   },
 };
