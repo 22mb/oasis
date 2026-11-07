@@ -876,6 +876,7 @@ impl<'a> Parser<'a> {
                 Schema::Array {
                     prefix_items,
                     items,
+                    min_items: node.get("minItems").and_then(|n| n.v.as_u64()).unwrap_or(0),
                 }
             }
             "object" => {
@@ -1215,7 +1216,8 @@ mod tests {
             schema(json!({"type": "array", "items": {"type": "integer", "nullable": true}})),
             Schema::Array {
                 prefix_items: vec![],
-                items: Some(Box::new(types(Schema::Integer { format: None })))
+                items: Some(Box::new(types(Schema::Integer { format: None }))),
+                min_items: 0,
             }
         );
     }

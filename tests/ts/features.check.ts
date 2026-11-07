@@ -209,6 +209,9 @@ export type Nested = [
   Expect<Equal<schemas["Words"], string[]>>,
   Expect<Equal<schemas["Tuple"], [string, ...number[]]>>,
   Expect<Equal<schemas["OpenTuple"], [boolean, ...unknown[]]>>,
+  Expect<Equal<schemas["Pair"], [string, string, ...string[]]>>,
+  Expect<Equal<schemas["Batch"], [schemas["Holder"], ...schemas["Holder"][]]>>,
+  Expect<Equal<components["requestSchemas"]["Batch"], [components["requestSchemas"]["Holder"], ...components["requestSchemas"]["Holder"][]]>>,
   // `additionalProperties: false` adds no index signature.
   Expect<Equal<schemas["Closed"], { x?: string }>>,
   Expect<Equal<schemas["Empty"], Record<string, never>>>,

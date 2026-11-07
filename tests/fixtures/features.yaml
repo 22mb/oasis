@@ -570,6 +570,12 @@ components:
     OpenTuple:
       type: array
       prefixItems: [{ type: boolean }]
+    # `minItems` makes the first items required.
+    Pair: { type: array, items: { type: string }, minItems: 2 }
+    Batch:
+      type: array
+      items: { $ref: "#/components/schemas/Holder" }
+      minItems: 1
     Closed:
       type: object
       properties:

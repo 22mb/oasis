@@ -697,12 +697,13 @@ impl<'a> Emitter<'a> {
             Schema::Array {
                 prefix_items,
                 items,
+                min_items,
             } if prefix_items.is_empty()
                 && items
                     .as_deref()
                     .is_none_or(|i| *self.resolve(i) == Schema::Any) =>
             {
-                Type::Array(Box::new(Type::name("Blob")))
+                array(Type::name("Blob"), *min_items)
             }
             _ => self.ty(s, View::Request),
         }
@@ -845,11 +846,12 @@ impl<'a> Emitter<'a> {
             Schema::Array {
                 prefix_items,
                 items,
+                min_items,
             } => {
                 let unknown = || Type::name("unknown");
                 if prefix_items.is_empty() {
                     let item = items.as_deref().map_or_else(unknown, |s| self.ty(s, view));
-                    return Type::Array(Box::new(item));
+                    return array(item, *min_items);
                 }
                 let rest = match items.as_deref() {
                     Some(Schema::Never) => None,
@@ -1367,12 +1369,25 @@ fn check_cycles(api: &Api, edges: &[(&str, &str)]) -> Result<(), Error> {
 }
 
 /// Visits a schema tree without following references.
+/// An array of `item`, whose first `min` items are required: `T[]`, or
+/// `[T, T, ...T[]]` for `minItems: 2`.
+fn array(item: Type, min: u64) -> Type {
+    if min == 0 {
+        return Type::Array(Box::new(item));
+    }
+    Type::Tuple(
+        (0..min).map(|_| item.clone()).collect(),
+        Some(Box::new(item)),
+    )
+}
+
 fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
     f(s);
     match s {
         Schema::Array {
             prefix_items,
             items,
+            ..
         } => {
             prefix_items.iter().for_each(|c| walk(c, f));
             if let Some(c) = items {
@@ -1431,6 +1446,7 @@ fn walk_mut(s: &mut Schema, f: &mut dyn FnMut(&mut Schema)) {
         Schema::Array {
             prefix_items,
             items,
+            ..
         } => {
             prefix_items.iter_mut().for_each(|c| walk_mut(c, f));
             if let Some(c) = items {

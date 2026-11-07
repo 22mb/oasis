@@ -36,7 +36,7 @@ type PetKind = Pet["kind"];
 | `type: boolean` | `boolean` |
 | `type: "null"`, or `nullable: true` in OpenAPI 3.0 | Adds `null` |
 | `enum`, `const` | A union of literals, or one literal |
-| `type: array` | `T[]`; with `prefixItems`, a tuple |
+| `type: array` | `T[]`; with `minItems: n`, a tuple whose first n items are required (`[T, ...T[]]` for 1); with `prefixItems`, a tuple |
 | `type: object` with `properties` | An object type; properties not in `required` are optional |
 | `additionalProperties` | An index signature (`unknown` when the object also has `properties`) |
 | `patternProperties` | An index signature over every key, since TypeScript cannot restrict keys to a pattern: the patterns' types and that of `additionalProperties` (`unknown` when the object also has `properties`, or no `additionalProperties`) |
