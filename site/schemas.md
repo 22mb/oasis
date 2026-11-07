@@ -17,9 +17,10 @@ type PetKind = Pet["kind"];
 //   ^?
 ```
 
-- A name is the schema's key with every run of characters other than letters,
-  digits, and `_` replaced by one `_`: `Pet.Owner` becomes `Pet_Owner`. A key
-  that starts with a digit gets a leading `_`.
+- A name is the schema's key with every run of `.` and `-` replaced by one
+  `_`, and with leading and trailing `_` removed: `Pet.Owner` becomes
+  `Pet_Owner`, and `_links` becomes `links`. A key that starts with a digit
+  gets a leading `_`, and one with no letter or digit becomes `_`.
 - A name that is already taken by the client's own exports (`Client`,
   `Middleware`, ...) or by an earlier schema gets a numeric suffix: a schema
   named `Client` becomes `Client_2`.
@@ -44,7 +45,7 @@ type PetKind = Pet["kind"];
 | `oneOf`, `anyOf` | A union; with a `discriminator`, each member is tagged with its value, in the type of the discriminating property (`"true"` in `mapping` is `true` for a boolean) |
 | `allOf` | An intersection |
 | `$ref` to a component | That schema's type |
-| A property in `required` but not in `properties` | `{} \| null` (any value except `undefined`) |
+| A required property that allows any value: listed only in `required`, or with no schema such as `{}` | `{} \| null` (any value except `undefined`) |
 | No schema, or `{}` (also `type: string, format: binary` in OpenAPI 3.0) | `unknown`; `Blob` as a part of a multipart body or as a `text/*` response |
 
 `title`, `description`, `default`, and `deprecated` become JSDoc comments, so

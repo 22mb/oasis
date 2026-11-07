@@ -22,6 +22,7 @@ OpenAPI 3.0 のドキュメントでは、以下のキーワードを次のよ�
 | --- | --- |
 | `nullable: true` | 型に `null` を追加。`enum` に指定されている場合は、列挙値に `null` がなくても `null` を追加（ほかの生成ツールも同様に解釈するが、3.0.3 自体の規定ではこのような `enum` に `null` は認められない） |
 | `$ref` と並んだ `nullable: true`、または `$ref` を 1 つだけ含む `allOf` に指定された `nullable: true` | 参照先の型に `null` を追加 |
+| `$ref` と並んだそのほかのキーワード | 3.0 の仕様では無視するとされているが、3.1 以降と同じく適用。`{ $ref: Base, properties: {...} }` は `Base & {...}` になる |
 | `type: string, format: binary` | 生のバイナリーデータ。`type` のないスキーマとして解釈され、`unknown` 型（マルチパートの本体と `text/*` のレスポンスでは `Blob` 型）に変換 |
 | `type: string, format: byte` | Base64 のテキスト。`contentEncoding: base64` として解釈され、`string` 型に変換。マルチパートのパートとしては `application/octet-stream` で送信 |
 | `example`、論理値の `exclusiveMinimum` | 無視 |
@@ -40,6 +41,8 @@ OpenAPI 3.0 のドキュメントでは、以下のキーワードを次のよ�
 | リモートの `$ref`、入力としての URL | 未対応 | ローカルファイルに対応付けられない `https://...` の URI |
 
 ほかのファイルのスキーマに対しても個別の型エイリアスが生成されますが、エクスポートされて `components` に含まれるのはコンポーネントのスキーマだけです（[スキーマ](./schemas#type-aliases-and-components)を参照）。
+
+生成には、信頼できるドキュメントだけを使用してください。oasis-gen は、`$ref` が指すローカルファイルを場所を問わず読み込みます。
 
 ## スキーマ {#schemas}
 

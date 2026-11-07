@@ -95,7 +95,8 @@ The type of `body` depends on the media type of the request:
 | Anything else | `BodyInit`, except `FormData` and `URLSearchParams` |
 
 `contentType` selects the media type, and the type of `body` follows it. You
-can omit `contentType` when the operation declares only one media type. When
+can omit `contentType` when the operation declares only one media type, and it
+is not a range. When
 the operation declares several, you can omit `contentType` to use its first
 `application/json` media type. The body is then sent as that media type,
 exactly as the document declares it, including its parameters (such as `charset`). For a range, `contentType` takes a
@@ -183,6 +184,8 @@ follow its media type:
 Every call resolves to `{ ok, status, data, response }`. Checking `status`
 narrows `data` to the matching response type, and `ok` is `response.ok`. See
 [Strict types](./strict-types#responses-are-typed-by-status) for the rules.
+The client reads the body of `response` to make `data` (for sequential media
+types, while you iterate), so read the body through `data`, not `response`.
 
 ### Response bodies
 

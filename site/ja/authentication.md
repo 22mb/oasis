@@ -25,7 +25,7 @@ const api = createClient({
 
 ## 資格情報の選択 {#choosing-credentials}
 
-キーには `components.securitySchemes` の名前（型は `SecuritySchemeName`）を指定します。値はそれぞれ `Credential` 型（文字列、または文字列を返す関数。関数は非同期でも可）または `undefined` です。関数はリクエストごとに、セキュリティ要件に列挙されたスコープと[ミドルウェアのコンテキスト](./middleware#the-operation)を引数として呼び出されます。値または関数の戻り値が `undefined` か `""` のときは、その資格情報は利用できないものとして扱われます。
+キーには `components.securitySchemes` の名前（型は `SecuritySchemeName`）を指定します。値はそれぞれ `Credential` 型（文字列、または文字列を返す関数。関数は非同期でも可）または `undefined` です。関数はリクエストごとに、セキュリティ要件に列挙された値（スコープ。OAuth 2.0 と OpenID Connect 以外のスキームではロール名）と[ミドルウェアのコンテキスト](./middleware#the-operation)を引数として呼び出されます。値または関数の戻り値が `undefined` か `""` のときは、その資格情報は利用できないものとして扱われます。
 
 `auth` はリクエストごとに、操作の `security` に並ぶ選択肢のうち、必要な資格情報がすべてそろっている最初の選択肢を採用します。リクエストに何も追加しない選択肢（空の要件 `{}`、または `mutualTLS` だけの選択肢）は、ほかに利用可能な選択肢がないときに限って使われます。どの選択肢も利用できないときは、資格情報を付けずにリクエストを送信し、受け付けるかどうかはサーバーが判断します。
 
