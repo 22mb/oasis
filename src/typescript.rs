@@ -971,7 +971,8 @@ impl<'a> Emitter<'a> {
     }
 
     /// `t`, the type of member `s` of an `allOf`, without the properties in
-    /// `hidden` that it shows in `view` where `s` is a `$ref`. Another member
+    /// `hidden` that it shows in `view` where `s` is a `$ref` or a nested
+    /// `allOf`, which may reference them. Another member
     /// flags them `readOnly` or `writeOnly`, so they are `?: never` in this
     /// view, but the shared target cannot be flagged and may require them: `number & never`
     /// would make every value fail. A union target keeps its type, since
@@ -989,7 +990,7 @@ impl<'a> Emitter<'a> {
         view: View,
         child: Option<&str>,
     ) -> Type {
-        if !matches!(s, Schema::Ref(_)) || hidden.is_empty() {
+        if !matches!(s, Schema::Ref(_) | Schema::Intersection(_)) || hidden.is_empty() {
             return t;
         }
         let Some(declared) = self.declared(s, view, child) else {
