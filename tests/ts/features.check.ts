@@ -284,7 +284,7 @@ export type Operations = [
       }
   >>,
   // ... also in a body composed with `allOf` or `oneOf`, through the schemas it references.
-  Expect<Equal<Flat<Operation<"/avatars", "POST">["request"]["body"]>, { file: Blob; thumbnail?: Blob; id?: never }>>,
+  Expect<Equal<Flat<Operation<"/avatars", "POST">["request"]["body"]>, { file: Blob; thumbnail?: Blob; checksum?: string; id?: never }>>,
   Expect<Equal<Operation<"/imports", "POST">["request"]["body"], { id: number; file: Blob } | { url: string }>>,
 ];
 
