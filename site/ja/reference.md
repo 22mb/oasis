@@ -20,7 +20,7 @@ oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
 
 ## 動作要件 {#requirements}
 
-- **Node.js** 22 以降が、CLI と生成されるクライアントの両方に必要です。なお、クライアントはブラウザーや Bun でも動作します。
+- **Node.js** 22 以降が、CLI と生成されるクライアントの両方に必要です。なお、クライアントはブラウザー（Chromium、Firefox、WebKit で検証）や Bun でも動作します。
 - **TypeScript** 5.0 以降が必要です。生成されるファイルには `lib` の ES2022 以降が必要であり、さらに `fetch`、`Request`、`Response` の型定義として `lib` の `dom` または `@types/node` のいずれかが必要です。
 - 生成されるファイルは TypeScript の消去可能な構文（erasable syntax）のみを使用しているため、Node.js の Type Stripping（Node.js 22.18 以降では既定で有効）でもそのまま実行できます。
 

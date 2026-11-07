@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { auth, createClient, type Middleware, type MiddlewareContext } from "../golden/security.ts";
+import { cookieHeaders } from "./env.ts";
 
 /** A fetch that records requests and answers with `responses` in turn (the last one repeats). */
 function server(...responses: (() => Response)[]) {
@@ -28,8 +28,8 @@ test("runs middleware outermost first, with the operation from the document", as
   };
   const api = createClient({ fetch: s.fetch, middleware: [named("a"), named("b")] });
   await api.GET("/pets", { middleware: [named("call")] });
-  assert.deepEqual(log, [">a", ">b", ">call", "<call", "<b", "<a"]);
-  assert.deepEqual(contexts[0]!.operation, {
+  expect(log).toStrictEqual([">a", ">b", ">call", "<call", "<b", "<a"]);
+  expect(contexts[0]!.operation).toStrictEqual({
     method: "GET",
     path: "/pets",
     operationId: "listPets",
@@ -37,7 +37,7 @@ test("runs middleware outermost first, with the operation from the document", as
   });
 
   await api.GET("/me");
-  assert.deepEqual(contexts.at(-1)!.operation, { method: "GET", path: "/me", security: [{ bearer: [] }] });
+  expect(contexts.at(-1)!.operation).toStrictEqual({ method: "GET", path: "/me", security: [{ bearer: [] }] });
 });
 
 test("middleware can answer without sending", async () => {
@@ -45,8 +45,8 @@ test("middleware can answer without sending", async () => {
   const cached: Middleware = async () => Response.json(["cached"]);
   const api = createClient({ fetch: s.fetch, middleware: [cached] });
   const res = await api.GET("/pets");
-  assert.deepEqual(res.data, ["cached"]);
-  assert.equal(s.requests.length, 0);
+  expect(res.data).toStrictEqual(["cached"]);
+  expect(s.requests.length).toBe(0);
 });
 
 test("middleware can retry with a cloned request", async () => {
@@ -59,8 +59,8 @@ test("middleware can retry with a cloned request", async () => {
   };
   const api = createClient({ fetch: s.fetch, middleware: [retry] });
   const res = await api.POST("/login", { body: { user: "tama" } });
-  assert.equal(res.status, 204);
-  assert.deepEqual(s.bodies, ['{"user":"tama"}', '{"user":"tama"}']);
+  expect(res.status).toBe(204);
+  expect(s.bodies).toStrictEqual(['{"user":"tama"}', '{"user":"tama"}']);
 });
 
 test("middleware can handle network errors", async () => {
@@ -77,7 +77,7 @@ test("middleware can handle network errors", async () => {
     },
     middleware: [fallback],
   });
-  assert.deepEqual((await api.GET("/pets")).data, []);
+  expect((await api.GET("/pets")).data).toStrictEqual([]);
 });
 
 test("with() derives a client without changing the original", async () => {
@@ -89,8 +89,8 @@ test("with() derives a client without changing the original", async () => {
   });
   await tenant.GET("/me");
   await api.GET("/me");
-  assert.equal(s.requests[0]!.headers.get("x-tenant"), "t1");
-  assert.equal(s.requests[1]!.headers.get("x-tenant"), null);
+  expect(s.requests[0]!.headers.get("x-tenant")).toBe("t1");
+  expect(s.requests[1]!.headers.get("x-tenant")).toBe(null);
 });
 
 test("auth follows the document's security requirements", async () => {
@@ -117,86 +117,87 @@ test("auth follows the document's security requirements", async () => {
   const header = (i: number, name: string) => s.requests[i]!.headers.get(name);
 
   await api.POST("/login", { body: { user: "tama" } }); // security: []
-  assert.equal(header(0, "authorization"), null);
+  expect(header(0, "authorization")).toBe(null);
 
   await api.GET("/pets"); // optional: authenticated when a token is available
-  assert.equal(header(1, "authorization"), "Bearer t0k3n");
+  expect(header(1, "authorization")).toBe("Bearer t0k3n");
   token = undefined;
   await api.GET("/pets");
-  assert.equal(header(2, "authorization"), null);
+  expect(header(2, "authorization")).toBe(null);
   token = "t0k3n";
 
   await api.GET("/me"); // inherits the top-level requirement
-  assert.equal(header(3, "authorization"), "Bearer t0k3n");
+  expect(header(3, "authorization")).toBe("Bearer t0k3n");
 
   await api.DELETE("/admin/users");
-  assert.equal(header(4, "authorization"), "Bearer oauth-token");
-  assert.deepEqual(scopesSeen, [["admin", "write"]]);
+  expect(header(4, "authorization")).toBe("Bearer oauth-token");
+  expect(scopesSeen).toStrictEqual([["admin", "write"]]);
 
   await api.POST("/webhooks");
-  assert.equal(header(5, "x-api-key"), "k3y");
-  assert.equal(header(5, "authorization"), null);
+  expect(header(5, "x-api-key")).toBe("k3y");
+  expect(header(5, "authorization")).toBe(null);
 
   await api.GET("/reports"); // no queryKey credential: falls back to basic
-  assert.equal(header(6, "authorization"), `Basic ${Buffer.from("user:päss").toString("base64")}`);
+  expect(header(6, "authorization")).toBe(`Basic ${btoa(String.fromCharCode(...new TextEncoder().encode("user:päss")))}`);
 
   await api.GET("/both"); // both schemes together
-  assert.equal(header(7, "x-api-key"), "k3y");
-  assert.equal(header(7, "cookie"), "sid=s1");
+  expect(header(7, "x-api-key")).toBe("k3y");
+  if (cookieHeaders) expect(header(7, "cookie")).toBe("sid=s1");
 
   await api.GET("/digest"); // other http schemes: `<scheme> <credential>`
-  assert.match(String(header(8, "authorization")), /^digest d1g3st$/i);
+  expect(String(header(8, "authorization"))).toMatch(/^digest d1g3st$/i);
 
   await api.GET("/oidc");
-  assert.equal(header(9, "authorization"), "Bearer 0idc");
+  expect(header(9, "authorization")).toBe("Bearer 0idc");
 
   await api.GET("/mtls"); // satisfied by the TLS configuration: nothing to add
-  assert.equal(header(10, "authorization"), null);
+  expect(header(10, "authorization")).toBe(null);
   await api.GET("/mtls-or-bearer"); // `mutualTLS` alone adds nothing: the bearer alternative wins
-  assert.equal(header(11, "authorization"), "Bearer t0k3n");
+  expect(header(11, "authorization")).toBe("Bearer t0k3n");
 
   await api.GET("/by-uri"); // a requirement naming the scheme by its URI
-  assert.equal(header(12, "authorization"), "Bearer t0k3n");
+  expect(header(12, "authorization")).toBe("Bearer t0k3n");
 
   // With no satisfiable alternative, the request goes out unauthenticated.
   token = undefined;
   await api.GET("/me");
-  assert.equal(header(13, "authorization"), null);
+  expect(header(13, "authorization")).toBe(null);
   token = ""; // an empty credential counts as unavailable
   await api.GET("/me");
-  assert.equal(header(14, "authorization"), null);
+  expect(header(14, "authorization")).toBe(null);
 });
 
 test("auth treats an undefined credential as unavailable", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ queryKey: undefined, basic: "u:p" })] });
   await api.GET("/reports"); // the queryKey alternative is skipped for basic
-  assert.equal(s.requests[0]!.url, "https://api.example.com/reports");
-  assert.equal(s.requests[0]!.headers.get("authorization"), `Basic ${btoa("u:p")}`);
+  expect(s.requests[0]!.url).toBe("https://api.example.com/reports");
+  expect(s.requests[0]!.headers.get("authorization")).toBe(`Basic ${btoa("u:p")}`);
 });
 
 test("auth awaits credential functions", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ bearer: async () => "t" })] });
   await api.GET("/me");
-  assert.equal(s.requests[0]!.headers.get("authorization"), "Bearer t");
+  expect(s.requests[0]!.headers.get("authorization")).toBe("Bearer t");
 });
 
 test("auth appends query API keys without rewriting the rest of the request", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ queryKey: "q k" })] });
   await api.GET("/reports", { query: { ids: [1, 2] } }); // `explode: false` keeps its comma
-  assert.equal(s.requests[0]!.url, "https://api.example.com/reports?ids=1,2&api_key=q%20k");
+  expect(s.requests[0]!.url).toBe("https://api.example.com/reports?ids=1,2&api_key=q%20k");
 
   const res = await api.POST("/reports", { body: { q: "x" } });
-  assert.equal(res.status, 204);
-  assert.equal(s.requests[1]!.url, "https://api.example.com/reports?api_key=q%20k");
-  assert.equal(s.requests[1]!.method, "POST");
-  assert.equal(s.requests[1]!.headers.get("content-type"), "application/json");
-  assert.equal(s.bodies[1], '{"q":"x"}');
+  expect(res.status).toBe(204);
+  expect(s.requests[1]!.url).toBe("https://api.example.com/reports?api_key=q%20k");
+  expect(s.requests[1]!.method).toBe("POST");
+  expect(s.requests[1]!.headers.get("content-type")).toBe("application/json");
+  expect(s.bodies[1]).toBe('{"q":"x"}');
 });
 
 test("auth sets cookie API keys once, encoded, replacing an existing cookie", async () => {
+  if (!cookieHeaders) return;
   const s = server(noContent);
   const twice: Middleware = async (request, next) => {
     await next(request);
@@ -204,8 +205,8 @@ test("auth sets cookie API keys once, encoded, replacing an existing cookie", as
   };
   const api = createClient({ fetch: s.fetch, middleware: [twice, auth({ apiKey: "k", session: "s 1;x" })] });
   await api.GET("/both", { headers: { cookie: "sid=old; theme=dark" } });
-  assert.equal(s.requests[0]!.headers.get("cookie"), "theme=dark; sid=s%201%3Bx");
-  assert.equal(s.requests[1]!.headers.get("cookie"), "theme=dark; sid=s%201%3Bx");
+  expect(s.requests[0]!.headers.get("cookie")).toBe("theme=dark; sid=s%201%3Bx");
+  expect(s.requests[1]!.headers.get("cookie")).toBe("theme=dark; sid=s%201%3Bx");
 });
 
 test("synchronous throws reach middleware as rejections", async () => {
@@ -219,6 +220,6 @@ test("synchronous throws reach middleware as rejections", async () => {
     },
     middleware: [fallback],
   });
-  assert.deepEqual((await api.GET("/pets")).data, []);
-  assert.deepEqual((await api.GET("/pets", { middleware: [broken] })).data, []);
+  expect((await api.GET("/pets")).data).toStrictEqual([]);
+  expect((await api.GET("/pets", { middleware: [broken] })).data).toStrictEqual([]);
 });

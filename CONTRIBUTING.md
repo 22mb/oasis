@@ -23,6 +23,7 @@ You need a stable Rust toolchain and Node.js 24 or later.
 cargo test                         # unit tests and golden files
 UPDATE_GOLDEN=1 cargo test         # regenerate tests/golden and tests/errors after an intended change
 cd tests/ts && npm ci && npm test  # type-check and run the generated client against a test server
+npm run test:browsers              # in tests/ts: the same tests in Chromium, Firefox and WebKit (after `npx playwright install`)
 cd site && npm ci && npm run dev   # the documentation site
 ```
 
