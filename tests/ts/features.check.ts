@@ -31,6 +31,7 @@ export type Exact = [
   Expect<Equal<Flat<components["requestSchemas"]["Signup"]>, { password: string; email: string; id?: never }>>,
   Expect<Equal<Flat<schemas["Login"]>, { id: number; email: string; password?: never }>>,
   Expect<Equal<Flat<components["requestSchemas"]["Login"]>, { password: string; email: string; id?: never }>>,
+  Expect<Equal<Flat<components["requestSchemas"]["Member"]>, { kind: string; id?: never; since?: never }>>,
   Expect<Equal<schemas["Holder"], { serial: number }>>,
   Expect<Equal<components["requestSchemas"]["Holder"], { serial?: never }>>,
   // Recursion through an array or index signature at the top of a schema.

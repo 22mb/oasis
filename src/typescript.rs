@@ -715,7 +715,7 @@ impl<'a> Emitter<'a> {
                         .map(|p| match p {
                             Schema::Ref(_) => {
                                 let t = self.form_data(p, visiting);
-                                self.omit(t, p, &hidden, view)
+                                self.omit(t, p, &hidden, view, None)
                             }
                             // A bare `type: object` is `object` here.
                             Schema::Object {
@@ -961,7 +961,7 @@ impl<'a> Emitter<'a> {
                         .map(|p| {
                             let t = self.composed(p, view);
                             match p {
-                                Schema::Ref(_) => self.omit(t, p, &hidden, view),
+                                Schema::Ref(_) => self.omit(t, p, &hidden, view, None),
                                 _ => t,
                             }
                         })
@@ -988,9 +988,20 @@ impl<'a> Emitter<'a> {
     /// would make every value fail. A union target keeps its type, since
     /// `Omit` would merge its members, and so does one with an index
     /// signature, which `Omit` would keep alone.
-    fn omit(&self, t: Type, s: &Schema, hidden: &BTreeSet<String>, view: View) -> Type {
+    ///
+    /// Where `s` is a parent expanded in place of a reference (see
+    /// [`Emitter::eager`]), `child` names the schema being defined: the unions
+    /// that list it are left out of `t`, so they do not count.
+    fn omit(
+        &self,
+        t: Type,
+        s: &Schema,
+        hidden: &BTreeSet<String>,
+        view: View,
+        child: Option<&str>,
+    ) -> Type {
         let mut declared = HashSet::new();
-        if hidden.is_empty() || !self.declared(s, view, &mut declared, &mut Vec::new()) {
+        if hidden.is_empty() || !self.declared(s, view, child, &mut declared, &mut Vec::new()) {
             return t;
         }
         let names: Vec<Type> = hidden
@@ -1007,11 +1018,13 @@ impl<'a> Emitter<'a> {
 
     /// Adds the names of the properties `s` declares and shows in `view`,
     /// through `$ref` and `allOf`, to `names`; false where `s` is or contains a
-    /// union or an object with an index signature.
+    /// union, other than one that lists `child`, or an object with an index
+    /// signature.
     fn declared<'s>(
         &'s self,
         s: &'s Schema,
         view: View,
+        child: Option<&str>,
         names: &mut HashSet<&'s str>,
         visiting: &mut Vec<&'s str>,
     ) -> bool {
@@ -1020,7 +1033,7 @@ impl<'a> Emitter<'a> {
             Schema::Ref(k) => {
                 visiting.push(k);
                 let target = &self.schemas[k.as_str()].schema;
-                let ok = self.declared(target, view, names, visiting);
+                let ok = self.declared(target, view, child, names, visiting);
                 visiting.pop();
                 ok
             }
@@ -1043,8 +1056,8 @@ impl<'a> Emitter<'a> {
             }
             Schema::Intersection(parts) => parts
                 .iter()
-                .all(|p| self.declared(p, view, names, visiting)),
-            Schema::Union { .. } => false,
+                .all(|p| self.declared(p, view, child, names, visiting)),
+            Schema::Union { .. } => child.is_some_and(|c| self.reaches(s, c)),
             _ => true,
         }
     }
@@ -1334,9 +1347,20 @@ impl<'a> Emitter<'a> {
                         Schema::Ref(k) if !self.enumerates(k, d.key) => types.extend(
                             self.eager(p, d, true)
                                 .into_iter()
-                                .map(|t| self.omit(t, p, &hidden, view)),
+                                .map(|t| self.omit(t, p, &hidden, view, None)),
                         ),
-                        _ => types.extend(self.eager(p, d, true)),
+                        // A parent expanded in place: without its unions that
+                        // list this schema, it can leave out what is hidden.
+                        _ => {
+                            let ts = self.eager(p, d, true);
+                            if ts.is_empty() {
+                                continue;
+                            }
+                            match self.omit(Type::Intersection(ts), p, &hidden, view, Some(d.key)) {
+                                Type::Intersection(ts) => types.extend(ts),
+                                t => types.push(t),
+                            }
+                        }
                     }
                 }
                 types
@@ -1354,7 +1378,7 @@ impl<'a> Emitter<'a> {
 
     /// Whether `c` is reachable from `s` through `$ref`, `allOf`, `oneOf` and
     /// `anyOf` alone, crossing a `oneOf` or `anyOf`.
-    fn reaches(&self, s: &'a Schema, c: &str) -> bool {
+    fn reaches<'s>(&'s self, s: &'s Schema, c: &str) -> bool {
         let mut stack = vec![(s, false)];
         let mut seen = HashSet::new();
         while let Some((s, crossed)) = stack.pop() {
