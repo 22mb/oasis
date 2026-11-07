@@ -137,7 +137,7 @@ export type {
 };
 
 /** Security schemes declared in the document. */
-export type SecuritySchemeName = "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`";
+export type SecuritySchemeName = "key";
 
 // ---------------------------------------------------------------------------
 // Runtime (embedded by oasis-gen; identical in every generated file)
@@ -769,10 +769,10 @@ const spec: Spec = {
   methods: ["GET", "POST"],
   security: [],
   securitySchemes: {
-    "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`": { type: "apiKey", in: "header", name: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" },
+    key: { type: "apiKey", in: "header", name: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" },
   },
   operations: {
-    "GET /items/*/\u2028\"'`\\": { operationId: "*/ } } (globalThis.__oasis_pwned ??= []).push(7); interface _ { _: { /*", security: [{ "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`": ["*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"] }] },
+    "GET /items/*/\u2028\"'`\\": { operationId: "*/ } } (globalThis.__oasis_pwned ??= []).push(7); interface _ { _: { /*", security: [{ key: ["*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"] }] },
     "POST /forms": { encoding: { "multipart/form-data; x=\"*/\u2028'`\\\"": { "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`": { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": { style: { style: "deepObject" } }, "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" } } } },
   },
 };

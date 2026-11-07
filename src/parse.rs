@@ -162,6 +162,17 @@ impl<'a> Parser<'a> {
                 .to_string()
         };
 
+        // Names become exported identifiers, so the limit to ASCII matters.
+        for (field, map) in root.fields_of("components") {
+            if let Some((name, v)) = map.entries().find(|(name, _)| !component_name(name)) {
+                return Err(Error::new(format!(
+                    "`{name}` is not a valid component name: use only ASCII letters, digits, `.`, `-` and `_`"
+                ))
+                .about(v.v)
+                .context(format!("components.{field}")));
+            }
+        }
+
         let mut schemas = Vec::new();
         if let Some(map) = root.get("components").and_then(|c| c.get("schemas")) {
             // `$ref`s name components by key, which a list does not have.
@@ -984,6 +995,15 @@ fn param_style(p: &Node, location: Location) -> Result<Style, Error> {
         }
     };
     Ok(style)
+}
+
+/// Whether `name` matches `^[a-zA-Z0-9.\-_]+$`, which the Components Object
+/// requires of the keys of its fields.
+fn component_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
 }
 
 /// The `servers` of `parent`.

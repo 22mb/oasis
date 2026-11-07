@@ -39,6 +39,7 @@ instead.
 | `$ref`s to other local files | Supported | Whole documents or fragments, resolved relative to the referencing document |
 | `$self`, and `$id` and `$anchor` in schemas | Supported | A `$self` URI such as `https://api.example.com/openapi/root.yaml` is mapped onto the file's own directory, so `schemas/pet.yaml` next to it is found locally |
 | `components.mediaTypes` and `$ref`s to them | Supported | |
+| Component names other than ASCII letters, digits, `.`, `-` and `_` | Rejected | The specification limits them to `^[a-zA-Z0-9\.\-_]+$` |
 | Remote `$ref`s, and URLs as input | Not supported | `https://...` URIs that do not map onto a local file |
 
 Schemas from other files get type aliases of their own, but only component
