@@ -1,0 +1,1 @@
+error: schema-extends-only-a-listing.yaml:10:7: Point: the schema has no type of its own: it only extends schemas that list it in oneOf or anyOf; give it or a schema it extends a `type` or `properties`
