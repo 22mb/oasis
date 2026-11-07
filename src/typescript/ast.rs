@@ -81,26 +81,18 @@ impl Type {
             Type::Literal(v) => out.push_str(&literal(v)),
             Type::Template(parts) => {
                 out.push('`');
-                for (i, part) in parts.iter().enumerate() {
-                    if i > 0 {
-                        out.push_str("${string}");
-                    }
+                join(out, parts, "${string}", |out, part| {
                     // A string literal's escapes, and those of the template's own syntax.
                     let quoted = quote(part);
                     let inner = &quoted[1..quoted.len() - 1];
                     out.push_str(&inner.replace('`', "\\`").replace('$', "\\$"));
-                }
+                });
                 out.push('`');
             }
             Type::Generic(name, args) => {
                 out.push_str(name);
                 out.push('<');
-                for (i, a) in args.iter().enumerate() {
-                    if i > 0 {
-                        out.push_str(", ");
-                    }
-                    a.write(out, indent);
-                }
+                join(out, args, ", ", |out, a| _ = a.write(out, indent));
                 out.push('>');
             }
             Type::Index(t, key) => {
@@ -115,12 +107,7 @@ impl Type {
             }
             Type::Tuple(ts, rest) => {
                 out.push('[');
-                for (i, t) in ts.iter().enumerate() {
-                    if i > 0 {
-                        out.push_str(", ");
-                    }
-                    t.write(out, indent);
-                }
+                join(out, ts, ", ", |out, t| _ = t.write(out, indent));
                 if let Some(r) = rest {
                     if !ts.is_empty() {
                         out.push_str(", ");
@@ -143,13 +130,8 @@ impl Type {
             }
             Type::Object { members, .. } => {
                 out.push_str("{ ");
-                for (i, m) in members.iter().enumerate() {
-                    if i > 0 {
-                        out.push_str("; ");
-                    }
-                    // A member's own lines are indented as if it began a line.
-                    m.write(out, indent + 1);
-                }
+                // A member's own lines are indented as if it began a line.
+                join(out, members, "; ", |out, m| m.write(out, indent + 1));
                 out.push_str(" }");
             }
             // `&` binds tighter than `|`, so no member needs parentheses.
@@ -171,12 +153,7 @@ impl Type {
                         return *compound;
                     }
                     _ => {
-                        for (i, (s, _)) in types.iter().enumerate() {
-                            if i > 0 {
-                                out.push_str(" | ");
-                            }
-                            out.push_str(s);
-                        }
+                        join(out, &types, " | ", |out, (s, _)| out.push_str(s));
                         return true;
                     }
                 }
@@ -185,12 +162,7 @@ impl Type {
                 [] => out.push_str("unknown"),
                 [t] => return t.write(out, indent),
                 _ => {
-                    for (i, t) in ts.iter().enumerate() {
-                        if i > 0 {
-                            out.push_str(" & ");
-                        }
-                        t.operand(out, indent);
-                    }
+                    join(out, ts, " & ", |out, t| t.operand(out, indent));
                     return true;
                 }
             },
@@ -311,12 +283,7 @@ impl Expr {
             Expr::Literal(v) => out.push_str(&literal(v)),
             Expr::Array(items) => {
                 out.push('[');
-                for (i, e) in items.iter().enumerate() {
-                    if i > 0 {
-                        out.push_str(", ");
-                    }
-                    e.write(out, indent);
-                }
+                join(out, items, ", ", |out, e| e.write(out, indent));
                 out.push(']');
             }
             Expr::Object { entries, .. } if entries.is_empty() => out.push_str("{}"),
@@ -337,14 +304,11 @@ impl Expr {
             }
             Expr::Object { entries, .. } => {
                 out.push_str("{ ");
-                for (i, (k, v)) in entries.iter().enumerate() {
-                    if i > 0 {
-                        out.push_str(", ");
-                    }
+                join(out, entries, ", ", |out, (k, v)| {
                     out.push_str(&key(k));
                     out.push_str(": ");
                     v.write(out, indent);
-                }
+                });
                 out.push_str(" }");
             }
         }
@@ -509,5 +473,20 @@ fn literal(v: &Value) -> String {
 fn pad(out: &mut String, level: usize) {
     for _ in 0..level {
         out.push_str("  ");
+    }
+}
+
+/// Writes each of `items` with `write`, `sep` between them.
+fn join<I: IntoIterator>(
+    out: &mut String,
+    items: I,
+    sep: &str,
+    mut write: impl FnMut(&mut String, I::Item),
+) {
+    for (i, item) in items.into_iter().enumerate() {
+        if i > 0 {
+            out.push_str(sep);
+        }
+        write(out, item);
     }
 }
