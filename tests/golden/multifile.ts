@@ -685,13 +685,23 @@ export type Credential =
  * ```
  */
 export function auth(credentials: { [K in SecuritySchemeName]?: Credential | undefined }): Middleware {
+  // The headers each Request had before credentials were set on it. A Request
+  // sent again, as a retrying middleware may, gets them back first, so that it
+  // carries only the credentials chosen this time.
+  const before = new WeakMap<Request, Map<string, string | null>>();
   return async (request, next, context) => {
+    const saved = before.get(request) ?? new Map<string, string | null>();
+    before.set(request, saved);
+    for (const [name, value] of saved) {
+      if (value === null) request.headers.delete(name);
+      else request.headers.set(name, value);
+    }
     // Alternatives that resolve to no credentials are skipped: sending nothing is
     // also what happens when none is satisfiable.
     for (const requirement of context.operation.security) {
       const resolved = await satisfy(requirement, credentials, context);
       if (resolved?.length) {
-        for (const [scheme, value] of resolved) request = await authenticate(request, scheme, value);
+        for (const [scheme, value] of resolved) request = await authenticate(request, scheme, value, saved);
         break;
       }
     }
@@ -719,11 +729,28 @@ async function satisfy(
   return out;
 }
 
-async function authenticate(request: Request, scheme: SecuritySchemeSpec, value: string): Promise<Request> {
-  if (scheme.type !== "apiKey") request.headers.set("authorization", authorization(scheme, value));
-  else if (scheme.in === "query") return withQuery(request, `${encodeURIComponent(scheme.name)}=${encodeURIComponent(value)}`);
-  else if (scheme.in === "cookie") setCookie(request.headers, scheme.name, encodeURIComponent(value));
-  else request.headers.set(scheme.name, value);
+/** `request` with the credential of `scheme`; `saved` records the headers it had before. */
+async function authenticate(
+  request: Request,
+  scheme: SecuritySchemeSpec,
+  value: string,
+  saved: Map<string, string | null>,
+): Promise<Request> {
+  const keep = (name: string) => {
+    if (!saved.has(name)) saved.set(name, request.headers.get(name));
+  };
+  if (scheme.type !== "apiKey") {
+    keep("authorization");
+    request.headers.set("authorization", authorization(scheme, value));
+  } else if (scheme.in === "query") {
+    return withQuery(request, `${encodeURIComponent(scheme.name)}=${encodeURIComponent(value)}`);
+  } else if (scheme.in === "cookie") {
+    keep("cookie");
+    setCookie(request.headers, scheme.name, encodeURIComponent(value));
+  } else {
+    keep(scheme.name);
+    request.headers.set(scheme.name, value);
+  }
   return request;
 }
 
