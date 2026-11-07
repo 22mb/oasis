@@ -19,7 +19,9 @@ export type Exact = [
   Expect<Equal<
     Awaited<ReturnType<typeof api.GET<"/owners/{ownerId}">>>,
     | Result<200, true, Owner>
-    | Result<Exclude<Success, 200>, true, schemas["Error"]>
-    | Result<Failure, false, schemas["Error"]>
+    | Result<Exclude<Success, 200 | 204 | 205>, true, schemas["Error"]>
+    | Result<Exclude<Failure, 304>, false, schemas["Error"]>
+    | Result<204 | 205, true, undefined>
+    | Result<304, false, undefined>
   >>,
 ];

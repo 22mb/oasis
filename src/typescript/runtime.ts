@@ -34,15 +34,18 @@ export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & 
  * The result of calling operation `O` of `paths`. One member per declared
  * response key, each with the statuses it covers: a code itself, a range such
  * as `4XX` minus the codes declared in it, and `default` every other status,
- * successes included. Statuses nothing covers are still possible and have
- * `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
+ * successes included. 204, 205 and 304 have `data: undefined` under any of
+ * them. Statuses nothing covers are still possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
  * declared success from a `default` or undeclared one.
  */
 export type ApiResponse<O extends Operation> = {
-  [K in keyof O["statuses"]]: O["statuses"][K] extends [infer Ok, infer Failed]
-    ? Member<Ok, true, Data<O, K>> | Member<Failed, false, Data<O, K>>
+  [K in keyof O["statuses"]]: O["statuses"][K] extends [infer Ok, infer Failed, ...infer Empty]
+    ? Member<Ok, true, Data<O, K>> | Member<Failed, false, Data<O, K>> | Bodiless<Empty[number]>
     : never;
 }[keyof O["statuses"]];
+
+/** 204, 205 and 304 under a range or `default`: they never carry a body. */
+type Bodiless<S> = Member<Extract<S, 204 | 205>, true, undefined> | Member<Extract<S, 304>, false, undefined>;
 
 type Data<O extends Operation, K> = K extends keyof O["responses"] ? O["responses"][K] : unknown;
 type Member<S, Ok, D> = [S] extends [never] ? never : { status: S; ok: Ok; data: D; response: Response };
@@ -88,7 +91,8 @@ export type Middleware = (
 
 /**
  * An operation in `paths`. `statuses` maps each response key to the statuses it
- * covers, as `[successes, failures]`; `default` also takes undeclared ones.
+ * covers, as `[successes, failures]`, then those of 204, 205 and 304 that a range
+ * or `default` covers; `default` also takes undeclared ones.
  */
 type Operation = { request: object; responses: object; statuses: object };
 type Methods<P> = { [K in keyof P]: keyof P[K] }[keyof P] & string;

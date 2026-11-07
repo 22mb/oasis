@@ -154,7 +154,8 @@ export type DefaultMayBeOk = Expect<
 >;
 
 // Each response key covers its own statuses: a range minus the codes declared in
-// it, `default` the rest, and statuses nothing covers have an unknown body.
+// it, `default` the rest, and statuses nothing covers have an unknown body. 204,
+// 205 and 304 never have a body, under whichever key covers them.
 export type Statuses = [
   Expect<Equal<
     Awaited<ReturnType<typeof api.GET<"/shapes">>>,
@@ -162,18 +163,28 @@ export type Statuses = [
     | Result<301, false, undefined>
     | Result<404, false, undefined>
     | Result<Exclude<Codes<400, 500>, 404>, false, string>
-    | Result<Exclude<Success, 200>, true, unknown>
-    | Result<Exclude<Failure, 301 | Codes<400, 500>>, false, unknown>
+    | Result<Exclude<Success, 200 | 204 | 205>, true, unknown>
+    | Result<Exclude<Failure, 301 | 304 | Codes<400, 500>>, false, unknown>
+    | Result<204 | 205, true, undefined>
+    | Result<304, false, undefined>
   >>,
   // With `2XX` declared, no success is left for `default`.
   Expect<Equal<
     ApiResponse<paths["/items/{coords}"]["GET"]>,
     | Result<200, true, unknown>
-    | Result<Exclude<Success, 200>, true, undefined>
-    | Result<Failure, false, unknown>
+    | Result<Exclude<Success, 200 | 204 | 205>, true, undefined>
+    | Result<204 | 205, true, undefined>
+    | Result<Exclude<Failure, 304>, false, unknown>
+    | Result<304, false, undefined>
   >>,
   // `default` alone covers every status.
-  Expect<Equal<ApiResponse<paths["/blobs"]["GET"]>, Result<Success, true, unknown> | Result<Failure, false, unknown>>>,
+  Expect<Equal<
+    ApiResponse<paths["/blobs"]["GET"]>,
+    | Result<Exclude<Success, 204 | 205>, true, unknown>
+    | Result<Exclude<Failure, 304>, false, unknown>
+    | Result<204 | 205, true, undefined>
+    | Result<304, false, undefined>
+  >>,
 ];
 
 export async function querystrings() {

@@ -157,15 +157,16 @@ export interface paths {
   };
 }
 
-// The statuses each response key covers, as `[successes, failures]`; the
-// operations with the same keys share one.
+// The statuses each response key covers, as `[successes, failures]`, then
+// any of 204, 205 and 304 that a range or `default` covers, which have no
+// body. The operations with the same keys share one.
 type Statuses_200_default = {
   "200": [200, never];
-  default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205 | 304];
 };
 type Statuses_204_default = {
   "204": [204, never];
-  default: [200 | 201 | 202 | 203 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
+  default: [200 | 201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 205 | 304];
 };
 type Status21x = 210 | 211 | 212 | 213 | 214 | 215 | 216 | 217 | 218 | 219;
 type Status22x = 220 | 221 | 222 | 223 | 224 | 225 | 226 | 227 | 228 | 229;
@@ -176,7 +177,6 @@ type Status26x = 260 | 261 | 262 | 263 | 264 | 265 | 266 | 267 | 268 | 269;
 type Status27x = 270 | 271 | 272 | 273 | 274 | 275 | 276 | 277 | 278 | 279;
 type Status28x = 280 | 281 | 282 | 283 | 284 | 285 | 286 | 287 | 288 | 289;
 type Status29x = 290 | 291 | 292 | 293 | 294 | 295 | 296 | 297 | 298 | 299;
-type Status30x = 300 | 301 | 302 | 303 | 304 | 305 | 306 | 307 | 308 | 309;
 type Status31x = 310 | 311 | 312 | 313 | 314 | 315 | 316 | 317 | 318 | 319;
 type Status32x = 320 | 321 | 322 | 323 | 324 | 325 | 326 | 327 | 328 | 329;
 type Status33x = 330 | 331 | 332 | 333 | 334 | 335 | 336 | 337 | 338 | 339;
@@ -206,7 +206,6 @@ type Status56x = 560 | 561 | 562 | 563 | 564 | 565 | 566 | 567 | 568 | 569;
 type Status57x = 570 | 571 | 572 | 573 | 574 | 575 | 576 | 577 | 578 | 579;
 type Status58x = 580 | 581 | 582 | 583 | 584 | 585 | 586 | 587 | 588 | 589;
 type Status59x = 590 | 591 | 592 | 593 | 594 | 595 | 596 | 597 | 598 | 599;
-type Status3xx = Status30x | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x;
 type Status4xx = Status40x | Status41x | Status42x | Status43x | Status44x | Status45x | Status46x | Status47x | Status48x | Status49x;
 type Status5xx = Status50x | Status51x | Status52x | Status53x | Status54x | Status55x | Status56x | Status57x | Status58x | Status59x;
 
@@ -256,15 +255,18 @@ export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & 
  * The result of calling operation `O` of `paths`. One member per declared
  * response key, each with the statuses it covers: a code itself, a range such
  * as `4XX` minus the codes declared in it, and `default` every other status,
- * successes included. Statuses nothing covers are still possible and have
- * `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
+ * successes included. 204, 205 and 304 have `data: undefined` under any of
+ * them. Statuses nothing covers are still possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
  * declared success from a `default` or undeclared one.
  */
 export type ApiResponse<O extends Operation> = {
-  [K in keyof O["statuses"]]: O["statuses"][K] extends [infer Ok, infer Failed]
-    ? Member<Ok, true, Data<O, K>> | Member<Failed, false, Data<O, K>>
+  [K in keyof O["statuses"]]: O["statuses"][K] extends [infer Ok, infer Failed, ...infer Empty]
+    ? Member<Ok, true, Data<O, K>> | Member<Failed, false, Data<O, K>> | Bodiless<Empty[number]>
     : never;
 }[keyof O["statuses"]];
+
+/** 204, 205 and 304 under a range or `default`: they never carry a body. */
+type Bodiless<S> = Member<Extract<S, 204 | 205>, true, undefined> | Member<Extract<S, 304>, false, undefined>;
 
 type Data<O extends Operation, K> = K extends keyof O["responses"] ? O["responses"][K] : unknown;
 type Member<S, Ok, D> = [S] extends [never] ? never : { status: S; ok: Ok; data: D; response: Response };
@@ -310,7 +312,8 @@ export type Middleware = (
 
 /**
  * An operation in `paths`. `statuses` maps each response key to the statuses it
- * covers, as `[successes, failures]`; `default` also takes undeclared ones.
+ * covers, as `[successes, failures]`, then those of 204, 205 and 304 that a range
+ * or `default` covers; `default` also takes undeclared ones.
  */
 type Operation = { request: object; responses: object; statuses: object };
 type Methods<P> = { [K in keyof P]: keyof P[K] }[keyof P] & string;
