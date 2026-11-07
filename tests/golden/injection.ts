@@ -740,7 +740,10 @@ async function withQuery(request: Request, pair: string): Promise<Request> {
   const hash = request.url.indexOf("#");
   const [url, fragment] = hash < 0 ? [request.url, ""] : [request.url.slice(0, hash), request.url.slice(hash)];
   const joined = `${url}${url.includes("?") ? "&" : "?"}${pair}${fragment}`;
-  if (request.body === null) return new Request(joined, request);
+  // Firefox has no `Request.body`, so the method also tells that there is none.
+  if (request.body === null || request.method === "GET" || request.method === "HEAD") {
+    return new Request(joined, request);
+  }
   // `new Request(joined, request)` would pass the body on as a stream, which Chromium
   // and WebKit refuse and Firefox sends empty: read it first.
   return new Request(joined, {
