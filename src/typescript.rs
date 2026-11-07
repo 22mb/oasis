@@ -748,8 +748,13 @@ impl<'a> Emitter<'a> {
         let mut fields: Vec<(String, Expr)> = c
             .encoding
             .iter()
-            .map(|(name, e)| {
+            .filter_map(|(name, e)| {
                 let e = match e {
+                    // A list or range of media types leaves the choice of a
+                    // part's media type to its value.
+                    Encoding::ContentType(ct) if multipart && ct.contains([',', '*']) => {
+                        return None;
+                    }
                     Encoding::ContentType(ct) => ("contentType".into(), Expr::string(ct)),
                     Encoding::Style {
                         style,
@@ -762,10 +767,11 @@ impl<'a> Emitter<'a> {
                             .unwrap_or(Expr::inline(Vec::new())),
                     ),
                 };
-                (name.clone(), Expr::inline(vec![e]))
+                Some((name.clone(), Expr::inline(vec![e])))
             })
             .collect();
         if multipart && let Some(s) = &c.schema {
+            let mut named: HashSet<&str> = c.encoding.iter().map(|(n, _)| n.as_str()).collect();
             let mut properties = Vec::new();
             self.parts(s, &mut Vec::new(), &mut properties);
             for p in properties {
@@ -782,7 +788,7 @@ impl<'a> Emitter<'a> {
                     Schema::Array { items: Some(i), .. } => encoded(i),
                     s => encoded(s),
                 };
-                if binary && !fields.iter().any(|(name, _)| *name == p.name) {
+                if binary && named.insert(&p.name) {
                     let octets = Expr::string("application/octet-stream");
                     fields.push((
                         p.name.clone(),

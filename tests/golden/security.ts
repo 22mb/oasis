@@ -488,14 +488,11 @@ function encodeQuerystring(
   mediaType = "application/x-www-form-urlencoded",
   encoding?: Record<string, Encoding>,
 ): string {
-  switch (mediaKind(mediaType)) {
-    case "form":
-      return typeof value === "string" ? value.replace(/^\?/, "") : formEncode(value as Record<string, unknown>, encoding);
-    case "json":
-      return encodeURIComponent(JSON.stringify(value));
-    default:
-      return encodeURIComponent(String(value));
+  const kind = mediaKind(mediaType);
+  if (kind === "form") {
+    return typeof value === "string" ? value.replace(/^\?/, "") : formEncode(value as Record<string, unknown>, encoding);
   }
+  return encodeURIComponent(kind === "json" ? JSON.stringify(value) : String(value));
 }
 
 /** RFC 6570 reserved expansion: reserved characters and %XX triples pass through. */
@@ -563,8 +560,7 @@ function formData(value: Record<string, unknown>, encoding: Record<string, Encod
       }
       continue;
     }
-    // A list or range of media types leaves the choice to the Blob's own type.
-    const type = e && !/[,*]/.test(e.contentType) ? e.contentType : undefined;
+    const type = e?.contentType;
     for (const item of items(v)) {
       if (item instanceof Blob) {
         if (item.type || !type) data.append(name, item);
@@ -619,13 +615,13 @@ function encodeBody(
 ): BodyInit | null {
   if (body === undefined) return null;
   const raw = isRawBody(body);
-  const kind = contentType ? mediaKind(contentType) : raw ? "binary" : "json";
+  const type = contentType ?? (raw ? undefined : "application/json");
+  const kind = type ? mediaKind(type) : "binary";
   if (kind === "multipart") {
     // Only fetch knows the boundary, so it sets the header.
     headers.delete("content-type");
     return raw ? body : formData(body as Record<string, unknown>, encoding);
   }
-  const type = contentType ?? (kind === "json" ? "application/json" : undefined);
   if (type) headers.set("content-type", type);
   if (kind === "json") return JSON.stringify(body);
   return kind === "form" && !raw ? formEncode(body as Record<string, unknown>, encoding) : body as BodyInit;

@@ -407,14 +407,11 @@ function encodeQuerystring(
   mediaType = "application/x-www-form-urlencoded",
   encoding?: Record<string, Encoding>,
 ): string {
-  switch (mediaKind(mediaType)) {
-    case "form":
-      return typeof value === "string" ? value.replace(/^\?/, "") : formEncode(value as Record<string, unknown>, encoding);
-    case "json":
-      return encodeURIComponent(JSON.stringify(value));
-    default:
-      return encodeURIComponent(String(value));
+  const kind = mediaKind(mediaType);
+  if (kind === "form") {
+    return typeof value === "string" ? value.replace(/^\?/, "") : formEncode(value as Record<string, unknown>, encoding);
   }
+  return encodeURIComponent(kind === "json" ? JSON.stringify(value) : String(value));
 }
 
 /** RFC 6570 reserved expansion: reserved characters and %XX triples pass through. */
@@ -482,8 +479,7 @@ function formData(value: Record<string, unknown>, encoding: Record<string, Encod
       }
       continue;
     }
-    // A list or range of media types leaves the choice to the Blob's own type.
-    const type = e && !/[,*]/.test(e.contentType) ? e.contentType : undefined;
+    const type = e?.contentType;
     for (const item of items(v)) {
       if (item instanceof Blob) {
         if (item.type || !type) data.append(name, item);
@@ -538,13 +534,13 @@ function encodeBody(
 ): BodyInit | null {
   if (body === undefined) return null;
   const raw = isRawBody(body);
-  const kind = contentType ? mediaKind(contentType) : raw ? "binary" : "json";
+  const type = contentType ?? (raw ? undefined : "application/json");
+  const kind = type ? mediaKind(type) : "binary";
   if (kind === "multipart") {
     // Only fetch knows the boundary, so it sets the header.
     headers.delete("content-type");
     return raw ? body : formData(body as Record<string, unknown>, encoding);
   }
-  const type = contentType ?? (kind === "json" ? "application/json" : undefined);
   if (type) headers.set("content-type", type);
   if (kind === "json") return JSON.stringify(body);
   return kind === "form" && !raw ? formEncode(body as Record<string, unknown>, encoding) : body as BodyInit;
@@ -777,6 +773,6 @@ const spec: Spec = {
   },
   operations: {
     "GET /items/*/\u2028\"'`\\": { operationId: "*/ } } (globalThis.__oasis_pwned ??= []).push(7); interface _ { _: { /*", security: [{ "\" + ((globalThis.__oasis_pwned ??= []).push(8)) + \"\u2028`${0}`": ["*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"] }] },
-    "POST /forms": { encoding: { "multipart/form-data; x=\"*/\u2028'`\\\"": { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": { contentType: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" }, "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`": { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": { style: { style: "deepObject" } }, "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" } } } },
+    "POST /forms": { encoding: { "multipart/form-data; x=\"*/\u2028'`\\\"": { "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`": { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": { style: { style: "deepObject" } }, "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" } } } },
   },
 };
