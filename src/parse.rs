@@ -102,14 +102,25 @@ impl<'a> Node<'a> {
             .map(|(k, v)| (k, self.at(v)))
     }
 
-    /// [`Node::entries`] without `x-` specification extensions, for objects
-    /// whose other keys are patterned (Paths, Responses).
-    fn fields(&self) -> impl Iterator<Item = (&'a String, Node<'a>)> + '_ {
-        self.entries().filter(|(k, _)| !k.starts_with("x-"))
-    }
-
     fn items(&self) -> impl Iterator<Item = Node<'a>> + '_ {
         self.v.as_array().into_iter().flatten().map(|v| self.at(v))
+    }
+    /// [`Node::entries`] of the value at `key`, none without it.
+    fn entries_of(&self, key: &str) -> impl Iterator<Item = (&'a String, Node<'a>)> {
+        let map = self.v.get(key).and_then(Value::as_object);
+        map.into_iter().flatten().map(|(k, v)| (k, self.at(v)))
+    }
+
+    /// [`Node::entries_of`] without `x-` specification extensions, for objects
+    /// whose other keys are patterned (Paths, Responses).
+    fn fields_of(&self, key: &str) -> impl Iterator<Item = (&'a String, Node<'a>)> {
+        self.entries_of(key).filter(|(k, _)| !k.starts_with("x-"))
+    }
+
+    /// [`Node::items`] of the value at `key`, none without it.
+    fn items_of(&self, key: &str) -> impl Iterator<Item = Node<'a>> {
+        let list = self.v.get(key).and_then(Value::as_array);
+        list.into_iter().flatten().map(|v| self.at(v))
     }
 }
 
@@ -195,13 +206,11 @@ impl<'a> Parser<'a> {
         };
 
         let mut paths = Vec::new();
-        if let Some(map) = root.get("paths") {
-            for (path, item) in map.fields() {
-                let item = self
-                    .path_item(path, item)
-                    .map_err(|e| e.context(format!("paths.{path}")))?;
-                paths.push(item);
-            }
+        for (path, item) in root.fields_of("paths") {
+            let item = self
+                .path_item(path, item)
+                .map_err(|e| e.context(format!("paths.{path}")))?;
+            paths.push(item);
         }
 
         // Converting a target can hoist more, which this loop then reaches.
@@ -219,7 +228,7 @@ impl<'a> Parser<'a> {
         Ok(Api {
             title: text("title"),
             version: text("version"),
-            servers: servers(root.get("servers"))?,
+            servers: servers(&root)?,
             schemas,
             paths,
             security_schemes: self.security_schemes,
@@ -312,14 +321,10 @@ impl<'a> Parser<'a> {
     }
 
     fn lookup(&self, from: &Node<'a>, reference: &str) -> Result<(Target, Node<'a>), Error> {
-        let (loc, base) = self
+        let (loc, v, base) = self
             .docs
             .resolve(&from.base, reference)
             .map_err(|e| e.about(referring(from.v, reference)))?;
-        let v = self
-            .docs
-            .value(&loc)
-            .expect("resolve checks the target exists");
         Ok((loc, Node { v, base }))
     }
 
@@ -336,28 +341,26 @@ impl<'a> Parser<'a> {
                 ops.push((m.to_ascii_uppercase(), op));
             }
         }
-        if let Some(extra) = item.get("additionalOperations") {
-            for (method, op) in extra.entries() {
-                if matches!(method.as_str(), "with" | "then") {
-                    return Err(Error::new(format!(
+        for (method, op) in item.entries_of("additionalOperations") {
+            if matches!(method.as_str(), "with" | "then") {
+                return Err(Error::new(format!(
                         "additionalOperations must not define `{method}`: the generated client reserves that name"
                     ))
                     .about(op.v));
-                }
-                let lower = method.to_ascii_lowercase();
-                let fixed = FIXED_METHODS.contains(&lower.as_str());
-                if fixed
-                    && (NORMALIZED_METHODS.contains(&lower.as_str())
-                        || *method == lower.to_ascii_uppercase())
-                {
-                    return Err(Error::new(format!(
+            }
+            let lower = method.to_ascii_lowercase();
+            let fixed = FIXED_METHODS.contains(&lower.as_str());
+            if fixed
+                && (NORMALIZED_METHODS.contains(&lower.as_str())
+                    || *method == lower.to_ascii_uppercase())
+            {
+                return Err(Error::new(format!(
                         "additionalOperations must not define `{method}`: it is sent as `{}`, use the `{lower}` field",
                         lower.to_ascii_uppercase()
                     ))
                     .about(op.v));
-                }
-                ops.push((method.clone(), op));
             }
+            ops.push((method.clone(), op));
         }
 
         let mut operations = Vec::new();
@@ -370,7 +373,7 @@ impl<'a> Parser<'a> {
         }
         Ok(PathItem {
             path: path.to_string(),
-            servers: servers(item.get("servers"))?,
+            servers: servers(&item)?,
             operations,
         })
     }
@@ -452,17 +455,15 @@ impl<'a> Parser<'a> {
         };
 
         let mut responses = Vec::new();
-        if let Some(map) = op.get("responses") {
-            for (key, r) in map.fields() {
-                let r = self.deref(r)?;
-                responses.push(Response {
-                    status: status(key).map_err(|e| e.about(r.v))?,
-                    meta: meta(r.v),
-                    content: self
-                        .content(r.get("content"))
-                        .map_err(|e| e.about(r.v).context(format!("response {key}")))?,
-                });
-            }
+        for (key, r) in op.fields_of("responses") {
+            let r = self.deref(r)?;
+            responses.push(Response {
+                status: status(key).map_err(|e| e.about(r.v))?,
+                meta: meta(r.v),
+                content: self
+                    .content(r.get("content"))
+                    .map_err(|e| e.about(r.v).context(format!("response {key}")))?,
+            });
         }
 
         let security = match op.get("security") {
@@ -474,7 +475,7 @@ impl<'a> Parser<'a> {
             method: method.to_string(),
             operation_id,
             meta: meta(op.v),
-            servers: servers(op.get("servers"))?,
+            servers: servers(&op)?,
             params,
             querystring,
             body,
@@ -604,7 +605,7 @@ impl<'a> Parser<'a> {
                     .context(format!("encoding.{name}"))
             };
             if multipart {
-                for (header, h) in e.get("headers").iter().flat_map(|h| h.entries()) {
+                for (header, h) in e.entries_of("headers") {
                     let h = self.deref(h)?;
                     if h.bool("required") == Some(true)
                         && !header.eq_ignore_ascii_case("content-type")
@@ -704,10 +705,8 @@ impl<'a> Parser<'a> {
         if let Some(base) = self.base_schema(&node, depth)? {
             parts.push(base);
         }
-        if let Some(all) = node.get("allOf") {
-            for s in all.items() {
-                parts.push(self.schema(s, depth + 1)?);
-            }
+        for s in node.items_of("allOf") {
+            parts.push(self.schema(s, depth + 1)?);
         }
         for (key, kind) in [("anyOf", UnionKind::AnyOf), ("oneOf", UnionKind::OneOf)] {
             if let Some(list) = node.get(key) {
@@ -867,9 +866,7 @@ impl<'a> Parser<'a> {
             },
             "array" => {
                 let prefix_items = node
-                    .get("prefixItems")
-                    .iter()
-                    .flat_map(|l| l.items())
+                    .items_of("prefixItems")
                     .map(|s| self.schema(s, depth + 1))
                     .collect::<Result<_, _>>()?;
                 let items = self.boxed(node.get("items"), depth)?;
@@ -881,21 +878,17 @@ impl<'a> Parser<'a> {
             }
             "object" => {
                 let required: Vec<&str> = node
-                    .get("required")
-                    .iter()
-                    .flat_map(|r| r.items())
+                    .items_of("required")
                     .filter_map(|r| r.v.as_str())
                     .collect();
                 let mut properties = Vec::new();
-                if let Some(props) = node.get("properties") {
-                    for (name, s) in props.entries() {
-                        properties.push(Property {
-                            name: name.clone(),
-                            required: required.contains(&name.as_str()),
-                            meta: meta(s.v),
-                            schema: self.schema(s, depth + 1)?,
-                        });
-                    }
+                for (name, s) in node.entries_of("properties") {
+                    properties.push(Property {
+                        name: name.clone(),
+                        required: required.contains(&name.as_str()),
+                        meta: meta(s.v),
+                        schema: self.schema(s, depth + 1)?,
+                    });
                 }
                 // Required names without a property schema must still be present.
                 for name in required {
@@ -909,10 +902,8 @@ impl<'a> Parser<'a> {
                     }
                 }
                 let mut pattern_properties = Vec::new();
-                if let Some(patterns) = node.get("patternProperties") {
-                    for (pattern, s) in patterns.entries() {
-                        pattern_properties.push((pattern.clone(), self.schema(s, depth + 1)?));
-                    }
+                for (pattern, s) in node.entries_of("patternProperties") {
+                    pattern_properties.push((pattern.clone(), self.schema(s, depth + 1)?));
                 }
                 let additional = self.boxed(node.get("additionalProperties"), depth)?;
                 Schema::Object {
@@ -995,13 +986,14 @@ fn param_style(p: &Node, location: Location) -> Result<Style, Error> {
     Ok(style)
 }
 
-fn servers(list: Option<Node>) -> Result<Vec<Server>, Error> {
+/// The `servers` of `parent`.
+fn servers(parent: &Node) -> Result<Vec<Server>, Error> {
     let text = |n: &Node, key| n.str(key).map(String::from);
     let mut out = Vec::new();
-    for s in list.iter().flat_map(|l| l.items()) {
+    for s in parent.items_of("servers") {
         let url = text(&s, "url").ok_or_else(|| Error::new("server requires `url`").about(s.v))?;
         let mut variables = Vec::new();
-        for (name, var) in s.get("variables").iter().flat_map(|v| v.entries()) {
+        for (name, var) in s.entries_of("variables") {
             variables.push(ServerVariable {
                 name: name.clone(),
                 default: text(&var, "default").ok_or_else(|| {
