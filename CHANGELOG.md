@@ -9,12 +9,29 @@ change the generated code or the CLI in incompatible ways.
 
 ### Fixed
 
-- **Breaking:** Require the first items of an array with minItems ([#77](https://github.com/22mb/oasis/pull/77))
-- **Breaking:** Type the binary parts of a multipart body composed with allOf or oneOf ([#78](https://github.com/22mb/oasis/pull/78))
+- **Breaking:** `minItems` was not read, so an array with `minItems: 1` took
+  an empty array. An array without `prefixItems` is now a tuple whose first
+  `minItems` items are required: `[T, ...T[]]` for 1, `[T, T, ...T[]]` for 2.
+  Its first items are also no longer `T | undefined` under
+  `noUncheckedIndexedAccess`.
+  ([#77](https://github.com/22mb/oasis/pull/77))
+- **Breaking:** In a `multipart/form-data` body composed with `allOf` or
+  `oneOf`, a part without a `type` was `unknown`. It is now a `Blob`, as in a
+  body whose schema is an object, so a value other than a `Blob` no longer
+  type-checks there.
+  ([#78](https://github.com/22mb/oasis/pull/78))
 - Send encoded binary parts of a composed multipart body as octets ([#79](https://github.com/22mb/oasis/pull/79))
 - Leave out what a subtype flags from the parent it extends ([#80](https://github.com/22mb/oasis/pull/80))
-- **Breaking:** Reject component names outside ASCII letters, digits, `.`, `-` and `_` ([#88](https://github.com/22mb/oasis/pull/88))
-- **Breaking:** Close an object to the names its propertyNames lists ([#89](https://github.com/22mb/oasis/pull/89))
+- **Breaking:** A component name with other characters than ASCII letters,
+  digits, `.`, `-` and `_`, which the specification does not allow, was
+  exported without them (`ユーザー` as `_`, `Café` as `Caf`). Such a name is now
+  an error. Rename the component.
+  ([#88](https://github.com/22mb/oasis/pull/88))
+- **Breaking:** `propertyNames` was not read, so a map whose keys an `enum`
+  limits took any key. Where `propertyNames` lists the names with `enum` or
+  `const`, the object now has an optional property for each of them, of the
+  type of `additionalProperties`, and no other key.
+  ([#89](https://github.com/22mb/oasis/pull/89))
 
 ## [0.6.0](https://github.com/22mb/oasis/compare/v0.5.1...v0.6.0) - 2026-11-06
 
