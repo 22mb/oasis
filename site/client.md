@@ -80,6 +80,9 @@ ones.
 4. The call's own `headers` option. Its `Cookie` header joins the cookies set
    so far, replacing only those of the same name
 
+Browsers ignore a `Cookie` header set in `fetch`, so `cookie` parameters are
+sent only from Node.js and Bun. A browser sends its own cookies instead.
+
 ### Request bodies
 
 The type of `body` depends on the media type of the request:

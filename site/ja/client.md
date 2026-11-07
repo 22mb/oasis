@@ -68,6 +68,8 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 3. `cookie` パラメーター（すでに設定されている `Cookie` ヘッダーへの追加）
 4. 呼び出し自体の `headers` オプション（`Cookie` ヘッダーはそれまでに設定された cookie に結合され、同名の cookie のみを上書き）
 
+ブラウザーは `fetch` で設定された `Cookie` ヘッダーを無視するため、`cookie` パラメーターは Node.js と Bun でのみ送信されます。ブラウザーでは、代わりにブラウザー自身が保持する cookie が送信されます。
+
 ### リクエスト本体 {#request-bodies}
 
 `body` の型は、リクエストのメディアタイプによって決まります。

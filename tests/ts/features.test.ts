@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 import { DecodeError, createClient, type ClientOptions } from "../golden/features.ts";
+import { cookieHeaders } from "./env.ts";
 
 type Sent = { url: string; headers: Headers; body: string };
 
@@ -31,25 +31,22 @@ test("serializes exploded, reserved, JSON and cookie parameters", async () => {
     cookie: { session: "a b;c", list: ["x", "y"], raw: "k=v" },
   });
   const [{ url, headers }] = sent as [Sent];
-  assert.equal(
-    url,
-    "https://api.example.com/items/x=1,y=2?path=/a/b?c%23d%20e%20f&filter=%7B%22a%22%3A1%7D",
-  );
-  assert.equal(headers.get("x-meta"), "a=1,b=2");
-  assert.equal(headers.get("cookie"), "session=a%20b%3Bc; list=x,y; raw=k=v");
-  assert.deepEqual(res.data, { x: 1 }); // `*/*` decoded by the actual Content-Type
+  expect(url).toBe("https://api.example.com/items/x=1,y=2?path=/a/b?c%23d%20e%20f&filter=%7B%22a%22%3A1%7D");
+  expect(headers.get("x-meta")).toBe("a=1,b=2");
+  if (cookieHeaders) expect(headers.get("cookie")).toBe("session=a%20b%3Bc; list=x,y; raw=k=v");
+  expect(res.data).toStrictEqual({ x: 1 }); // `*/*` decoded by the actual Content-Type
 });
 
 test("rejects path parameters that would change the path", async () => {
   const { api, sent } = recording();
   for (const dir of ["..", ".", ""]) {
-    await assert.rejects(api.GET("/files/{dir}/{name}", { path: { dir, name: "a" } }), TypeError);
+    await expect(api.GET("/files/{dir}/{name}", { path: { dir, name: "a" } })).rejects.toThrow(TypeError);
   }
-  assert.equal(sent.length, 0);
+  expect(sent.length).toBe(0);
 
   // Encoded dots and longer runs are ordinary names.
   await api.GET("/files/{dir}/{name}", { path: { dir: "...", name: "%2E%2E" } });
-  assert.equal(sent[0]!.url, "https://api.example.com/files/.../%252E%252E");
+  expect(sent[0]!.url).toBe("https://api.example.com/files/.../%252E%252E");
 });
 
 test("uses path- and operation-level servers", async () => {
@@ -57,21 +54,21 @@ test("uses path- and operation-level servers", async () => {
   await api.POST("/upload", { body: { name: "a", password: "p" } });
   await api.POST("/upload", { contentType: "application/json; charset=utf-8", body: { name: "a", password: "p" } });
   await api.GET("/shapes");
-  assert.deepEqual(sent.map((s) => s.url), [
+  expect(sent.map((s) => s.url)).toStrictEqual([
     "https://upload.example.com/upload",
     "https://upload.example.com/upload",
     "https://shapes.example.com/v2/shapes",
   ]);
   // The declared media type is sent, parameters included.
-  assert.equal(sent[0]!.headers.get("content-type"), "application/json; charset=utf-8");
-  assert.equal(sent[1]!.headers.get("content-type"), "application/json; charset=utf-8");
+  expect(sent[0]!.headers.get("content-type")).toBe("application/json; charset=utf-8");
+  expect(sent[1]!.headers.get("content-type")).toBe("application/json; charset=utf-8");
 });
 
 test("serializes a querystring parameter as its media type", async () => {
   const { api, sent } = recording();
   await api.GET("/lookup", { querystring: { tags: ["a b", "#c"] } });
   await api.POST("/lookup", { querystring: "x=1&y=#2" });
-  assert.deepEqual(sent.map((s) => s.url), [
+  expect(sent.map((s) => s.url)).toStrictEqual([
     "https://api.example.com/lookup?%7B%22tags%22%3A%5B%22a%20b%22%2C%22%23c%22%5D%7D",
     "https://api.example.com/lookup?x%3D1%26y%3D%232",
   ]);
@@ -82,7 +79,7 @@ test("a body is sent as the operation's media type when the call names none", as
   // A string is JSON when the operation takes JSON, not text/plain.
   await api.POST("/notes", { body: "hi" });
   await api.PATCH("/notes", { body: { text: "hi" } });
-  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [
+  expect(sent.map((s) => [s.headers.get("content-type"), s.body])).toStrictEqual([
     ["application/json", '"hi"'],
     ["application/merge-patch+json", '{"text":"hi"}'],
   ]);
@@ -92,44 +89,42 @@ test("baseUrl replaces every server", async () => {
   const { api, sent } = recording(json({}), { baseUrl: "http://localhost:4010/" });
   await api.POST("/upload", { body: { name: "a", password: "p" } });
   await api.GET("/shapes");
-  assert.deepEqual(sent.map((s) => s.url), ["http://localhost:4010/upload", "http://localhost:4010/shapes"]);
+  expect(sent.map((s) => s.url)).toStrictEqual(["http://localhost:4010/upload", "http://localhost:4010/shapes"]);
 });
 
 test("a body that is not what its Content-Type says throws a DecodeError", async () => {
   const html = () => new Response("<html>502</html>", { status: 502, headers: { "content-type": "application/json" } });
-  await assert.rejects(
-    recording(html).api.GET("/shapes"),
-    (e: unknown) =>
-      e instanceof DecodeError && e.response.status === 502 && e.text === "<html>502</html>" &&
-      e.cause instanceof SyntaxError,
-  );
+  const error = await recording(html).api.GET("/shapes").catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(DecodeError);
+  expect(error).toMatchObject({ response: { status: 502 }, text: "<html>502</html>" });
+  expect((error as DecodeError).cause).toBeInstanceOf(SyntaxError);
   // Sequential media types report the offending item while iterating.
   const lines = () => new Response('{"a":1}\nnot json\n', { headers: { "content-type": "application/jsonl" } });
   const res = await recording(lines).api.GET("/items/{coords}", { path: { coords: { x: 1 } } });
   const items: unknown[] = [];
-  await assert.rejects(
-    (async () => {
-      for await (const item of res.data as AsyncIterable<unknown>) items.push(item);
-    })(),
-    (e: unknown) => e instanceof DecodeError && e.text === "not json",
-  );
-  assert.deepEqual(items, [{ a: 1 }]);
+  const iterating = (async () => {
+    for await (const item of res.data as AsyncIterable<unknown>) items.push(item);
+  })();
+  const itemError = await iterating.catch((e: unknown) => e);
+  expect(itemError).toBeInstanceOf(DecodeError);
+  expect(itemError).toMatchObject({ text: "not json" });
+  expect(items).toStrictEqual([{ a: 1 }]);
 });
 
 test("only the document's methods are client properties", async () => {
   const { api, sent } = recording(json({}));
-  assert.equal(JSON.stringify(api), "{}");
-  assert.equal(String(api), "[object Object]");
-  assert.equal(Reflect.get(api, "get"), undefined); // lowercase names do not send either
-  assert.equal(Reflect.get(api, "toJSON"), undefined);
-  assert.equal(typeof Reflect.get(api, "GET"), "function");
-  assert.ok(Object.keys(api).includes("GET")); // a plain property, so a test can replace it
-  assert.equal(sent.length, 0);
+  expect(JSON.stringify(api)).toBe("{}");
+  expect(String(api)).toBe("[object Object]");
+  expect(Reflect.get(api, "get")).toBe(undefined); // lowercase names do not send either
+  expect(Reflect.get(api, "toJSON")).toBe(undefined);
+  expect(typeof Reflect.get(api, "GET")).toBe("function");
+  expect(Object.keys(api)).toContain("GET"); // a plain property, so a test can replace it
+  expect(sent.length).toBe(0);
   // Paths are the document's templates, which start with `/`.
   const GET = api.GET as unknown as (path: string) => Promise<unknown>;
-  await assert.rejects(GET("shapes"), TypeError);
-  await assert.rejects(GET("//evil.example/x"), TypeError); // a host in a relative URL
-  assert.equal(sent.length, 0);
+  await expect(GET("shapes")).rejects.toThrow(TypeError);
+  await expect(GET("//evil.example/x")).rejects.toThrow(TypeError); // a host in a relative URL
+  expect(sent.length).toBe(0);
 });
 
 test("sends static and per-call headers, and is not a thenable", async () => {
@@ -137,11 +132,11 @@ test("sends static and per-call headers, and is not a thenable", async () => {
     headers: { "x-api-key": "k" },
   });
   await api.GET("/shapes", { headers: { "x-trace": "1" } });
-  assert.equal(sent[0]!.headers.get("x-api-key"), "k");
-  assert.equal(sent[0]!.headers.get("x-trace"), "1");
+  expect(sent[0]!.headers.get("x-api-key")).toBe("k");
+  expect(sent[0]!.headers.get("x-trace")).toBe("1");
   // Returning the client from an async function must not look up a `then` method.
-  assert.equal(Reflect.get(api, "then"), undefined);
-  assert.equal(await Promise.resolve(api), api);
+  expect(Reflect.get(api, "then")).toBe(undefined);
+  expect(await Promise.resolve(api)).toBe(api);
 });
 
 test("reads a text/* response the document declares binary as a Blob", async () => {
@@ -150,19 +145,19 @@ test("reads a text/* response the document declares binary as a Blob", async () 
     return (await recording(response).api.GET("/report")).data;
   };
   const csv = await report(200, "text/csv; charset=Shift_JIS");
-  assert.ok(csv instanceof Blob);
-  assert.equal(await csv.text(), "a,b\n");
+  expect(csv).toBeInstanceOf(Blob);
+  expect(await (csv as Blob).text()).toBe("a,b\n");
   // The same media type in another response, declared as text, is still binary.
-  assert.ok((await report(400, "TEXT/CSV")) instanceof Blob);
-  assert.equal(await report(200, "text/plain"), "a,b\n");
-  assert.equal(await report(200, "text/html"), "a,b\n");
+  expect(await report(400, "TEXT/CSV")).toBeInstanceOf(Blob);
+  expect(await report(200, "text/plain")).toBe("a,b\n");
+  expect(await report(200, "text/html")).toBe("a,b\n");
   // A binary range covers every media type in it, and no other.
   const exported = async (contentType: string) => {
     const response = () => new Response("1", { headers: { "content-type": contentType } });
     return (await recording(response).api.GET("/exports")).data as unknown;
   };
-  assert.ok((await exported("text/markdown; charset=utf-8")) instanceof Blob);
-  assert.equal(await exported("application/json"), 1);
+  expect(await exported("text/markdown; charset=utf-8")).toBeInstanceOf(Blob);
+  expect(await exported("application/json")).toBe(1);
 });
 
 test("decodes bodies by status and Content-Type", async () => {
@@ -177,10 +172,10 @@ test("decodes bodies by status and Content-Type", async () => {
     ["form", () => new Response("a=1", { headers: { "content-type": "application/x-www-form-urlencoded" } }), "a=1"],
   ];
   for (const [name, response, expected] of cases) {
-    assert.deepEqual((await item(response)).data, expected, name);
+    expect((await item(response)).data, name).toStrictEqual(expected);
   }
   const mixed = await item(() => new Response("--b--", { headers: { "content-type": "multipart/mixed; boundary=b" } }));
-  assert.ok(mixed.data instanceof Blob);
+  expect(mixed.data).toBeInstanceOf(Blob);
 
   // Sequential media types by alias and by suffix.
   const collect = async (contentType: string, text: string) => {
@@ -189,8 +184,8 @@ test("decodes bodies by status and Content-Type", async () => {
     for await (const i of res.data as AsyncIterable<unknown>) items.push(i);
     return items;
   };
-  assert.deepEqual(await collect("application/x-ndjson", '{"a":1}\n{"a":2}\n'), [{ a: 1 }, { a: 2 }]);
-  assert.deepEqual(await collect("application/foo+json-seq", '\x1e{"a":1}\n\x1e{"a":2}\n'), [{ a: 1 }, { a: 2 }]);
+  expect(await collect("application/x-ndjson", '{"a":1}\n{"a":2}\n')).toStrictEqual([{ a: 1 }, { a: 2 }]);
+  expect(await collect("application/foo+json-seq", '\x1e{"a":1}\n\x1e{"a":2}\n')).toStrictEqual([{ a: 1 }, { a: 2 }]);
 });
 
 test("serializes arrays and objects in every location", async () => {
@@ -203,36 +198,34 @@ test("serializes arrays and objects in every location", async () => {
   });
   const [{ url, headers }] = sent as [Sent];
   // The operation's server wins over the path's; `null` leaves a parameter out.
-  assert.equal(
-    url,
-    "https://operation.example.com/params/a%20b,c/x,1,y,2?a=1&b=2&flat=a,1,b,2&deep%5Ba%5D=1&deep%5Ba%5D=2&deep%5Bb%5D=3",
-  );
-  assert.equal(headers.get("x-ids"), "1,2");
-  assert.equal(headers.get("x-pair"), "a,1,b,2");
-  assert.equal(headers.get("cookie"), "multi=x; multi=y");
-  assert.deepEqual(res.data, { n: 1 });
+  expect(url).toBe("https://operation.example.com/params/a%20b,c/x,1,y,2?a=1&b=2&flat=a,1,b,2&deep%5Ba%5D=1&deep%5Ba%5D=2&deep%5Bb%5D=3");
+  expect(headers.get("x-ids")).toBe("1,2");
+  expect(headers.get("x-pair")).toBe("a,1,b,2");
+  if (cookieHeaders) expect(headers.get("cookie")).toBe("multi=x; multi=y");
+  expect(res.data).toStrictEqual({ n: 1 });
 
   // `undefined` leaves a parameter out too, as passed without `exactOptionalPropertyTypes`.
   const absent = undefined as never;
   await api.GET("/params/{list}/{pair}", { path: { list: ["a"], pair: { x: 1 } }, query: { obj: absent }, header: { "X-Ids": absent } });
-  assert.equal(sent[1]!.url, "https://operation.example.com/params/a/x,1");
-  assert.equal(sent[1]!.headers.get("x-ids"), null);
+  expect(sent[1]!.url).toBe("https://operation.example.com/params/a/x,1");
+  expect(sent[1]!.headers.get("x-ids")).toBe(null);
 });
 
 test("adds cookie parameters to a cookie from async client headers", async () => {
+  if (!cookieHeaders) return;
   const { api, sent } = recording(noContent, {
     headers: async () => ({ cookie: "theme=dark", "x-api-key": "k" }),
   });
   await api.GET("/params/{list}/{pair}", { path: { list: ["a"], pair: { x: 1 } }, cookie: { multi: ["x"] } });
-  assert.equal(sent[0]!.headers.get("cookie"), "theme=dark; multi=x");
-  assert.equal(sent[0]!.headers.get("x-api-key"), "k");
+  expect(sent[0]!.headers.get("cookie")).toBe("theme=dark; multi=x");
+  expect(sent[0]!.headers.get("x-api-key")).toBe("k");
 });
 
 test("form bodies repeat array values and leave out null", async () => {
   const { api, sent } = recording();
   await api.PUT("/forms/{id}", { path: { id: 1 }, contentType: "application/x-www-form-urlencoded", body: { tags: ["a", "b c"], note: null } });
   await api.PUT("/forms/{id}", { path: { id: 1 }, body: { tags: ["a"], note: null } });
-  assert.deepEqual(sent.map((s) => [s.url, s.headers.get("content-type"), s.body]), [
+  expect(sent.map((s) => [s.url, s.headers.get("content-type"), s.body])).toStrictEqual([
     ["https://api.example.com/forms/1", "application/x-www-form-urlencoded", "tags=a&tags=b+c"],
     ["https://api.example.com/forms/1", "application/json", '{"tags":["a"],"note":null}'],
   ]);
@@ -245,7 +238,7 @@ test("form fields are JSON for objects, and follow their Encoding Objects", asyn
     body: { meta: { tags: ["a"], note: null }, filter: { kind: "cat", size: 2 }, path: "/a b?c=d", id: "i 1" },
   });
   await api.PUT("/forms/{id}", { path: { id: 1 }, contentType: "application/x-www-form-urlencoded", body: { tags: [{ a: 1 } as unknown as string] } });
-  assert.deepEqual(sent.map((s) => s.body), [
+  expect(sent.map((s) => s.body)).toStrictEqual([
     "meta=%7B%22tags%22%3A%5B%22a%22%5D%2C%22note%22%3Anull%7D&kind=cat&size=2&path=/a%20b?c=d&id=%22i+1%22",
     "tags=%7B%22a%22%3A1%7D",
   ]);
@@ -278,8 +271,8 @@ test("multipart parts take their media type from the value or the Encoding Objec
       note: "n",
     },
   });
-  assert.match(sent[0]!.body, /name="file"; filename="a.jpg"/);
-  assert.deepEqual(parts(sent[0]!), [
+  expect(sent[0]!.body).toMatch(/name="file"; filename="a.jpg"/);
+  expect(parts(sent[0]!)).toStrictEqual([
     // A Blob keeps its own type; with none, it is sent as application/octet-stream,
     // the default, or as the single media type its Encoding Object names.
     ["file", "image/jpeg", "f"],
@@ -304,7 +297,7 @@ test("a multipart body replaces a Content-Type set before it, so fetch can add t
   const body = { file: new Blob(["f"]), meta: {} };
   await api.POST("/uploads", { contentType: "multipart/form-data", body });
   await api.POST("/uploads", { contentType: "multipart/form-data", body, headers: [["Content-Type", "multipart/form-data"]] });
-  for (const { headers } of sent) assert.match(headers.get("content-type")!, /^multipart\/form-data; boundary=/);
+  for (const { headers } of sent) expect(headers.get("content-type")!).toMatch(/^multipart\/form-data; boundary=/);
 });
 
 test("a body for a media type range is sent by its kind unless the call names one", async () => {
@@ -312,7 +305,7 @@ test("a body for a media type range is sent by its kind unless the call names on
   await api.POST("/blobs", { body: new TextEncoder().encode("raw") });
   await api.POST("/blobs", { body: { a: 1 } });
   await api.POST("/blobs", { contentType: "text/csv", body: "a,b" });
-  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [
+  expect(sent.map((s) => [s.headers.get("content-type"), s.body])).toStrictEqual([
     [null, "raw"],
     ["application/json", '{"a":1}'],
     ["text/csv", "a,b"],
@@ -322,7 +315,7 @@ test("a body for a media type range is sent by its kind unless the call names on
 test("a body for a media type range other than `*/*` is sent as the call names it", async () => {
   const { api, sent } = recording();
   await api.PUT("/avatar", { contentType: "image/png", body: new Blob(["png"]) });
-  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [["image/png", "png"]]);
+  expect(sent.map((s) => [s.headers.get("content-type"), s.body])).toStrictEqual([["image/png", "png"]]);
 });
 
 test("a multipart/form-data body without a schema is a FormData sent as it is", async () => {
@@ -330,14 +323,14 @@ test("a multipart/form-data body without a schema is a FormData sent as it is", 
   const body = new FormData();
   body.append("a", "1");
   await api.POST("/attachments", { body });
-  assert.deepEqual(parts(sent[0]!), [["a", null, "1"]]);
+  expect(parts(sent[0]!)).toStrictEqual([["a", null, "1"]]);
 });
 
 test("a multipart body other than multipart/form-data is a Blob that carries its Content-Type", async () => {
   const { api, sent } = recording();
   const type = "multipart/mixed; boundary=b";
   await api.POST("/batch", { contentType: "multipart/mixed", body: new Blob(["--b--"], { type }) });
-  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [[type, "--b--"]]);
+  expect(sent.map((s) => [s.headers.get("content-type"), s.body])).toStrictEqual([[type, "--b--"]]);
 });
 
 test("a form querystring takes fields or an encoded string", async () => {
@@ -345,7 +338,7 @@ test("a form querystring takes fields or an encoded string", async () => {
   await api.GET("/blobs", { querystring: { a: 1, b: [2, 3], c: null } });
   // A form querystring whose schema is a string is passed as it is, without a leading "?".
   await api.GET("/blobs", { querystring: "?a=1&b=%202" as unknown as Record<string, unknown> });
-  assert.deepEqual(sent.map((s) => s.url), [
+  expect(sent.map((s) => s.url)).toStrictEqual([
     "https://api.example.com/blobs?a=1&b=2&b=3",
     "https://api.example.com/blobs?a=1&b=%202",
   ]);
@@ -355,13 +348,14 @@ test("an optional body can be left out without a media type", async () => {
   const { api, sent } = recording();
   await api.PUT("/photos/{id}", { path: { id: 1 } });
   await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new Uint8Array([1]) });
-  assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body.length]), [
+  expect(sent.map((s) => [s.headers.get("content-type"), s.body.length])).toStrictEqual([
     [null, 0],
     ["image/png", 1],
   ]);
 });
 
 test("a call's Cookie header joins the cookie parameters", async () => {
+  if (!cookieHeaders) return;
   const { api, sent } = recording(noContent, {
     headers: { cookie: "theme=dark" },
   });
@@ -369,7 +363,7 @@ test("a call's Cookie header joins the cookie parameters", async () => {
   await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "lang=ja; token=a=b" } });
   // A cookie of the same name is replaced; other headers of the same name still replace.
   await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "theme=light", "x-ids": "9" }, header: { "X-Ids": [1] } });
-  assert.deepEqual(sent.map(({ headers }) => [headers.get("cookie"), headers.get("x-ids")]), [
+  expect(sent.map(({ headers }) => [headers.get("cookie"), headers.get("x-ids")])).toStrictEqual([
     ["theme=dark; multi=x; lang=ja; token=a=b", null],
     ["multi=x; theme=light", "9"],
   ]);

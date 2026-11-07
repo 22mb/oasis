@@ -2,15 +2,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node node_modules/typescript/bin/tsc && node --test",
+    "test": "node node_modules/typescript/bin/tsc && vitest run --project node && node --test e2e.test.ts",
     "test:bun": "bun test",
+    "test:browsers": "vitest run --project browsers",
     "check:ts5.0": "node node_modules/typescript-5.0/bin/tsc --noEmit --strict --noUnusedLocals --noUnusedParameters --noImplicitReturns --noImplicitOverride --noFallthroughCasesInSwitch --noPropertyAccessFromIndexSignature --allowUnreachableCode false --allowUnusedLabels false --isolatedModules --skipLibCheck --target es2022 --module esnext --moduleResolution bundler --allowImportingTsExtensions --lib es2022,dom --types node *.check.ts ../golden/injection.ts",
     "check:no-dom": "node node_modules/typescript/bin/tsc --lib es2022",
     "check:browser": "node node_modules/typescript/bin/tsc -p tsconfig.browser.json"
   },
   "devDependencies": {
     "@types/node": "26.6.5",
+    "@vitest/browser-playwright": "5.1.0",
+    "playwright": "1.65.0",
     "typescript": "7.0.2",
-    "typescript-5.0": "npm:typescript@5.0.4"
+    "typescript-5.0": "npm:typescript@5.0.4",
+    "vitest": "5.1.0"
   }
 }

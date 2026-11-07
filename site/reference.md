@@ -24,7 +24,8 @@ oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
 ## Requirements
 
 - **Node.js** 22 or later, for both the CLI and the generated client. The
-  client also runs in browsers and Bun.
+  client also runs in browsers, tested in Chromium, Firefox, and WebKit, and in
+  Bun.
 - **TypeScript** 5.0 or later. The generated file needs `lib` ES2022 or later,
   plus either the `dom` lib or `@types/node` for `fetch`, `Request`, and
   `Response`.
