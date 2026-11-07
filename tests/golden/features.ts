@@ -199,6 +199,43 @@ export interface paths {
       statuses: Statuses_204_default;
     };
   };
+  "/avatars": {
+    POST: {
+      request: {
+        contentType?: "multipart/form-data";
+        body: Omit<{
+          id: number;
+          file: Blob;
+        }, "id"> & {
+          thumbnail?: Blob;
+          id?: never;
+        };
+      };
+      responses: {
+        /** Saved. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+  };
+  "/imports": {
+    POST: {
+      request: {
+        contentType?: "multipart/form-data";
+        body: {
+          id: number;
+          file: Blob;
+        } | {
+          url: string;
+        };
+      };
+      responses: {
+        /** Saved. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+  };
   "/uploads": {
     POST: {
       request: {
@@ -438,6 +475,7 @@ export interface components {
     Credentials: $Credentials;
     Login: $Login;
     Guarded: $Guarded;
+    Upload: $Upload;
     Holder: $Holder;
     Client: $Client;
     Photo: $Photo;
@@ -611,6 +649,10 @@ type $Guarded$Request = {
   id?: never;
   password?: string;
 };
+type $Upload = {
+  id: number;
+  file: {} | null;
+};
 type $Holder = {
   serial: $Serial;
 };
@@ -744,6 +786,7 @@ export type {
   $Credentials as Credentials,
   $Login as Login,
   $Guarded as Guarded,
+  $Upload as Upload,
   $Holder as Holder,
   $Client as Client_2,
   $Photo as Photo,
@@ -1446,6 +1489,8 @@ const spec: Spec = {
     "POST /lookup": { querystring: "text/plain" },
     "GET /params/{list}/{pair}": { server: "https://operation.example.com", styles: { "query:flat": { explode: false }, "query:deep": { style: "deepObject" } } },
     "PUT /forms/{id}": { contentType: "application/json" },
+    "POST /avatars": { contentType: "multipart/form-data" },
+    "POST /imports": { contentType: "multipart/form-data" },
     "POST /uploads": { encoding: { "multipart/form-data": { file: { contentType: "image/png, image/jpeg" }, photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
     "PUT /avatar": { contentType: "application/json" },
     "GET /blobs": { querystring: "application/x-www-form-urlencoded" },

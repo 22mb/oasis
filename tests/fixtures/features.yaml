@@ -219,6 +219,37 @@ paths:
       responses:
         "204":
           description: Saved.
+  # Parts are typed so also in a body composed with `allOf` or `oneOf`, through
+  # the schemas it references.
+  /avatars:
+    post:
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/Upload"
+                - properties:
+                    thumbnail: {}
+                    id: { type: integer, readOnly: true }
+      responses:
+        "204": { description: Saved. }
+  /imports:
+    post:
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/Upload"
+                - type: object
+                  required: [url]
+                  properties:
+                    url: { type: string }
+      responses:
+        "204": { description: Saved. }
   # Form bodies: parts typed from the schema, binary ones without a `type` as `Blob`,
   # and Encoding Objects. Optional part headers are left out.
   /uploads:
@@ -517,6 +548,12 @@ components:
       properties:
         id: { type: integer, readOnly: true }
         password: { type: string, writeOnly: true }
+    Upload:
+      type: object
+      required: [id, file]
+      properties:
+        id: { type: integer }
+        file: {}
     Holder:
       type: object
       required: [serial]

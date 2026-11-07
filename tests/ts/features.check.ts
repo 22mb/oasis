@@ -283,6 +283,9 @@ export type Operations = [
         body: { meta?: schemas["Form"]; filter?: { kind?: string; size?: number }; path?: string; id?: string };
       }
   >>,
+  // ... also in a body composed with `allOf` or `oneOf`, through the schemas it references.
+  Expect<Equal<Flat<Operation<"/avatars", "POST">["request"]["body"]>, { file: Blob; thumbnail?: Blob; id?: never }>>,
+  Expect<Equal<Operation<"/imports", "POST">["request"]["body"], { id: number; file: Blob } | { url: string }>>,
 ];
 
 export async function formBodies() {
