@@ -24,20 +24,29 @@ export type Exact = [
     Awaited<ReturnType<typeof api.GET<"/pets/{petId}">>>,
     | Result<200, true, schemas["Pet"]>
     | Result<404, false, schemas["Error"]>
-    // Undeclared statuses remain possible.
-    | Result<Exclude<Success, 200>, true, unknown>
-    | Result<Exclude<Failure, 404>, false, unknown>
+    // Undeclared statuses remain possible; 204, 205 and 304 never have a body.
+    | Result<Exclude<Success, 200 | 204 | 205>, true, unknown>
+    | Result<Exclude<Failure, 304 | 404>, false, unknown>
+    | Result<204 | 205, true, undefined>
+    | Result<304, false, undefined>
   >>,
   Expect<Equal<
     Awaited<ReturnType<typeof api.GET<"/pets">>>,
-    // `default` covers every other status, successes included.
+    // `default` covers every other status, successes included, but 204, 205
+    // and 304 never have a body.
     | Result<200, true, schemas["Pet"][]>
-    | Result<Exclude<Success, 200>, true, schemas["Error"]>
-    | Result<Failure, false, schemas["Error"]>
+    | Result<Exclude<Success, 200 | 204 | 205>, true, schemas["Error"]>
+    | Result<Exclude<Failure, 304>, false, schemas["Error"]>
+    | Result<204 | 205, true, undefined>
+    | Result<304, false, undefined>
   >>,
   Expect<Equal<
     Awaited<ReturnType<typeof api.DELETE<"/pets/{petId}">>>,
-    Result<204, true, undefined> | Result<Exclude<Success, 204>, true, unknown> | Result<Failure, false, unknown>
+    | Result<204, true, undefined>
+    | Result<Exclude<Success, 204 | 205>, true, unknown>
+    | Result<Exclude<Failure, 304>, false, unknown>
+    | Result<205, true, undefined>
+    | Result<304, false, undefined>
   >>,
   // No required inputs: init is optional.
   Expect<Equal<Parameters<typeof api.QUERY<"/pets">>, [

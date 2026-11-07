@@ -245,8 +245,9 @@ impl<'a> Emitter<'a> {
         items.push(Item::Blank);
         if !statuses.is_empty() {
             items.push(Item::Comment(vec![
-                "The statuses each response key covers, as `[successes, failures]`; the".into(),
-                "operations with the same keys share one.".into(),
+                "The statuses each response key covers, as `[successes, failures]`, then".into(),
+                "any of 204, 205 and 304 that a range or `default` covers, which have no".into(),
+                "body. The operations with the same keys share one.".into(),
             ]));
             let runs = status_runs(&statuses);
             items.extend(statuses.into_iter().map(|(name, ty)| Item::alias(name, ty)));
@@ -1603,7 +1604,8 @@ fn style_literal(style: Style, explode: bool, allow_reserved: bool) -> Option<Ex
 }
 
 /// The name and type of the alias for an operation's `statuses`: each response
-/// key with the statuses it covers, as `[successes, failures]`. These are
+/// key with the statuses it covers, as `[successes, failures]`, followed by
+/// those of 204, 205 and 304 that a range or `default` covers. These are
 /// computed here rather than by conditional types in the runtime, which would
 /// cost every call site; they depend only on the keys, which name the alias.
 fn status_alias(op: &Operation) -> (String, Type) {
@@ -1617,12 +1619,21 @@ fn status_alias(op: &Operation) -> (String, Type) {
     let mut name = String::from("Statuses");
     let mut members = Vec::new();
     for (key, codes) in entries {
+        // These never carry a body. Under their own key the response type says
+        // so; a range or `default` keeps them apart, as a third element.
+        let own = key.bytes().all(|b| b.is_ascii_digit());
+        let (empty, codes): (Vec<u16>, Vec<u16>) = codes
+            .into_iter()
+            .partition(|s| !own && matches!(s, 204 | 205 | 304));
         let (ok, failed): (Vec<u16>, Vec<u16>) =
             codes.into_iter().partition(|s| (200..300).contains(s));
         name.push('_');
         name.push_str(&key);
-        let pair = Type::Tuple(vec![statuses(&ok), statuses(&failed)], None);
-        members.push(Member::new(key, false, pair));
+        let mut tuple = vec![statuses(&ok), statuses(&failed)];
+        if !empty.is_empty() {
+            tuple.push(statuses(&empty));
+        }
+        members.push(Member::new(key, false, Type::Tuple(tuple, None)));
     }
     (name, Type::object(members))
 }
