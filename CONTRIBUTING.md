@@ -32,6 +32,14 @@ Review the diff and commit it with the change. In the same way,
 `tests/errors` holds an invalid document for each error the generator
 reports, next to the exact text it prints (`<case>.stderr`).
 
+Add a case to an existing fixture, usually `features.yaml`. Each golden file
+repeats the whole runtime, so a new fixture is only for what applies to a
+whole document: its `openapi` version, `securitySchemes`, several files, or
+injection. Give the schemas and paths one change adds a common prefix naming
+its subject (`MultipartAllOf…`, `/multipart-allof`), so that no name needs to
+be looked for and they stay together in the fixture, the golden file and the
+type checks.
+
 ## Design
 
 ```
