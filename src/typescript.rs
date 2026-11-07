@@ -652,24 +652,10 @@ impl<'a> Emitter<'a> {
                 self.schema_or_unknown(c.schema.as_ref(), View::Request)
             }
             MediaKind::Multipart => match c.schema.as_ref().map(|s| (s, self.resolve(s))) {
-                Some((
-                    _,
-                    Schema::Object {
-                        properties,
-                        pattern_properties,
-                        additional,
-                    },
-                )) if essence(&c.media_type) == "multipart/form-data" => self.object(
-                    properties,
-                    pattern_properties,
-                    additional.as_deref(),
-                    View::Request,
-                    &|s| self.part(s),
-                ),
                 Some((s, other))
                     if *other != Schema::Any && essence(&c.media_type) == "multipart/form-data" =>
                 {
-                    self.ty(s, View::Request)
+                    self.form_data(s, &mut Vec::new())
                 }
                 _ if essence(&c.media_type) == "multipart/form-data" => Type::name("FormData"),
                 // `FormData` is always sent as `multipart/form-data`. A `Blob` whose
@@ -685,6 +671,66 @@ impl<'a> Emitter<'a> {
                     Type::Union(vec![Type::name("FormData"), Type::name("URLSearchParams")]),
                 ],
             ),
+        }
+    }
+
+    /// A `multipart/form-data` body of schema `s`, whose properties are typed
+    /// by [`Emitter::part`]. `$ref`s are followed through `allOf`, `oneOf` and
+    /// `anyOf`, so that the properties of the schemas they name are parts too.
+    fn form_data<'s>(&'s self, s: &'s Schema, visiting: &mut Vec<&'s str>) -> Type {
+        let view = View::Request;
+        match s {
+            Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
+                visiting.push(k);
+                let t = self.form_data(&self.schemas[k.as_str()].schema, visiting);
+                visiting.pop();
+                t
+            }
+            Schema::Object {
+                properties,
+                pattern_properties,
+                additional,
+            } => self.object(
+                properties,
+                pattern_properties,
+                additional.as_deref(),
+                view,
+                &|s| self.part(s),
+            ),
+            Schema::Union {
+                variants,
+                discriminator,
+                ..
+            } => Type::Union(
+                variants
+                    .iter()
+                    .map(|v| self.tag(self.form_data(v, visiting), v, discriminator.as_ref()))
+                    .collect(),
+            ),
+            Schema::Intersection(parts) => {
+                let hidden = self.hidden_in(parts, view);
+                Type::Intersection(
+                    parts
+                        .iter()
+                        .map(|p| match p {
+                            Schema::Ref(_) => {
+                                let t = self.form_data(p, visiting);
+                                self.omit(t, p, &hidden, view)
+                            }
+                            // A bare `type: object` is `object` here.
+                            Schema::Object {
+                                properties,
+                                pattern_properties,
+                                additional: None,
+                            } if properties.is_empty() && pattern_properties.is_empty() => {
+                                self.composed(p, view)
+                            }
+                            _ => self.form_data(p, visiting),
+                        })
+                        .collect(),
+                )
+            }
+            _ => self.ty(s, view),
         }
     }
 
