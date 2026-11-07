@@ -203,6 +203,11 @@ export type Nested = [
   >>,
   // ... and a property named only in a nested `allOf`.
   Expect<Equal<Flat<components["requestSchemas"]["Nested"]>, { serial?: never; secret?: string; label?: string; extra?: string }>>,
+  // ... and a property of an inline object, an array item or a `oneOf` variant.
+  Expect<Equal<
+    components["requestSchemas"]["Deep"],
+    { inner?: { serial?: never }; list?: { serial?: never }[]; choice?: { serial?: never } | string }
+  >>,
   // A schema hoisted from `$defs` has a request shape too.
   Expect<Equal<components["requestSchemas"]["Doc"], { meta?: { rev?: never } }>>,
   // `items` without `type` is an array; tuples with and without `items`.
@@ -259,6 +264,7 @@ export type Operations = [
   // A `text/*` schema without a `type` is binary, for every response of that media type;
   // a `type: string` schema or none is text.
   Expect<Equal<Operation<"/report", "GET">["responses"], { "200": Blob | string; "4XX": Blob }>>,
+  Expect<Equal<Operation<"/exports", "GET">["responses"], { "200": Blob }>>,
   // Form bodies are typed by their schema. A multipart part without a `type` is binary,
   // an array of them one part per item; a `type: string` part is text, also when encoded.
   Expect<Equal<
@@ -286,6 +292,8 @@ export type Operations = [
   // ... also in a body composed with `allOf` or `oneOf`, through the schemas it references.
   Expect<Equal<Flat<Operation<"/avatars", "POST">["request"]["body"]>, { file: Blob; thumbnail?: Blob; checksum?: string; id?: never }>>,
   Expect<Equal<Operation<"/imports", "POST">["request"]["body"], { id: number; file: Blob } | { url: string }>>,
+  // Without a schema, the body is a `FormData`.
+  Expect<Equal<Operation<"/attachments", "POST">["request"]["body"], FormData>>,
 ];
 
 export async function formBodies() {
