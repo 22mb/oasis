@@ -504,6 +504,7 @@ export interface components {
     Entry: $Entry;
     Signup: $Signup;
     Credentials: $Credentials;
+    NestedAllOf: $NestedAllOf;
     Login: $Login;
     Guarded: $Guarded;
     Profile: $Profile;
@@ -549,6 +550,7 @@ export interface components {
     Entity: $Entity$Request;
     Entry: $Entry$Request;
     Signup: $Signup$Request;
+    NestedAllOf: $NestedAllOf$Request;
     Login: $Login$Request;
     Guarded: $Guarded$Request;
     Profile: $Profile$Request;
@@ -689,6 +691,12 @@ type $Credentials = {
   id: number;
   password: string;
   email: string;
+};
+type $NestedAllOf = $Credentials & $Base & {
+  id?: number;
+};
+type $NestedAllOf$Request = Omit<$Credentials & $Base, "id"> & {
+  id?: never;
 };
 type $Login = $Guarded & Omit<$Credentials, "password">;
 type $Login$Request = $Guarded$Request & Omit<$Credentials, "id">;
@@ -882,6 +890,7 @@ export type {
   $Entry as Entry,
   $Signup as Signup,
   $Credentials as Credentials,
+  $NestedAllOf as NestedAllOf,
   $Login as Login,
   $Guarded as Guarded,
   $Profile as Profile,
@@ -925,6 +934,7 @@ export type {
   $Entity$Request as EntityRequest,
   $Entry$Request as EntryRequest,
   $Signup$Request as SignupRequest,
+  $NestedAllOf$Request as NestedAllOfRequest,
   $Login$Request as LoginRequest,
   $Guarded$Request as GuardedRequest,
   $Profile$Request as ProfileRequest,
