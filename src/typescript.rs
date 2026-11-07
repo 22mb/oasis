@@ -445,13 +445,13 @@ impl<'a> Emitter<'a> {
     }
 
     /// The runtime data of `op`, keyed by `"METHOD /path"`, if it needs any.
-    /// `binary` is [`Emitter::binary_text`] of `op`, and `content_type` its
-    /// default request media type.
+    /// `binary` is [`Emitter::binary_text`] of each response of `op`, and
+    /// `content_type` its default request media type.
     fn operation_data(
         &self,
         item: &PathItem,
         op: &Operation,
-        binary: &[String],
+        binary: &[Vec<String>],
         content_type: Option<&str>,
     ) -> Option<(String, Expr)> {
         let mut info = Vec::new();
@@ -493,9 +493,14 @@ impl<'a> Emitter<'a> {
         if !encodings.is_empty() {
             info.push(("encoding".into(), Expr::inline(encodings)));
         }
-        if !binary.is_empty() {
-            let types = binary.iter().map(|mt| Expr::string(mt)).collect();
-            info.push(("binary".into(), Expr::Array(types)));
+        // Every response key once any has one, so that the runtime finds the
+        // key that covers a status as the type does.
+        if binary.iter().any(|b| !b.is_empty()) {
+            let keys = op.responses.iter().zip(binary).map(|(r, types)| {
+                let types = types.iter().map(|mt| Expr::string(mt)).collect();
+                (r.status.key(), Expr::Array(types))
+            });
+            info.push(("binary".into(), Expr::inline(keys.collect())));
         }
         (!info.is_empty()).then(|| (format!("{} {}", op.method, item.path), Expr::inline(info)))
     }
@@ -517,9 +522,9 @@ impl<'a> Emitter<'a> {
         if op.responses.is_empty() {
             responses.push(Member::new("default", false, Type::name("unknown")));
         }
-        let binary = self.binary_text(op);
+        let binary: Vec<Vec<String>> = op.responses.iter().map(|r| self.binary_text(r)).collect();
         let content_type = op.body.as_ref().and_then(default_media_type);
-        for r in &op.responses {
+        for (r, binary) in op.responses.iter().zip(&binary) {
             // Never carries a body on the wire, whatever the document declares.
             let bodiless = op.method == "HEAD" || matches!(r.status, Status::Code(204 | 205 | 304));
             let data = if bodiless || r.content.is_empty() {
@@ -528,7 +533,7 @@ impl<'a> Emitter<'a> {
                 Type::Union(
                     r.content
                         .iter()
-                        .map(|c| self.response_data(c, &binary))
+                        .map(|c| self.response_data(c, binary))
                         .collect(),
                 )
             };
@@ -838,13 +843,13 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// The `text/*` response media types of `op` whose schema says the body is
+    /// The `text/*` media types of response `r` whose schema says the body is
     /// binary (no `type`, or `format: binary` in 3.0), as essences. The runtime
-    /// reads a response of one of them as a `Blob` instead of text, whichever
-    /// response declares it, since it decodes by the actual `Content-Type`.
-    fn binary_text(&self, op: &Operation) -> Vec<String> {
+    /// reads a text response of one of them as a `Blob`, by the response key
+    /// that covers its status and its actual `Content-Type`.
+    fn binary_text(&self, r: &Response) -> Vec<String> {
         let mut found = Vec::new();
-        for c in op.responses.iter().flat_map(|r| &r.content) {
+        for c in &r.content {
             let binary = c.kind() == MediaKind::Text
                 && c.schema
                     .as_ref()
@@ -857,7 +862,7 @@ impl<'a> Emitter<'a> {
         found
     }
 
-    /// `binary` is [`Emitter::binary_text`] of the operation.
+    /// `binary` is [`Emitter::binary_text`] of the response.
     fn response_data(&self, c: &Content, binary: &[String]) -> Type {
         let kind = c.kind();
         if kind.is_sequential() {

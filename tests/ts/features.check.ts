@@ -267,8 +267,8 @@ export type Operations = [
   Expect<Equal<Operation<"/blobs", "POST">["request"], { contentType?: string; body?: unknown }>>,
   // A `text/*` schema without a `type` is binary, for every response of that media type;
   // a `type: string` schema or none is text.
-  Expect<Equal<Operation<"/report", "GET">["responses"], { "200": Blob | string; "4XX": Blob }>>,
-  Expect<Equal<Operation<"/exports", "GET">["responses"], { "200": Blob }>>,
+  Expect<Equal<Operation<"/report", "GET">["responses"], { "200": Blob | string; "4XX": string }>>,
+  Expect<Equal<Operation<"/exports", "GET">["responses"], { "200": Blob; "4XX": string }>>,
   // Form bodies are typed by their schema. A multipart part without a `type` is binary,
   // an array of them one part per item; a `type: string` part is text, also when encoded.
   Expect<Equal<
