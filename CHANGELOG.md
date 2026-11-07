@@ -5,6 +5,18 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.8.0](https://github.com/22mb/oasis/compare/v0.7.0...v0.8.0) - 2026-11-07
+
+### Fixed
+
+- Add a query API key to a GET request in Firefox ([#93](https://github.com/22mb/oasis/pull/93))
+- Leave out a flagged property from a nested allOf of references ([#95](https://github.com/22mb/oasis/pull/95))
+- **Breaking:** Read a text/* response as a Blob only where its response declares it binary ([#97](https://github.com/22mb/oasis/pull/97))
+- **Breaking:** Type the data of a 204, 205 or 304 under a range or default as undefined ([#96](https://github.com/22mb/oasis/pull/96))
+- Send a request resent through auth with only the credentials chosen for it ([#98](https://github.com/22mb/oasis/pull/98))
+- **Breaking:** Type a text/* response range as unknown ([#99](https://github.com/22mb/oasis/pull/99))
+- **Breaking:** Reject a subtype that extends only a parent listing its subtypes ([#100](https://github.com/22mb/oasis/pull/100))
+
 ## [0.7.0](https://github.com/22mb/oasis/compare/v0.6.0...v0.7.0) - 2026-11-07
 
 ### Fixed
