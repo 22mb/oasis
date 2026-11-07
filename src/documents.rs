@@ -325,13 +325,13 @@ impl Documents {
         self.entry.base.clone()
     }
 
-    pub(crate) fn value(&self, loc: &Target) -> Option<&Value> {
-        self.doc(loc.doc).value.pointer(&loc.pointer)
-    }
-
-    /// Resolves a URI reference against `base`, returning the target and the
-    /// base URI in effect around it (the target's own `$id` is not applied).
-    pub(crate) fn resolve(&self, base: &Url, reference: &str) -> Result<(Target, Rc<Url>), Error> {
+    /// Resolves a URI reference against `base`, returning the target, its value
+    /// and the base URI in effect around it (the target's own `$id` is not applied).
+    pub(crate) fn resolve(
+        &self,
+        base: &Url,
+        reference: &str,
+    ) -> Result<(Target, &Value, Rc<Url>), Error> {
         let url = base
             .join(reference)
             .map_err(|e| Error::new(format!("invalid $ref `{reference}`: {e}")))?;
@@ -356,14 +356,15 @@ impl Documents {
                     ))
                 })?
         };
+        let doc = self.doc(resource.doc);
+        let value = doc
+            .value
+            .pointer(&pointer)
+            .ok_or_else(|| Error::new(format!("unresolved $ref `{reference}`")))?;
         let loc = Target {
             doc: resource.doc,
             pointer,
         };
-        if self.value(&loc).is_none() {
-            return Err(Error::new(format!("unresolved $ref `{reference}`")));
-        }
-        let doc = self.doc(loc.doc);
         let base = doc
             .ids
             .iter()
@@ -371,7 +372,7 @@ impl Documents {
             .max_by_key(|(p, _)| p.len())
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| doc.base.clone());
-        Ok((loc, base))
+        Ok((loc, value, base))
     }
 
     /// Document and pointer of the schema with key `key` in [`crate::ir::Api::schemas`]:
@@ -676,9 +677,9 @@ mod tests {
         .unwrap();
         let base = docs.root_base();
         assert_eq!(base.as_str(), "https://example.com/api/openapi");
-        let (loc, _) = docs.resolve(&base, "schemas/a#bee").unwrap();
+        let (loc, _, _) = docs.resolve(&base, "schemas/a#bee").unwrap();
         assert_eq!(loc.pointer, "/components/schemas/A/$defs/b");
-        let (loc, inner) = docs.resolve(&base, "schemas/a#/$defs/b").unwrap();
+        let (loc, _, inner) = docs.resolve(&base, "schemas/a#/$defs/b").unwrap();
         assert_eq!(loc.pointer, "/components/schemas/A/$defs/b");
         assert_eq!(inner.as_str(), "https://example.com/api/schemas/a");
     }
@@ -724,8 +725,8 @@ mod tests {
         let doc = json!({"a": {"$ref": "lib/index.yaml"}, "b": {"$ref": "lib/pet.yaml"}, "c": {"$ref": pet}});
         std::fs::write(&entry, doc.to_string()).unwrap();
         let docs = Documents::from_file(&entry).unwrap();
-        let (by_path, _) = docs.resolve(&docs.root_base(), "lib/pet.yaml").unwrap();
-        let (by_uri, _) = docs.resolve(&docs.root_base(), pet).unwrap();
+        let (by_path, _, _) = docs.resolve(&docs.root_base(), "lib/pet.yaml").unwrap();
+        let (by_uri, _, _) = docs.resolve(&docs.root_base(), pet).unwrap();
         assert_eq!(by_path, by_uri);
         assert_eq!(docs.referenced.len(), 2); // lib/index.yaml and lib/pet.yaml
         std::fs::remove_dir_all(&dir).unwrap();
