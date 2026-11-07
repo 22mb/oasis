@@ -574,6 +574,14 @@ components:
         id: { type: integer }
         password: { type: string }
         email: { type: string }
+    # ... also through a nested `allOf`.
+    NestedAllOf:
+      allOf:
+        - allOf:
+            - $ref: "#/components/schemas/Credentials"
+            - $ref: "#/components/schemas/Base"
+        - properties:
+            id: { type: integer, readOnly: true }
     # ... also when the flag comes from another `$ref` member.
     Login:
       allOf:
