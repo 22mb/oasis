@@ -5,6 +5,38 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.8.0](https://github.com/22mb/oasis/compare/v0.7.0...v0.8.0) - 2026-11-07
+
+### Fixed
+
+- Add a query API key to a GET request in Firefox ([#93](https://github.com/22mb/oasis/pull/93))
+- Leave out a flagged property from a nested allOf of references ([#95](https://github.com/22mb/oasis/pull/95))
+- **Breaking:** A `text/*` media type declared binary (a schema without a
+  `type`) in one response was read as a `Blob` in every response of the
+  operation, even where its type was `string` or an event stream. It is now
+  read as a `Blob` only for the statuses of the response that declares it,
+  so `data` is what its type says. Code that read such `data` as a `Blob`
+  against its type must read it as typed.
+  ([#97](https://github.com/22mb/oasis/pull/97))
+- **Breaking:** The `data` of a 204, 205 or 304 response that the document
+  covers only with `2XX`, `3XX` or `default` was typed as that key's body,
+  though the client returns `undefined` for it. It is now `undefined`. With
+  `200` and `default: Error`, `data` in `if (!res.ok)` now includes the
+  `undefined` of a 304: read it with `?.`, or narrow by `status` first.
+  ([#96](https://github.com/22mb/oasis/pull/96))
+- Send a request resent through auth with only the credentials chosen for it ([#98](https://github.com/22mb/oasis/pull/98))
+- **Breaking:** A response declared as the range `text/*` was typed
+  `string`, though the client reads `text/event-stream` and `+json` types
+  under it as an event stream or as JSON. Its `data` is now `unknown`, as
+  for `*/*` and `application/*`. Check its type before use, or declare the
+  media types the response sends, such as `text/plain`, which stay `string`.
+  ([#99](https://github.com/22mb/oasis/pull/99))
+- **Breaking:** A subtype that adds nothing to a parent that only lists its
+  subtypes in `oneOf` or `anyOf` was typed `unknown`. Such a document is now
+  an error. Give the subtype or its parent a `type` or `properties`, such as
+  the discriminator property.
+  ([#100](https://github.com/22mb/oasis/pull/100))
+
 ## [0.7.0](https://github.com/22mb/oasis/compare/v0.6.0...v0.7.0) - 2026-11-07
 
 ### Fixed
