@@ -23,6 +23,7 @@ In an OpenAPI 3.0 document, these keywords are handled as follows:
 | --- | --- |
 | `nullable: true` | Adds `null` to the type. On an `enum`, `null` is added even if the list omits it. Other generators read it this way, although under 3.0.3 itself such an `enum` still disallows `null` |
 | `nullable: true` next to a `$ref`, or on an `allOf` with one `$ref` | Adds `null` to the referenced type |
+| Other keywords next to a `$ref` | Applied, as in 3.1 and later, although 3.0 says to ignore them: `{ $ref: Base, properties: {...} }` is `Base & {...}` |
 | `type: string, format: binary` | Raw binary, read as a schema without a `type`: `unknown`, or `Blob` in a multipart body or a `text/*` response |
 | `type: string, format: byte` | Base64 text, read as `contentEncoding: base64`: a `string`, sent as an `application/octet-stream` multipart part |
 | `example`, a boolean `exclusiveMinimum` | Ignored |
@@ -45,6 +46,9 @@ instead.
 Schemas from other files get type aliases of their own, but only component
 schemas are exported and listed in `components` (see
 [Schemas](./schemas#type-aliases-and-components)).
+
+Generate only from documents you trust: oasis-gen reads any local file that a
+`$ref` points to, wherever it is.
 
 ## Schemas
 

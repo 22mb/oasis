@@ -29,7 +29,8 @@ const api = createClient({
 The keys are the names in `components.securitySchemes` (typed as
 `SecuritySchemeName`). Each value is a `Credential` (a string, or a function
 that returns one, possibly asynchronously) or `undefined`. A function is called
-for each request with the scopes that the requirement lists and the
+for each request with the values that the requirement lists (scopes, or role
+names for schemes other than OAuth 2.0 and OpenID Connect) and the
 [middleware context](./middleware#the-operation). A value or a returned value
 of `undefined` or `""` means that the credential is unavailable.
 

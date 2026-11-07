@@ -15,7 +15,7 @@ type PetKind = Pet["kind"];
 //   ^?
 ```
 
-- 名前は、スキーマのキーに含まれる英字・数字・`_` 以外の文字の連なりを、それぞれ 1 つの `_` に置き換えたものです。たとえば `Pet.Owner` は `Pet_Owner` になります。また、数字で始まるキーには先頭に `_` が付きます。
+- 名前は、スキーマのキーに含まれる `.` と `-` の連なりをそれぞれ 1 つの `_` に置き換え、先頭と末尾の `_` を除いたものです。たとえば `Pet.Owner` は `Pet_Owner` に、`_links` は `links` になります。また、数字で始まるキーには先頭に `_` が付き、英字も数字も含まないキーは `_` になります。
 - クライアント自体のエクスポート（`Client`、`Middleware` など）や先に現れたスキーマですでに使われている名前には、末尾に番号が付きます。たとえば `Client` という名前のスキーマは `Client_2` になります。
 - [リクエスト用の型](./strict-types#requests-and-responses-have-separate-types)を持つスキーマについては、そのリクエスト用の型も、`AccountRequest` のように `Request` 接尾辞を付けた名前でエクスポートされます。
 
@@ -36,7 +36,7 @@ type PetKind = Pet["kind"];
 | `oneOf`、`anyOf` | ユニオン型。`discriminator` があるときは、各メンバーにその値のタグを判別プロパティの型で付与（`mapping` の `"true"` は、boolean のプロパティでは `true`） |
 | `allOf` | インターセクション型 |
 | コンポーネントへの `$ref` | そのスキーマの型 |
-| `required` にのみ含まれるプロパティ（`properties` には未定義） | `{} \| null`（`undefined` 以外の任意の値） |
+| 任意の値を許す必須のプロパティ（`required` にのみ含まれるもの、または `{}` などスキーマのないもの） | `{} \| null`（`undefined` 以外の任意の値） |
 | スキーマなし、または `{}`（OpenAPI 3.0 の `type: string, format: binary` も含む） | `unknown`。マルチパート本体のパートと `text/*` のレスポンスでは `Blob` |
 
 `title`、`description`、`default`、`deprecated` は JSDoc コメントになるため、エディターでホバーしたときに表示されます。なお、`format` に応じた変換は行われません。詳しくは[厳密な型](./strict-types#formats-are-not-converted)をご覧ください。

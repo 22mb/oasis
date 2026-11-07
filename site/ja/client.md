@@ -82,7 +82,7 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 | `*/*`、`application/*` | スキーマの型、または `unknown` |
 | その他 | `FormData` と `URLSearchParams` を除く `BodyInit` |
 
-`contentType` でメディアタイプを選択すると、`body` の型はそのメディアタイプに従います。操作が宣言しているメディアタイプが 1 つだけのときは、`contentType` を省略できます。また、複数のメディアタイプを宣言しているときも、`contentType` を省略すると、その操作の最初の `application/json` メディアタイプが使われます。どちらの場合も、リクエスト本体は `charset` などのパラメーターを含め、宣言されたとおりのメディアタイプで送信されます。範囲を表すメディアタイプでは、`contentType` に範囲内のメディアタイプを指定します。`image/*` なら `` `image/${string}` ``、`*/*` なら任意の文字列です。`contentType` は必須ですが、`*/*` に限り、操作に `application/json` のメディアタイプがないときは省略できます。省略すると、リクエスト本体は JSON として送信されます。ただし、文字列や `Blob`、`FormData` などの `BodyInit` はそのまま送信されます。なお、リクエスト本体が省略可能なときは、`body` と `contentType` の両方を省略できます。
+`contentType` でメディアタイプを選択すると、`body` の型はそのメディアタイプに従います。操作が宣言しているメディアタイプが 1 つだけで、それが範囲でないときは、`contentType` を省略できます。また、複数のメディアタイプを宣言しているときも、`contentType` を省略すると、その操作の最初の `application/json` メディアタイプが使われます。どちらの場合も、リクエスト本体は `charset` などのパラメーターを含め、宣言されたとおりのメディアタイプで送信されます。範囲を表すメディアタイプでは、`contentType` に範囲内のメディアタイプを指定します。`image/*` なら `` `image/${string}` ``、`*/*` なら任意の文字列です。`contentType` は必須ですが、`*/*` に限り、操作に `application/json` のメディアタイプがないときは省略できます。省略すると、リクエスト本体は JSON として送信されます。ただし、文字列や `Blob`、`FormData` などの `BodyInit` はそのまま送信されます。なお、リクエスト本体が省略可能なときは、`body` と `contentType` の両方を省略できます。
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -138,7 +138,7 @@ Encoding Object を指定すると、プロパティの送信方法が次のよ�
 
 ## レスポンス {#responses}
 
-すべての呼び出しは、`{ ok, status, data, response }` で解決するプロミスを返します。`status` を判定すると、`data` は一致するレスポンスの型に絞り込まれます。また、`ok` は `response.ok` と同じ値です。型付けの規則については、[厳密な型](./strict-types#responses-are-typed-by-status)をご覧ください。
+すべての呼び出しは、`{ ok, status, data, response }` で解決するプロミスを返します。`status` を判定すると、`data` は一致するレスポンスの型に絞り込まれます。また、`ok` は `response.ok` と同じ値です。型付けの規則については、[厳密な型](./strict-types#responses-are-typed-by-status)をご覧ください。なお、クライアントは `response` の本体を読み取って `data` を作ります（逐次的なメディアタイプでは、反復処理の間に読み取ります）。そのため、本体は `response` からではなく `data` から読み取ってください。
 
 ### レスポンス本体 {#response-bodies}
 

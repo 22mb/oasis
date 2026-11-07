@@ -234,7 +234,7 @@ type BodyInit = NonNullable<RequestInit["body"]>;
 export interface ClientOptions {
   /**
    * Prepended to every path, replacing every server in the document. Defaults to
-   * the first top-level server, or the operation's own server when it declares one.
+   * the first server of the operation, or else of its path, or else of the document.
    */
   baseUrl?: string;
   /** Sent with every request; a function is called per request. */
@@ -336,6 +336,7 @@ export type Client<P> = {
 /**
  * Serialization of a parameter where it differs from the default for its location:
  * `form` with `explode: true` for query and cookie, `simple` without explode for path and header.
+ * `json` is a query parameter whose content is `application/json`, sent as its JSON text.
  */
 type ParamStyle = { style?: "deepObject" | "cookie" | "json"; explode?: boolean; reserved?: true };
 
@@ -360,7 +361,7 @@ type Spec = {
   securitySchemes: Record<string, SecuritySchemeSpec>;
   operations: Record<string, {
     operationId?: string;
-    /** The operation's own server, used instead of `baseUrl`. */
+    /** The first server of the operation, or else of its path; `baseUrl` overrides it. */
     server?: string;
     /** Parameters with a non-default serialization, keyed by `location:name`. */
     styles?: Record<string, ParamStyle>;
@@ -495,7 +496,10 @@ function encodeQuerystring(
   return encodeURIComponent(kind === "json" ? JSON.stringify(value) : String(value));
 }
 
-/** RFC 6570 reserved expansion: reserved characters and %XX triples pass through. */
+/**
+ * `allowReserved`: %XX triples and reserved characters pass through, except `#`, `&`,
+ * `+`, `[` and `]`, which are percent-encoded.
+ */
 function encodeReserved(s: string): string {
   return s.replace(
     /%[0-9A-Fa-f]{2}|[^A-Za-z0-9\-._~:/?@!$'()*,;=]/gu,
@@ -514,7 +518,7 @@ function simple(value: unknown, explode: boolean, enc: Encode): string {
   return value === undefined ? "" : enc(String(value));
 }
 
-/** `form`, `deepObject` and `cookie` style pairs, for query and cookie parameters and form fields. */
+/** `form`, `deepObject`, `cookie` and `json` style pairs, for query and cookie parameters and form fields. */
 function pairs(name: string, value: unknown, s: ParamStyle): string[] {
   // `cookie` style sends values as-is.
   const enc = s.reserved ? encodeReserved : s.style === "cookie" ? String : encodeURIComponent;
