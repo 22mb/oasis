@@ -448,6 +448,8 @@ export interface components {
     Words: $Words;
     Tuple: $Tuple;
     OpenTuple: $OpenTuple;
+    Pair: $Pair;
+    Batch: $Batch;
     Closed: $Closed;
     Empty: $Empty;
     Constants: $Constants;
@@ -481,6 +483,7 @@ export interface components {
     Stamped: $Stamped$Request;
     Nested: $Nested$Request;
     Doc: $Doc$Request;
+    Batch: $Batch$Request;
     Described: $Described$Request;
   };
 }
@@ -647,6 +650,9 @@ type $Doc$Request = {
 type $Words = string[];
 type $Tuple = [string, ...number[]];
 type $OpenTuple = [boolean, ...unknown[]];
+type $Pair = [string, string, ...string[]];
+type $Batch = [$Holder, ...$Holder[]];
+type $Batch$Request = [$Holder$Request, ...$Holder$Request[]];
 type $Closed = {
   x?: string;
 };
@@ -748,6 +754,8 @@ export type {
   $Words as Words,
   $Tuple as Tuple,
   $OpenTuple as OpenTuple,
+  $Pair as Pair,
+  $Batch as Batch,
   $Closed as Closed,
   $Empty as Empty,
   $Constants as Constants,
@@ -779,6 +787,7 @@ export type {
   $Stamped$Request as StampedRequest,
   $Nested$Request as NestedRequest,
   $Doc$Request as DocRequest,
+  $Batch$Request as BatchRequest,
   $Described$Request as DescribedRequest,
 };
 

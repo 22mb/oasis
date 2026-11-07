@@ -5,6 +5,7 @@
 use serde_json::Value;
 use std::collections::HashSet;
 
+#[derive(Clone)]
 pub enum Type {
     /// A keyword or a named type: `unknown`, `string`, `$Pet`, `Blob`.
     Name(String),
@@ -209,6 +210,7 @@ impl Type {
 }
 
 /// A member of an object type or interface.
+#[derive(Clone)]
 pub struct Member {
     doc: Vec<String>,
     key: Key,
@@ -265,6 +267,7 @@ impl Member {
     }
 }
 
+#[derive(Clone)]
 enum Key {
     /// Quoted unless it is an identifier.
     Name(String),

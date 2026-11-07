@@ -28,7 +28,7 @@ type PetKind = Pet["kind"];
 | `type: boolean` | `boolean` |
 | `type: "null"`、または OpenAPI 3.0 の `nullable: true` | `null` を追加 |
 | `enum`、`const` | リテラル型のユニオン型、または 1 つのリテラル型 |
-| `type: array` | `T[]`。`prefixItems` があるときはタプル型 |
+| `type: array` | `T[]`。`minItems: n` があるときは先頭の n 個の要素を必須とするタプル型（1 なら `[T, ...T[]]`）。`prefixItems` があるときはタプル型 |
 | `properties` を持つ `type: object` | オブジェクト型。`required` にないプロパティは省略可能 |
 | `additionalProperties` | インデックスシグネチャ（オブジェクトが `properties` も持つときは `unknown`） |
 | `patternProperties` | すべてのキーを対象とするインデックスシグネチャ（TypeScript ではキーをパターンで絞れないため）。値の型は、各パターンと `additionalProperties` の型のユニオン型（オブジェクトが `properties` も持つとき、または `additionalProperties` がないときは `unknown`） |

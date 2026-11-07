@@ -421,6 +421,8 @@ pub enum Schema {
         prefix_items: Vec<Schema>,
         /// `None` means unconstrained; `Some(Never)` closes a tuple.
         items: Option<Box<Schema>>,
+        /// `minItems`, or 0.
+        min_items: u64,
     },
     Object {
         /// Includes names listed only in `required` (with schema `Any`).
