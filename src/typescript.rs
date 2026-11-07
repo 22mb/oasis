@@ -373,7 +373,15 @@ impl<'a> Emitter<'a> {
                 doc: doc(&s.meta, &[]),
                 export: false,
                 name: self.reference(key, View::Response),
-                ty: self.define(s, View::Response, &mut edges),
+                ty: match self.define(s, View::Response, &mut edges) {
+                    Type::Intersection(ts) if ts.is_empty() => {
+                        return Err(Error::new(format!(
+                            "{key}: the schema has no type of its own: it only extends schemas that list it in oneOf or anyOf; give it or a schema it extends a `type` or `properties`"
+                        ))
+                        .about_schema(key));
+                    }
+                    ty => ty,
+                },
             });
             if self.request_variants.contains(key) {
                 items.push(Item::Alias {
@@ -1258,8 +1266,9 @@ impl<'a> Emitter<'a> {
     /// `oneOf` while each subtype extends it with `allOf` (as springdoc emits)
     /// is such a cycle. It is cut on the subtype's side: there, the reference
     /// to the parent becomes the parent's own part, its type without the
-    /// listing. References left in eager positions go to `edges`, for
-    /// [`check_cycles`].
+    /// listing. Where neither has a part of its own, nothing is left, an empty
+    /// intersection the caller rejects. References left in eager positions go
+    /// to `edges`, for [`check_cycles`].
     fn define(&self, s: &'a NamedSchema, view: View, edges: &mut Vec<(&'a str, &'a str)>) -> Type {
         let mut d = Defining {
             key: &s.key,

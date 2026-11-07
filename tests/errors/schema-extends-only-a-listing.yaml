@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths: {}
+components:
+  schemas:
+    Shape:
+      oneOf: [{$ref: '#/components/schemas/Point'}, {$ref: '#/components/schemas/Circle'}]
+      discriminator: {propertyName: kind}
+    Point:
+      allOf: [{$ref: '#/components/schemas/Shape'}]
+    Circle:
+      allOf: [{$ref: '#/components/schemas/Shape'}, {properties: {r: {type: number}}}]

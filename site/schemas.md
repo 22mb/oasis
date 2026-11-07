@@ -92,6 +92,10 @@ if (animal.kind === "Dog") {
 
 Checking `kind` narrows an `Animal` to a `Dog` or a `Cat`.
 
+A subtype needs a `type` or `properties` of its own or from its parent. When
+the parent only lists its subtypes and a subtype adds nothing to it, the
+subtype has no type, and oasis-gen rejects the document.
+
 oasis-gen does not support a `discriminator` on a parent that has no `oneOf`
 and is referenced only by its subtypes through `allOf`. Such a parent stays a
 plain object type.
