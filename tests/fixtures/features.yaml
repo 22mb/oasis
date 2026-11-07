@@ -548,6 +548,21 @@ components:
       properties:
         id: { type: integer, readOnly: true }
         password: { type: string, writeOnly: true }
+    # ... and when the target is a parent that lists the schema as a subtype.
+    Profile:
+      type: object
+      required: [kind, id]
+      properties:
+        kind: { type: string }
+        id: { type: string }
+      oneOf:
+        - $ref: "#/components/schemas/Member"
+    Member:
+      allOf:
+        - $ref: "#/components/schemas/Profile"
+        - properties:
+            id: { type: string, readOnly: true }
+            since: { type: string, readOnly: true }
     Upload:
       type: object
       required: [id, file]

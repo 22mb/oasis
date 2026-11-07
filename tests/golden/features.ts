@@ -475,6 +475,8 @@ export interface components {
     Credentials: $Credentials;
     Login: $Login;
     Guarded: $Guarded;
+    Profile: $Profile;
+    Member: $Member;
     Upload: $Upload;
     Holder: $Holder;
     Client: $Client;
@@ -517,6 +519,8 @@ export interface components {
     Signup: $Signup$Request;
     Login: $Login$Request;
     Guarded: $Guarded$Request;
+    Profile: $Profile$Request;
+    Member: $Member$Request;
     Holder: $Holder$Request;
     Stamped: $Stamped$Request;
     Nested: $Nested$Request;
@@ -648,6 +652,28 @@ type $Guarded = {
 type $Guarded$Request = {
   id?: never;
   password?: string;
+};
+type $Profile = {
+  kind: string;
+  id: string;
+} & $Member;
+type $Profile$Request = {
+  kind: string;
+  id: string;
+} & $Member$Request;
+type $Member = {
+  kind: string;
+  id: string;
+} & {
+  id?: string;
+  since?: string;
+};
+type $Member$Request = Omit<{
+  kind: string;
+  id: string;
+}, "id"> & {
+  id?: never;
+  since?: never;
 };
 type $Upload = {
   id: number;
@@ -786,6 +812,8 @@ export type {
   $Credentials as Credentials,
   $Login as Login,
   $Guarded as Guarded,
+  $Profile as Profile,
+  $Member as Member,
   $Upload as Upload,
   $Holder as Holder,
   $Client as Client_2,
@@ -826,6 +854,8 @@ export type {
   $Signup$Request as SignupRequest,
   $Login$Request as LoginRequest,
   $Guarded$Request as GuardedRequest,
+  $Profile$Request as ProfileRequest,
+  $Member$Request as MemberRequest,
   $Holder$Request as HolderRequest,
   $Stamped$Request as StampedRequest,
   $Nested$Request as NestedRequest,
