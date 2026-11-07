@@ -877,6 +877,9 @@ impl<'a> Emitter<'a> {
         match kind {
             MediaKind::Json => self.schema_or_unknown(c.schema.as_ref(), View::Response),
             MediaKind::Text if covers(binary, &essence(&c.media_type)) => Type::name("Blob"),
+            // `text/*` also covers event streams and `+json` types, which the
+            // runtime decodes otherwise: the actual Content-Type decides.
+            MediaKind::Text if c.media_type.contains('*') => Type::name("unknown"),
             MediaKind::Text | MediaKind::FormUrlEncoded => Type::name("string"),
             // A range such as `*/*` is decoded by the actual Content-Type.
             MediaKind::Unknown => Type::name("unknown"),

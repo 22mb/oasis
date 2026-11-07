@@ -397,6 +397,12 @@ paths:
           content:
             text/plain:
               schema: { type: string }
+        # A text range that is not binary may also be an event stream or JSON.
+        default:
+          description: Anything else, in some text format.
+          content:
+            text/*:
+              schema: { type: string }
 components:
   schemas:
     Account:
