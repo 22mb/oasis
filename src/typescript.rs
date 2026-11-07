@@ -220,19 +220,24 @@ impl<'a> Emitter<'a> {
             Item::Blank,
         ];
 
+        // The type of each operation and its runtime data, in one pass so that
+        // they rest on the same facts.
         let mut statuses = BTreeMap::new();
-        let paths = api
-            .paths
-            .iter()
-            .map(|item| {
-                let operations = item
-                    .operations
-                    .iter()
-                    .map(|op| self.operation(op, &mut statuses))
-                    .collect();
-                Member::new(&item.path, false, Type::object(operations))
-            })
-            .collect();
+        let mut methods: Vec<&str> = Vec::new();
+        let mut data = Vec::new();
+        let mut paths = Vec::new();
+        for item in &api.paths {
+            let mut operations = Vec::new();
+            for op in &item.operations {
+                if !methods.contains(&op.method.as_str()) {
+                    methods.push(&op.method);
+                }
+                let (member, info) = self.operation(item, op, &mut statuses);
+                operations.push(member);
+                data.extend(info);
+            }
+            paths.push(Member::new(&item.path, false, Type::object(operations)));
+        }
         items.push(Item::Interface {
             name: "paths".into(),
             members: paths,
@@ -281,7 +286,7 @@ impl<'a> Emitter<'a> {
 
         items.push(Item::Raw(RUNTIME.into()));
         items.push(Item::Blank);
-        items.push(self.spec());
+        items.push(self.spec(methods, data));
         Ok(ast::print(&items))
     }
 
@@ -384,72 +389,15 @@ impl<'a> Emitter<'a> {
     }
 
     /// Runtime data: default base URL, the document's methods and security, and
-    /// what each operation needs beyond the defaults.
-    fn spec(&self) -> Item {
+    /// what each operation needs beyond the defaults (`operations`, as `"METHOD
+    /// /path"` and data).
+    fn spec(&self, methods: Vec<&str>, operations: Vec<(String, Expr)>) -> Item {
         let api = self.api;
         let base_url = api
             .servers
             .first()
             .map(Server::default_url)
             .unwrap_or_default();
-        let mut methods: Vec<&str> = Vec::new();
-        for op in api.paths.iter().flat_map(|item| &item.operations) {
-            if !methods.contains(&op.method.as_str()) {
-                methods.push(&op.method);
-            }
-        }
-        let mut operations = Vec::new();
-        for item in &api.paths {
-            for op in &item.operations {
-                let mut info = Vec::new();
-                if let Some(id) = &op.operation_id {
-                    info.push(("operationId".into(), Expr::string(id)));
-                }
-                if let Some(s) = op.servers.first().or(item.servers.first()) {
-                    info.push(("server".into(), Expr::string(&s.default_url())));
-                }
-                let styles: Vec<(String, Expr)> = op
-                    .params
-                    .iter()
-                    .filter_map(|p| {
-                        let name = format!("{}:{}", p.location.as_str(), p.name);
-                        Some((name, param_style(p)?))
-                    })
-                    .collect();
-                if !styles.is_empty() {
-                    info.push(("styles".into(), Expr::inline(styles)));
-                }
-                if let Some(security) = &op.security {
-                    info.push(("security".into(), security_literal(security)));
-                }
-                if let Some(qs) = &op.querystring {
-                    info.push(("querystring".into(), Expr::string(&qs.content.media_type)));
-                    if let Some(e) = self.encoding_literal(&qs.content) {
-                        info.push(("querystringEncoding".into(), e));
-                    }
-                }
-                if let Some(ct) = op.body.as_ref().and_then(default_media_type) {
-                    info.push(("contentType".into(), Expr::string(ct)));
-                }
-                let encodings: Vec<(String, Expr)> = op
-                    .body
-                    .iter()
-                    .flat_map(|b| &b.content)
-                    .filter_map(|c| Some((c.media_type.clone(), self.encoding_literal(c)?)))
-                    .collect();
-                if !encodings.is_empty() {
-                    info.push(("encoding".into(), Expr::inline(encodings)));
-                }
-                let binary = self.binary_text(op);
-                if !binary.is_empty() {
-                    let types = binary.iter().map(|mt| Expr::string(mt)).collect();
-                    info.push(("binary".into(), Expr::Array(types)));
-                }
-                if !info.is_empty() {
-                    operations.push((format!("{} {}", op.method, item.path), Expr::inline(info)));
-                }
-            }
-        }
         let schemes = api
             .security_schemes
             .iter()
@@ -496,8 +444,71 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// One `paths` member; its `statuses` alias goes to `statuses` (name -> type).
-    fn operation(&self, op: &Operation, statuses: &mut BTreeMap<String, Type>) -> Member {
+    /// The runtime data of `op`, keyed by `"METHOD /path"`, if it needs any.
+    /// `binary` is [`Emitter::binary_text`] of `op`, and `content_type` its
+    /// default request media type.
+    fn operation_data(
+        &self,
+        item: &PathItem,
+        op: &Operation,
+        binary: &[String],
+        content_type: Option<&str>,
+    ) -> Option<(String, Expr)> {
+        let mut info = Vec::new();
+        if let Some(id) = &op.operation_id {
+            info.push(("operationId".into(), Expr::string(id)));
+        }
+        if let Some(s) = op.servers.first().or(item.servers.first()) {
+            info.push(("server".into(), Expr::string(&s.default_url())));
+        }
+        let styles: Vec<(String, Expr)> = op
+            .params
+            .iter()
+            .filter_map(|p| {
+                let name = format!("{}:{}", p.location.as_str(), p.name);
+                Some((name, param_style(p)?))
+            })
+            .collect();
+        if !styles.is_empty() {
+            info.push(("styles".into(), Expr::inline(styles)));
+        }
+        if let Some(security) = &op.security {
+            info.push(("security".into(), security_literal(security)));
+        }
+        if let Some(qs) = &op.querystring {
+            info.push(("querystring".into(), Expr::string(&qs.content.media_type)));
+            if let Some(e) = self.encoding_literal(&qs.content) {
+                info.push(("querystringEncoding".into(), e));
+            }
+        }
+        if let Some(ct) = content_type {
+            info.push(("contentType".into(), Expr::string(ct)));
+        }
+        let encodings: Vec<(String, Expr)> = op
+            .body
+            .iter()
+            .flat_map(|b| &b.content)
+            .filter_map(|c| Some((c.media_type.clone(), self.encoding_literal(c)?)))
+            .collect();
+        if !encodings.is_empty() {
+            info.push(("encoding".into(), Expr::inline(encodings)));
+        }
+        if !binary.is_empty() {
+            let types = binary.iter().map(|mt| Expr::string(mt)).collect();
+            info.push(("binary".into(), Expr::Array(types)));
+        }
+        (!info.is_empty()).then(|| (format!("{} {}", op.method, item.path), Expr::inline(info)))
+    }
+
+    /// One `paths` member, and the runtime data of the operation (see
+    /// [`Emitter::operation_data`]); its `statuses` alias goes to `statuses`
+    /// (name -> type).
+    fn operation(
+        &self,
+        item: &PathItem,
+        op: &Operation,
+        statuses: &mut BTreeMap<String, Type>,
+    ) -> (Member, Option<(String, Expr)>) {
         let mut extra = Vec::new();
         if let Some(id) = &op.operation_id {
             extra.push(format!("operationId: {id}"));
@@ -507,6 +518,7 @@ impl<'a> Emitter<'a> {
             responses.push(Member::new("default", false, Type::name("unknown")));
         }
         let binary = self.binary_text(op);
+        let content_type = op.body.as_ref().and_then(default_media_type);
         for r in &op.responses {
             // Never carries a body on the wire, whatever the document declares.
             let bodiless = op.method == "HEAD" || matches!(r.status, Status::Code(204 | 205 | 304));
@@ -524,15 +536,18 @@ impl<'a> Emitter<'a> {
         }
         let (name, ty) = status_alias(op);
         let members = vec![
-            Member::new("request", false, self.request(op)),
+            Member::new("request", false, self.request(op, content_type)),
             Member::new("responses", false, Type::object(responses)),
             Member::new("statuses", false, Type::name(&name)),
         ];
         statuses.entry(name).or_insert(ty);
-        Member::new(&op.method, false, Type::object(members)).doc(doc(&op.meta, &extra))
+        let member =
+            Member::new(&op.method, false, Type::object(members)).doc(doc(&op.meta, &extra));
+        (member, self.operation_data(item, op, &binary, content_type))
     }
 
-    fn request(&self, op: &Operation) -> Type {
+    /// `default` is the media type implied when `contentType` is left out.
+    fn request(&self, op: &Operation, default: Option<&str>) -> Type {
         let mut fields = Vec::new();
         for loc in [
             Location::Path,
@@ -580,7 +595,6 @@ impl<'a> Emitter<'a> {
         // One set of fields per request media type; several become a union.
         let mut variants: Vec<Vec<Member>> = Vec::new();
         if let Some(body) = &op.body {
-            let default = default_media_type(body);
             for c in &body.content {
                 let range = essence(&c.media_type);
                 let ct = if range == "*/*" {
