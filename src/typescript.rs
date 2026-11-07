@@ -1891,13 +1891,13 @@ mod tests {
         let out = generate(json!({
             "Pet.Owner": {"type": "string"},
             "Pet_Owner": {"type": "string"},
-            "Pet$Request": {"type": "string"},
+            "Pet-Request": {"type": "string"},
             "Pet": {"required": ["id"], "properties": {"id": {"type": "integer", "readOnly": true}}},
         }))
         .unwrap();
         let has = |s: &str| assert!(out.contains(s), "missing {s:?} in\n{out}");
         has(
-            "    \"Pet.Owner\": $Pet_Owner;\n    Pet_Owner: $Pet_Owner_2;\n    Pet$Request: $Pet_Request;\n    Pet: $Pet;\n",
+            "    \"Pet.Owner\": $Pet_Owner;\n    Pet_Owner: $Pet_Owner_2;\n    \"Pet-Request\": $Pet_Request;\n    Pet: $Pet;\n",
         );
         has("  requestSchemas: {\n    Pet: $Pet$Request;\n");
         has("type $Pet$Request = {\n  id?: never;\n};\n");
