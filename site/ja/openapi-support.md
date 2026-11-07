@@ -47,7 +47,7 @@ OpenAPI 3.0 のドキュメントでは、以下のキーワードを次のよ�
 
 | 機能 | 対応状況 | 備考 |
 | --- | --- | --- |
-| JSON Schema 2020-12 | 対応 | `type` の配列、`const`、`enum`、`allOf`、`oneOf`、`anyOf`、`prefixItems`、`minItems`、`additionalProperties`、`patternProperties`、ほかのキーワードと並んだ `$ref`、`readOnly` と `writeOnly`（[厳密な型](./strict-types#requests-and-responses-have-separate-types)を参照） |
+| JSON Schema 2020-12 | 対応 | `type` の配列、`const`、`enum`、`allOf`、`oneOf`、`anyOf`、`prefixItems`、`minItems`、`additionalProperties`、`patternProperties`、`propertyNames`（名前の列挙として）、ほかのキーワードと並んだ `$ref`、`readOnly` と `writeOnly`（[厳密な型](./strict-types#requests-and-responses-have-separate-types)を参照） |
 | 再帰的なスキーマ | 対応 | プロパティ、配列、`additionalProperties` を経由する再帰。`$defs` など `components.schemas` 以外の場所への `$ref` も含む |
 | `oneOf` または `anyOf` の `discriminator` | 対応 | 明示的なマッピングと暗黙的なマッピング、`defaultMapping` |
 | 親スキーマの `oneOf` に列挙され、それぞれが `allOf` で親を拡張するサブタイプ | 対応 | [サブタイプ](./schemas#subtypes)を参照 |

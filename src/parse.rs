@@ -321,6 +321,26 @@ impl<'a> Parser<'a> {
     }
 
     /// Follows `$ref` chains of non-schema objects to their target.
+    /// The names `propertyNames` allows in `node`, where it lists them with
+    /// `enum` or `const`, through `$ref`s. OpenAPI 3.0 has no `propertyNames`.
+    fn property_names(&self, node: &Node<'a>) -> Result<Option<Vec<String>>, Error> {
+        let Some(n) = node.get("propertyNames") else {
+            return Ok(None);
+        };
+        if self.version == Version::V30 {
+            return Ok(None);
+        }
+        let n = self.deref(n)?;
+        let values: Vec<&Value> = match (n.v.get("enum"), n.v.get("const")) {
+            (Some(Value::Array(values)), _) => values.iter().collect(),
+            (None, Some(value)) => vec![value],
+            _ => return Ok(None),
+        };
+        // Names are strings: other values allow none.
+        let names = values.into_iter().filter_map(Value::as_str);
+        Ok(Some(names.map(String::from).collect()))
+    }
+
     fn deref(&self, mut node: Node<'a>) -> Result<Node<'a>, Error> {
         for _ in 0..MAX_DEPTH {
             match node.str("$ref") {
@@ -916,7 +936,28 @@ impl<'a> Parser<'a> {
                 for (pattern, s) in node.entries_of("patternProperties") {
                     pattern_properties.push((pattern.clone(), self.schema(s, depth + 1)?));
                 }
-                let additional = self.boxed(node.get("additionalProperties"), depth)?;
+                let mut additional = self.boxed(node.get("additionalProperties"), depth)?;
+                // `propertyNames` that lists the names closes the object to
+                // them: each is an optional property of `additionalProperties`.
+                // TypeScript cannot match the names against patterns.
+                if pattern_properties.is_empty()
+                    && let Some(names) = self.property_names(node)?
+                {
+                    let value = additional.map_or(Schema::Any, |a| *a);
+                    if value != Schema::Never {
+                        for name in names {
+                            if !properties.iter().any(|p| p.name == name) {
+                                properties.push(Property {
+                                    name,
+                                    required: false,
+                                    meta: Meta::default(),
+                                    schema: value.clone(),
+                                });
+                            }
+                        }
+                    }
+                    additional = Some(Box::new(Schema::Never));
+                }
                 Schema::Object {
                     properties,
                     pattern_properties,
@@ -1232,6 +1273,30 @@ mod tests {
                 min_items: 0,
             }
         );
+    }
+
+    #[test]
+    fn property_names_are_read_from_3_1() {
+        let first = |openapi: &str| {
+            let s = json!({"type": "object", "propertyNames": {"enum": ["a"]}});
+            let doc = json!({"openapi": openapi, "components": {"schemas": {"S": s}}});
+            parse_value(doc).unwrap().schemas.remove(0).schema
+        };
+        let Schema::Object {
+            properties,
+            additional,
+            ..
+        } = first("3.1.0")
+        else {
+            panic!("not an object");
+        };
+        assert_eq!(properties[0].name, "a");
+        assert_eq!(additional, Some(Box::new(Schema::Never)));
+        // 3.0 has no `propertyNames`.
+        assert!(matches!(
+            first("3.0.3"),
+            Schema::Object { properties, additional: None, .. } if properties.is_empty()
+        ));
     }
 
     #[test]

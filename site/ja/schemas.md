@@ -31,6 +31,7 @@ type PetKind = Pet["kind"];
 | `type: array` | `T[]`。`minItems: n` があるときは先頭の n 個の要素を必須とするタプル型（1 なら `[T, ...T[]]`）。`prefixItems` があるときはタプル型 |
 | `properties` を持つ `type: object` | オブジェクト型。`required` にないプロパティは省略可能 |
 | `additionalProperties` | インデックスシグネチャ（オブジェクトが `properties` も持つときは `unknown`） |
+| `enum` または `const` を指定した `propertyNames` | 列挙された名前ごとの省略可能なプロパティ（型は `additionalProperties` の型）。インデックスシグネチャは付かない。`patternProperties` があるときは無視 |
 | `patternProperties` | すべてのキーを対象とするインデックスシグネチャ（TypeScript ではキーをパターンで絞れないため）。値の型は、各パターンと `additionalProperties` の型のユニオン型（オブジェクトが `properties` も持つとき、または `additionalProperties` がないときは `unknown`） |
 | `oneOf`、`anyOf` | ユニオン型。`discriminator` があるときは、各メンバーにその値のタグを判別プロパティの型で付与（`mapping` の `"true"` は、boolean のプロパティでは `true`） |
 | `allOf` | インターセクション型 |

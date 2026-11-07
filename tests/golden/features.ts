@@ -485,6 +485,9 @@ export interface components {
     Shape: $Shape;
     Tree: $Tree;
     Flag: $Flag;
+    PropertyNamesEnum: $PropertyNamesEnum;
+    PropertyNamesRef: $PropertyNamesRef;
+    PropertyNamesConst: $PropertyNamesConst;
     Level: $Level;
     Json: $Json;
     Animal: $Animal;
@@ -610,6 +613,20 @@ type $Square = {
 type $Shape = $Circle & { kind: "c" | "Circle" } | $Square & { kind: "s" | "Square" };
 type $Tree = $components_schemas_Tree_defs_node;
 type $Flag = "N" | "Y" | "yes" | "off" | "A";
+type $PropertyNamesEnum = {
+  a?: number;
+  b?: number;
+};
+type $PropertyNamesRef = {
+  N?: string;
+  Y?: boolean;
+  yes?: boolean;
+  off?: boolean;
+  A?: boolean;
+};
+type $PropertyNamesConst = {
+  only?: unknown;
+};
 type $Level = 1 | 2 | null;
 type $Json = string | number | boolean | null | $Json[] | { [key: string]: $Json };
 type $Animal = {
@@ -847,6 +864,9 @@ export type {
   $Square as Square,
   $Shape as Shape,
   $Tree as Tree,
+  $PropertyNamesEnum as PropertyNamesEnum,
+  $PropertyNamesRef as PropertyNamesRef,
+  $PropertyNamesConst as PropertyNamesConst,
   $Json as Json,
   $Animal as Animal,
   $Dog as Dog,
