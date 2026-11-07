@@ -220,6 +220,9 @@ export type Nested = [
   Expect<Equal<components["requestSchemas"]["Batch"], [components["requestSchemas"]["Holder"], ...components["requestSchemas"]["Holder"][]]>>,
   // `additionalProperties: false` adds no index signature.
   Expect<Equal<schemas["Closed"], { x?: string }>>,
+  // `propertyNames` that lists the names closes the object to them.
+  Expect<Equal<schemas["PropertyNamesEnum"], { a?: number; b?: number }>>,
+  Expect<Equal<schemas["PropertyNamesRef"], { N?: string; Y?: boolean; yes?: boolean; off?: boolean; A?: boolean }>>,
   Expect<Equal<schemas["Empty"], Record<string, never>>>,
   Expect<Equal<schemas["Constants"], { one: 1; yes: true; nothing: null }>>,
   Expect<Equal<schemas["Described"], { owner?: schemas["Owner"] }>>,

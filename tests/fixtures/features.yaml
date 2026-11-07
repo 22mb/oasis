@@ -450,6 +450,21 @@ components:
     Flag:
       type: string
       enum: [N, Y, yes, off, A]
+    # `propertyNames` that lists the names closes the object to them, through a
+    # `$ref` too; `additionalProperties` types them, and declared ones keep theirs.
+    PropertyNamesEnum:
+      type: object
+      propertyNames: { enum: [a, b] }
+      additionalProperties: { type: integer }
+    PropertyNamesRef:
+      type: object
+      properties:
+        N: { type: string }
+      propertyNames: { $ref: "#/components/schemas/Flag" }
+      additionalProperties: { type: boolean }
+    PropertyNamesConst:
+      type: object
+      propertyNames: { const: only }
     Level:
       type: [integer, "null"]
       format: int32
