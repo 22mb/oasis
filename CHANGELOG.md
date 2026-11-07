@@ -5,6 +5,17 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.7.0](https://github.com/22mb/oasis/compare/v0.6.0...v0.7.0) - 2026-11-07
+
+### Fixed
+
+- **Breaking:** Require the first items of an array with minItems ([#77](https://github.com/22mb/oasis/pull/77))
+- **Breaking:** Type the binary parts of a multipart body composed with allOf or oneOf ([#78](https://github.com/22mb/oasis/pull/78))
+- Send encoded binary parts of a composed multipart body as octets ([#79](https://github.com/22mb/oasis/pull/79))
+- Leave out what a subtype flags from the parent it extends ([#80](https://github.com/22mb/oasis/pull/80))
+- **Breaking:** Reject component names outside ASCII letters, digits, `.`, `-` and `_` ([#88](https://github.com/22mb/oasis/pull/88))
+- **Breaking:** Close an object to the names its propertyNames lists ([#89](https://github.com/22mb/oasis/pull/89))
+
 ## [0.6.0](https://github.com/22mb/oasis/compare/v0.5.1...v0.6.0) - 2026-11-06
 
 ### Fixed
