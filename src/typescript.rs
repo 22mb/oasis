@@ -26,7 +26,7 @@ fn inherit_access(api: &mut Api) {
     let mut fix = |s: &mut Schema| match s {
         Schema::Object { properties, .. } => {
             for p in properties {
-                let (r, w) = access(&p.schema, &schemas, &mut Vec::new());
+                let (r, w) = access(&p.schema, &schemas);
                 p.meta.read_only |= r;
                 p.meta.write_only |= w;
             }
@@ -62,28 +62,15 @@ fn inherit_access(api: &mut Api) {
 }
 
 /// Whether a value of `s` is `readOnly` and `writeOnly` through `$ref` and
-/// `allOf` alone; `visiting` guards against `$ref` cycles.
-fn access<'s>(
-    s: &'s Schema,
-    schemas: &HashMap<&str, &'s NamedSchema>,
-    visiting: &mut Vec<&'s str>,
-) -> (bool, bool) {
-    match s {
-        Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
-            let Some(n) = schemas.get(k.as_str()) else {
-                return (false, false);
-            };
-            visiting.push(k);
-            let (r, w) = access(&n.schema, schemas, visiting);
-            visiting.pop();
-            (n.meta.read_only || r, n.meta.write_only || w)
+/// `allOf` alone.
+fn access(s: &Schema, schemas: &HashMap<&str, &NamedSchema>) -> (bool, bool) {
+    flatten(s, schemas).fold((false, false), |(r, w), s| match s {
+        Schema::Ref(k) => {
+            let meta = &schemas[k.as_str()].meta;
+            (r || meta.read_only, w || meta.write_only)
         }
-        Schema::Intersection(parts) => parts.iter().fold((false, false), |(r, w), p| {
-            let (pr, pw) = access(p, schemas, visiting);
-            (r || pr, w || pw)
-        }),
-        _ => (false, false),
-    }
+        _ => (r, w),
+    })
 }
 
 /// The names of the `readOnly` and `writeOnly` properties of `parts`, an
@@ -93,46 +80,40 @@ fn flagged_in(
     schemas: &HashMap<&str, &NamedSchema>,
 ) -> (BTreeSet<String>, BTreeSet<String>) {
     let mut flagged = (BTreeSet::new(), BTreeSet::new());
-    for p in parts {
-        flagged_properties(p, schemas, &mut flagged, &mut Vec::new());
+    for s in parts.iter().flat_map(|p| flatten(p, schemas)) {
+        let Schema::Object { properties, .. } = s else {
+            continue;
+        };
+        for p in properties {
+            let (r, w) = access(&p.schema, schemas);
+            if p.meta.read_only || r {
+                flagged.0.insert(p.name.clone());
+            }
+            if p.meta.write_only || w {
+                flagged.1.insert(p.name.clone());
+            }
+        }
     }
     flagged
 }
 
-/// Adds the names of the `readOnly` and `writeOnly` properties of `s`, with
-/// `allOf` members and `$ref` targets flattened, to `flagged`.
-fn flagged_properties<'s>(
+/// `s` and every schema it reaches through `$ref` and `allOf` alone, in
+/// document order, following each reference once.
+fn flatten<'s>(
     s: &'s Schema,
     schemas: &HashMap<&str, &'s NamedSchema>,
-    flagged: &mut (BTreeSet<String>, BTreeSet<String>),
-    visiting: &mut Vec<&'s str>,
-) {
-    match s {
-        Schema::Object { properties, .. } => {
-            for p in properties {
-                let (r, w) = access(&p.schema, schemas, &mut Vec::new());
-                if p.meta.read_only || r {
-                    flagged.0.insert(p.name.clone());
-                }
-                if p.meta.write_only || w {
-                    flagged.1.insert(p.name.clone());
-                }
-            }
+) -> impl Iterator<Item = &'s Schema> {
+    let mut stack = vec![s];
+    let mut seen = HashSet::new();
+    std::iter::from_fn(move || {
+        let s = stack.pop()?;
+        match s {
+            Schema::Ref(k) if seen.insert(k.as_str()) => stack.push(&schemas[k.as_str()].schema),
+            Schema::Intersection(parts) => stack.extend(parts.iter().rev()),
+            _ => {}
         }
-        Schema::Intersection(parts) => {
-            for p in parts {
-                flagged_properties(p, schemas, flagged, visiting);
-            }
-        }
-        Schema::Ref(k) if !visiting.contains(&k.as_str()) => {
-            if let Some(n) = schemas.get(k.as_str()) {
-                visiting.push(k);
-                flagged_properties(&n.schema, schemas, flagged, visiting);
-                visiting.pop();
-            }
-        }
-        _ => {}
-    }
+        Some(s)
+    })
 }
 
 /// Flags the properties of the object members of `s` (an `allOf` member) that
@@ -712,20 +693,14 @@ impl<'a> Emitter<'a> {
                 Type::Intersection(
                     parts
                         .iter()
-                        .map(|p| match p {
-                            Schema::Ref(_) => {
-                                let t = self.form_data(p, visiting);
-                                self.omit(t, p, &hidden, view, None)
-                            }
+                        .map(|p| {
                             // A bare `type: object` is `object` here.
-                            Schema::Object {
-                                properties,
-                                pattern_properties,
-                                additional: None,
-                            } if properties.is_empty() && pattern_properties.is_empty() => {
-                                self.composed(p, view)
-                            }
-                            _ => self.form_data(p, visiting),
+                            let t = if is_bare_object(p) {
+                                Type::name("object")
+                            } else {
+                                self.form_data(p, visiting)
+                            };
+                            self.omit(t, p, &hidden, view, None)
                         })
                         .collect(),
                 )
@@ -958,13 +933,7 @@ impl<'a> Emitter<'a> {
                 Type::Intersection(
                     parts
                         .iter()
-                        .map(|p| {
-                            let t = self.composed(p, view);
-                            match p {
-                                Schema::Ref(_) => self.omit(t, p, &hidden, view, None),
-                                _ => t,
-                            }
-                        })
+                        .map(|p| self.omit(self.composed(p, view), p, &hidden, view, None))
                         .collect(),
                 )
             }
@@ -981,10 +950,10 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// `t`, the type of `$ref` member `s` of an `allOf`, without the properties
-    /// in `hidden` that it shows in `view`. Another member flags them
-    /// `readOnly` or `writeOnly`, so they are `?: never` in this view, but the
-    /// shared target cannot be flagged and may require them: `number & never`
+    /// `t`, the type of member `s` of an `allOf`, without the properties in
+    /// `hidden` that it shows in `view` where `s` is a `$ref`. Another member
+    /// flags them `readOnly` or `writeOnly`, so they are `?: never` in this
+    /// view, but the shared target cannot be flagged and may require them: `number & never`
     /// would make every value fail. A union target keeps its type, since
     /// `Omit` would merge its members, and so does one with an index
     /// signature, which `Omit` would keep alone.
@@ -1000,66 +969,58 @@ impl<'a> Emitter<'a> {
         view: View,
         child: Option<&str>,
     ) -> Type {
-        let mut declared = HashSet::new();
-        if hidden.is_empty() || !self.declared(s, view, child, &mut declared, &mut Vec::new()) {
+        if !matches!(s, Schema::Ref(_)) || hidden.is_empty() {
             return t;
         }
+        let Some(declared) = self.declared(s, view, child) else {
+            return t;
+        };
         let names: Vec<Type> = hidden
             .iter()
             .filter(|n| declared.contains(n.as_str()))
             .map(|n| Type::string(n))
             .collect();
-        match names.len() {
-            0 => t,
-            1 => Type::Generic("Omit", vec![t, names.into_iter().next().unwrap()]),
-            _ => Type::Generic("Omit", vec![t, Type::Union(names)]),
+        if names.is_empty() {
+            t
+        } else {
+            Type::Generic("Omit", vec![t, Type::Union(names)])
         }
     }
 
-    /// Adds the names of the properties `s` declares and shows in `view`,
-    /// through `$ref` and `allOf`, to `names`; false where `s` is or contains a
-    /// union, other than one that lists `child`, or an object with an index
-    /// signature.
+    /// The names of the properties `s` declares and shows in `view`, through
+    /// `$ref` and `allOf`; none where `s` is or contains a union, other than
+    /// one that lists `child`, or an object with an index signature.
     fn declared<'s>(
         &'s self,
         s: &'s Schema,
         view: View,
         child: Option<&str>,
-        names: &mut HashSet<&'s str>,
-        visiting: &mut Vec<&'s str>,
-    ) -> bool {
-        match s {
-            Schema::Ref(k) if visiting.contains(&k.as_str()) => true,
-            Schema::Ref(k) => {
-                visiting.push(k);
-                let target = &self.schemas[k.as_str()].schema;
-                let ok = self.declared(target, view, child, names, visiting);
-                visiting.pop();
-                ok
+    ) -> Option<HashSet<&'s str>> {
+        let mut names = HashSet::new();
+        for s in flatten(s, &self.schemas) {
+            match s {
+                Schema::Object {
+                    pattern_properties,
+                    additional,
+                    ..
+                } if !pattern_properties.is_empty()
+                    || additional.as_deref().is_some_and(|a| *a != Schema::Never) =>
+                {
+                    return None;
+                }
+                Schema::Object { properties, .. } => {
+                    let shown = properties.iter().filter(|p| match view {
+                        View::Request => !p.meta.read_only,
+                        View::Response => !p.meta.write_only,
+                    });
+                    names.extend(shown.map(|p| p.name.as_str()));
+                }
+                Schema::Union { .. } if child.is_some_and(|c| self.reaches(s, c)) => {}
+                Schema::Union { .. } => return None,
+                _ => {}
             }
-            Schema::Object {
-                pattern_properties,
-                additional,
-                ..
-            } if !pattern_properties.is_empty()
-                || additional.as_deref().is_some_and(|a| *a != Schema::Never) =>
-            {
-                false
-            }
-            Schema::Object { properties, .. } => {
-                let shown = properties.iter().filter(|p| match view {
-                    View::Request => !p.meta.read_only,
-                    View::Response => !p.meta.write_only,
-                });
-                names.extend(shown.map(|p| p.name.as_str()));
-                true
-            }
-            Schema::Intersection(parts) => parts
-                .iter()
-                .all(|p| self.declared(p, view, child, names, visiting)),
-            Schema::Union { .. } => child.is_some_and(|c| self.reaches(s, c)),
-            _ => true,
         }
+        Some(names)
     }
 
     /// The type of a member of an intersection. There, `type: object` without
@@ -1067,11 +1028,7 @@ impl<'a> Emitter<'a> {
     /// it would accept every property name the other members leave out.
     fn composed(&self, s: &Schema, view: View) -> Type {
         match s {
-            Schema::Object {
-                properties,
-                pattern_properties,
-                additional: None,
-            } if properties.is_empty() && pattern_properties.is_empty() => Type::name("object"),
+            _ if is_bare_object(s) => Type::name("object"),
             Schema::Union {
                 kind: UnionKind::Types,
                 variants,
@@ -1179,25 +1136,13 @@ impl<'a> Emitter<'a> {
 
     /// The schema of property `name` of `s`, through references and `allOf`.
     fn property(&self, s: &'a Schema, name: &str) -> Option<&'a Schema> {
-        let mut stack = vec![s];
-        let mut seen = HashSet::new();
-        while let Some(s) = stack.pop() {
-            match s {
-                Schema::Ref(k) => {
-                    if seen.insert(k.as_str()) {
-                        stack.push(&self.schemas[k.as_str()].schema);
-                    }
-                }
-                Schema::Object { properties, .. } => {
-                    if let Some(p) = properties.iter().find(|p| p.name == name) {
-                        return Some(&p.schema);
-                    }
-                }
-                Schema::Intersection(parts) => stack.extend(parts.iter().rev()),
-                _ => {}
-            }
-        }
-        None
+        flatten(s, &self.schemas).find_map(|s| match s {
+            Schema::Object { properties, .. } => properties
+                .iter()
+                .find(|p| p.name == name)
+                .map(|p| &p.schema),
+            _ => None,
+        })
     }
 
     /// Whether property schema `p` allows strings, so that a mapping key can
@@ -1344,13 +1289,9 @@ impl<'a> Emitter<'a> {
                             kind: UnionKind::Types,
                             ..
                         } => types.push(self.composed(p, view)),
-                        Schema::Ref(k) if !self.enumerates(k, d.key) => types.extend(
-                            self.eager(p, d, true)
-                                .into_iter()
-                                .map(|t| self.omit(t, p, &hidden, view, None)),
-                        ),
-                        // A parent expanded in place: without its unions that
-                        // list this schema, it can leave out what is hidden.
+                        // A parent expanded in place leaves out its unions
+                        // that list this schema, so they do not keep `omit`
+                        // from leaving out what is hidden.
                         _ => {
                             let ts = self.eager(p, d, true);
                             if ts.is_empty() {
@@ -1459,6 +1400,12 @@ fn check_cycles(api: &Api, edges: &[(&str, &str)]) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+/// Whether `s` is `type: object` without other keywords.
+fn is_bare_object(s: &Schema) -> bool {
+    matches!(s, Schema::Object { properties, pattern_properties, additional: None }
+        if properties.is_empty() && pattern_properties.is_empty())
 }
 
 /// Visits a schema tree without following references.
