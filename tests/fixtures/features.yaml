@@ -339,6 +339,16 @@ paths:
       responses:
         "204":
           description: Done.
+  /attachments:
+    # A `multipart/form-data` body without a schema is a `FormData`.
+    post:
+      requestBody:
+        required: true
+        content:
+          multipart/form-data: {}
+      responses:
+        "204":
+          description: Done.
   /blobs:
     # No `responses`, and a form querystring without a schema.
     get:
@@ -372,6 +382,15 @@ paths:
           content:
             text/csv:
               schema: { type: string }
+  /exports:
+    # A binary range: every media type in it is read as a `Blob`.
+    get:
+      responses:
+        "200":
+          description: The export, in any text format.
+          content:
+            text/*:
+              schema: {}
 components:
   schemas:
     Account:
@@ -607,6 +626,26 @@ components:
             - required: [serial]
             - properties:
                 extra: { type: string }
+    # ... and a property of an inline object, an array item or a `oneOf` variant.
+    Deep:
+      type: object
+      properties:
+        inner:
+          type: object
+          properties:
+            serial: { $ref: "#/components/schemas/Serial" }
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              serial: { $ref: "#/components/schemas/Serial" }
+        choice:
+          oneOf:
+            - type: object
+              properties:
+                serial: { $ref: "#/components/schemas/Serial" }
+            - type: string
     # A request shape for a schema hoisted from `$defs`.
     Doc:
       type: object

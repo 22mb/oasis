@@ -331,6 +331,19 @@ export interface paths {
       statuses: Statuses_204_default;
     };
   };
+  "/attachments": {
+    POST: {
+      request: {
+        contentType?: "multipart/form-data";
+        body: FormData;
+      };
+      responses: {
+        /** Done. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+  };
   "/blobs": {
     GET: {
       request: {
@@ -365,6 +378,16 @@ export interface paths {
       statuses: Statuses_200_4XX_default;
     };
   };
+  "/exports": {
+    GET: {
+      request: {};
+      responses: {
+        /** The export, in any text format. */
+        "200": Blob;
+      };
+      statuses: Statuses_200_default;
+    };
+  };
 }
 
 // The statuses each response key covers, as `[successes, failures]`; the
@@ -390,6 +413,10 @@ type Statuses_200_4XX_default = {
   "200": [200, never];
   "4XX": [never, Status4xx];
   default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status5xx];
+};
+type Statuses_200_default = {
+  "200": [200, never];
+  default: [201 | 202 | 203 | 204 | 205 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status3xx | Status4xx | Status5xx];
 };
 type Statuses_201_default = {
   "201": [201, never];
@@ -485,6 +512,7 @@ export interface components {
     Form: $Form;
     Stamped: $Stamped;
     Nested: $Nested;
+    Deep: $Deep;
     Doc: $Doc;
     Words: $Words;
     Tuple: $Tuple;
@@ -525,6 +553,7 @@ export interface components {
     Holder: $Holder$Request;
     Stamped: $Stamped$Request;
     Nested: $Nested$Request;
+    Deep: $Deep$Request;
     Doc: $Doc$Request;
     Batch: $Batch$Request;
     Described: $Described$Request;
@@ -710,6 +739,28 @@ type $Nested$Request = $Entity$Request & {
 } & {
   extra?: string;
 };
+type $Deep = {
+  inner?: {
+    serial?: $Serial;
+  };
+  list?: {
+    serial?: $Serial;
+  }[];
+  choice?: {
+    serial?: $Serial;
+  } | string;
+};
+type $Deep$Request = {
+  inner?: {
+    serial?: never;
+  };
+  list?: {
+    serial?: never;
+  }[];
+  choice?: {
+    serial?: never;
+  } | string;
+};
 type $Doc = {
   meta?: $components_schemas_Doc_defs_meta;
 };
@@ -822,6 +873,7 @@ export type {
   $Form as Form,
   $Stamped as Stamped,
   $Nested as Nested,
+  $Deep as Deep,
   $Doc as Doc,
   $Words as Words,
   $Tuple as Tuple,
@@ -860,6 +912,7 @@ export type {
   $Holder$Request as HolderRequest,
   $Stamped$Request as StampedRequest,
   $Nested$Request as NestedRequest,
+  $Deep$Request as DeepRequest,
   $Doc$Request as DocRequest,
   $Batch$Request as BatchRequest,
   $Described$Request as DescribedRequest,
@@ -1524,7 +1577,9 @@ const spec: Spec = {
     "POST /imports": { contentType: "multipart/form-data" },
     "POST /uploads": { encoding: { "multipart/form-data": { file: { contentType: "image/png, image/jpeg" }, photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
     "PUT /avatar": { contentType: "application/json" },
+    "POST /attachments": { contentType: "multipart/form-data" },
     "GET /blobs": { querystring: "application/x-www-form-urlencoded" },
     "GET /report": { binary: ["text/csv"] },
+    "GET /exports": { binary: ["text/*"] },
   },
 };

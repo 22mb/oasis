@@ -156,6 +156,13 @@ test("reads a text/* response the document declares binary as a Blob", async () 
   assert.ok((await report(400, "TEXT/CSV")) instanceof Blob);
   assert.equal(await report(200, "text/plain"), "a,b\n");
   assert.equal(await report(200, "text/html"), "a,b\n");
+  // A binary range covers every media type in it, and no other.
+  const exported = async (contentType: string) => {
+    const response = () => new Response("1", { headers: { "content-type": contentType } });
+    return (await recording(response).api.GET("/exports")).data as unknown;
+  };
+  assert.ok((await exported("text/markdown; charset=utf-8")) instanceof Blob);
+  assert.equal(await exported("application/json"), 1);
 });
 
 test("decodes bodies by status and Content-Type", async () => {
@@ -316,6 +323,14 @@ test("a body for a media type range other than `*/*` is sent as the call names i
   const { api, sent } = recording();
   await api.PUT("/avatar", { contentType: "image/png", body: new Blob(["png"]) });
   assert.deepEqual(sent.map((s) => [s.headers.get("content-type"), s.body]), [["image/png", "png"]]);
+});
+
+test("a multipart/form-data body without a schema is a FormData sent as it is", async () => {
+  const { api, sent } = recording();
+  const body = new FormData();
+  body.append("a", "1");
+  await api.POST("/attachments", { body });
+  assert.deepEqual(parts(sent[0]!), [["a", null, "1"]]);
 });
 
 test("a multipart body other than multipart/form-data is a Blob that carries its Content-Type", async () => {
