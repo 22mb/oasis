@@ -386,6 +386,8 @@ export interface paths {
         "200": Blob;
         /** Why there is no export. */
         "4XX": string;
+        /** Anything else, in some text format. */
+        default: unknown;
       };
       statuses: Statuses_200_4XX_default;
     };
@@ -1648,6 +1650,6 @@ const spec: Spec = {
     "POST /attachments": { contentType: "multipart/form-data" },
     "GET /blobs": { querystring: "application/x-www-form-urlencoded" },
     "GET /report": { binary: { "200": ["text/csv"], "4XX": [] } },
-    "GET /exports": { binary: { "200": ["text/*"], "4XX": [] } },
+    "GET /exports": { binary: { "200": ["text/*"], "4XX": [], default: [] } },
   },
 };

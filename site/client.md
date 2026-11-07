@@ -202,7 +202,7 @@ declares.
 | `text/*`, `application/x-www-form-urlencoded` | `string`; `Blob` for a `text/*` type whose schema has no `type` |
 | `application/jsonl`, `application/x-ndjson`, `application/json-seq`, `*+json-seq` | `AsyncIterable` of parsed items |
 | `text/event-stream` | `AsyncIterable<{ data, event?, id?, retry? }>` |
-| `*/*`, `application/*` | Typed as `unknown`; decoded according to the actual `Content-Type` |
+| `*/*`, `application/*`, and `text/*` itself | Typed as `unknown`, since the range includes event streams and JSON as well as text; decoded according to the actual `Content-Type` |
 | Anything else | `Blob` |
 
 `data` is `undefined` for `HEAD` requests and for `204`, `205`, and `304`
