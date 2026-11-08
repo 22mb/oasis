@@ -57,7 +57,7 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 | `path`、`query`、`header`、`cookie` | パラメーター。それぞれの `style` と `explode` の指定に従ってシリアライズ |
 | `querystring` | `in: querystring` のパラメーター（[後述](#querystring-parameters)）。`query` の代わりに使用 |
 | `body`、`contentType` | リクエスト本体とそのメディアタイプ。[リクエスト本体](#request-bodies)を参照 |
-| その他 | `fetch` に渡すオプション（`method` を除く） |
+| その他 | `new Request` に渡すオプション（`method` を除く）。Next.js の `next` など、`Request` が保持しないオプションは `fetch` に届かない |
 
 第 2 引数を省略できるのは、操作に必須の入力がないときだけです。
 
