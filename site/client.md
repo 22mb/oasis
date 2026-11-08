@@ -66,7 +66,7 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 | `path`, `query`, `header`, `cookie` | Parameters, serialized as their `style` and `explode` specify |
 | `querystring` | An `in: querystring` parameter; see [below](#querystring-parameters). It replaces `query` |
 | `body`, `contentType` | The request body and its media type; see [Request bodies](#request-bodies) |
-| Anything else | Passed to `fetch`, except `method` |
+| Anything else | Passed to `new Request`, except `method`. Options that `Request` does not keep, such as `next` in Next.js, do not reach `fetch` |
 
 The second argument is optional only when the operation has no required
 inputs.
