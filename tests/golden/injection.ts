@@ -55,10 +55,10 @@ export interface paths {
 // body. The operations with the same keys share one.
 type Statuses_200_default = {
   "200": [200, never];
-  default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205 | 304];
+  default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205];
 };
 type Statuses_default = {
-  default: [200 | 201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205 | 304];
+  default: [200 | 201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205];
 };
 type Status21x = 210 | 211 | 212 | 213 | 214 | 215 | 216 | 217 | 218 | 219;
 type Status22x = 220 | 221 | 222 | 223 | 224 | 225 | 226 | 227 | 228 | 229;
@@ -171,9 +171,11 @@ export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & 
 /**
  * The result of calling operation `O` of `paths`. One member per declared
  * response key, each with the statuses it covers: a code itself, a range such
- * as `4XX` minus the codes declared in it, and `default` every other status,
- * successes included. 204, 205 and 304 have `data: undefined` under any of
- * them. Statuses nothing covers are still possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
+ * as `4XX` minus the codes declared in it, and `default` every other status
+ * but 304, successes included. 304 needs a key that names it, since fetch
+ * returns it only to a conditional request the caller sent. 204, 205 and 304
+ * have `data: undefined` under any of them. Statuses nothing covers are still
+ * possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
  * declared success from a `default` or undeclared one.
  */
 export type ApiResponse<O extends Operation> = {

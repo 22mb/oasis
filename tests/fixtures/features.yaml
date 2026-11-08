@@ -109,6 +109,11 @@ paths:
               schema: { $ref: "#/components/schemas/Shape" }
         "301":
           description: Moved.
+        3XX:
+          description: Any other redirection.
+          content:
+            text/plain:
+              schema: { type: string }
         "404":
           description: No such shape.
         4XX:

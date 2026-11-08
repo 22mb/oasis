@@ -253,7 +253,10 @@ impl Operation {
     /// such as `4XX` minus the codes declared in it, in document order. The
     /// last entry is every status from 200 to 599 that none of those covers,
     /// with the `default` response if there is one; a response can still have
-    /// those statuses when no `default` is declared.
+    /// those statuses when no `default` is declared. 304 is left out, as 1xx
+    /// are: a server sends it only in answer to a conditional request, and
+    /// fetch returns it only when the caller made that request itself, so only
+    /// a key that names it covers it.
     pub fn coverage(&self) -> Vec<(Option<&Response>, Vec<u16>)> {
         let mut covered = [false; 600];
         for r in &self.responses {
@@ -278,7 +281,9 @@ impl Operation {
             .iter()
             .filter_map(|r| Some((Some(r), codes(r)?)))
             .collect();
-        let rest = (200..600).filter(|&s| !covered[usize::from(s)]).collect();
+        let rest = (200..600)
+            .filter(|&s| s != 304 && !covered[usize::from(s)])
+            .collect();
         let default = self.responses.iter().find(|r| r.status == Status::Default);
         out.push((default, rest));
         out
@@ -517,7 +522,7 @@ mod tests {
                 ("4XX".into(), codes(400..500, &[404])),
                 (
                     "-".into(),
-                    codes(200..600, &[200])
+                    codes(200..600, &[200, 304])
                         .into_iter()
                         .filter(|s| !(400..500).contains(s))
                         .collect()
@@ -529,21 +534,42 @@ mod tests {
             coverage(&[Range(2), Default]),
             vec![
                 ("2XX".into(), codes(200..300, &[])),
-                ("default".into(), codes(300..600, &[]))
+                ("default".into(), codes(300..600, &[304]))
             ]
         );
         assert_eq!(
             coverage(&[Default]),
-            vec![("default".into(), codes(200..600, &[]))]
+            vec![("default".into(), codes(200..600, &[304]))]
         );
-        assert_eq!(coverage(&[]), vec![("-".into(), codes(200..600, &[]))]);
+        assert_eq!(coverage(&[]), vec![("-".into(), codes(200..600, &[304]))]);
+        // 304 appears only where a key names it, as 1xx statuses do.
+        assert_eq!(
+            coverage(&[Code(304), Default]),
+            vec![
+                ("304".into(), vec![304]),
+                ("default".into(), codes(200..600, &[304]))
+            ]
+        );
+        assert_eq!(
+            coverage(&[Range(3), Default]),
+            vec![
+                ("3XX".into(), codes(300..400, &[])),
+                (
+                    "default".into(),
+                    codes(200..600, &[])
+                        .into_iter()
+                        .filter(|s| !(300..400).contains(s))
+                        .collect()
+                )
+            ]
+        );
         // 1xx statuses appear only where a key names them.
         assert_eq!(
             coverage(&[Code(101), Range(1)]),
             vec![
                 ("101".into(), vec![101]),
                 ("1XX".into(), codes(100..200, &[101])),
-                ("-".into(), codes(200..600, &[])),
+                ("-".into(), codes(200..600, &[304])),
             ]
         );
     }
