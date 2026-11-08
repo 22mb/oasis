@@ -139,6 +139,28 @@ test("sends static and per-call headers, and is not a thenable", async () => {
   expect(await Promise.resolve(api)).toBe(api);
 });
 
+// As Next.js declares it.
+declare global {
+  interface RequestInit {
+    next?: { revalidate?: number };
+  }
+}
+
+test("passes the options that Request drops to fetch, past middleware that rebuilds the request", async () => {
+  const inits: (RequestInit | undefined)[] = [];
+  const api = createClient({
+    fetch: async (_request, init) => {
+      inits.push(init);
+      return noContent();
+    },
+    middleware: [async (request, next) => next(new Request(request))],
+  });
+  await api.GET("/shapes", { next: { revalidate: 60 }, cache: "no-store", signal: new AbortController().signal });
+  await api.GET("/shapes", { cache: "no-store" });
+  // Standard options stay on the request alone: passing them again would reset its referrer.
+  expect(inits).toStrictEqual([{ next: { revalidate: 60 } }, undefined]);
+});
+
 test("reads a text/* response the document declares binary as a Blob", async () => {
   const report = async (status: number, contentType: string) => {
     const response = () => new Response("a,b\n", { status, headers: { "content-type": contentType } });

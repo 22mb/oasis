@@ -83,7 +83,9 @@ const api = createClient({ middleware: [timing, retry] });
   (`api.GET("/pets", { middleware: [...] })`) runs inside the client's
   middleware.
 - `next` passes the request to the next middleware. In the last middleware,
-  `next` passes it to `fetch`. If a middleware returns a `Response` without
+  `next` passes it to `fetch`, with the call's
+  [non-standard options](./client#non-standard-fetch-options). If a
+  middleware returns a `Response` without
   calling `next`, the request is not sent over the network. This is useful for
   caching or mocks.
 - Errors that `fetch` itself throws are thrown from `next`.

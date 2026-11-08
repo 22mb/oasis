@@ -19,8 +19,11 @@ export interface ClientOptions {
   headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
   /** Wraps every request, outermost first. See {@link Middleware}. */
   middleware?: Middleware[];
-  /** Custom fetch implementation, called with the final `Request`. */
-  fetch?: (request: Request) => Promise<Response>;
+  /**
+   * Custom fetch implementation, called with the final `Request`, and with the
+   * call's options that are not standard, such as Next.js's `next`, as `init`.
+   */
+  fetch?: (request: Request, init?: RequestInit) => Promise<Response>;
 }
 
 /** Standard fetch options accepted by every operation, besides its parameters and body. */
@@ -165,6 +168,12 @@ type Spec = {
   }>;
 };
 
+/** The members of `RequestInit` that `new Request` applies to the request. */
+const standardInit = new Set([
+  "method", "headers", "body", "referrer", "referrerPolicy", "mode", "credentials", "cache",
+  "redirect", "integrity", "keepalive", "signal", "duplex", "priority", "window",
+]);
+
 type Init = RequestOptions & {
   path?: Record<string, unknown>;
   query?: Record<string, unknown>;
@@ -240,10 +249,15 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
       },
     };
     const chain = [...(options.middleware ?? []), ...(middleware ?? [])];
+    // `new Request` drops options it does not know, such as Next.js's `next` or
+    // Bun's `tls`, so they go to fetch beside the request.
+    const extra = Object.fromEntries(Object.entries(rest).filter(([name]) => !standardInit.has(name)));
+    const fetchImpl = options.fetch ?? fetch;
     // `async`, so that a synchronous throw from a middleware or fetch rejects like any other failure.
     const dispatch = (i: number) => async (req: Request): Promise<Response> => {
       const mw = chain[i];
-      return mw ? mw(req, dispatch(i + 1), context) : (options.fetch ?? fetch)(req);
+      if (mw) return mw(req, dispatch(i + 1), context);
+      return Object.keys(extra).length ? fetchImpl(req, extra) : fetchImpl(req);
     };
     const response = await dispatch(0)(request);
     return {

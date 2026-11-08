@@ -19,7 +19,7 @@ const api = createClient({
 | `baseUrl` | Replaces every server in the document |
 | `headers` | Headers sent with every request; a function (which can be async) is called for each request |
 | `middleware` | Middleware that wraps every request, outermost first; see [Middleware](./middleware) |
-| `fetch` | Called with the final `Request` instead of the global `fetch` |
+| `fetch` | Called instead of the global `fetch`, with the final `Request` and, as the second argument, the call's [non-standard options](#non-standard-fetch-options) |
 
 All options are optional. To send credentials, see
 [Authentication](./authentication).
@@ -70,6 +70,21 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 
 The second argument is optional only when the operation has no required
 inputs.
+
+### Non-standard fetch options
+
+Some runtimes add their own options to `fetch`, such as `next` in Next.js,
+`tls` and `proxy` in Bun, and `cf` in Cloudflare Workers. When the runtime
+declares them on the global `RequestInit` type, as Next.js does, a call
+accepts them too:
+
+```ts
+await api.GET("/pets", { next: { revalidate: 60 } });
+```
+
+`new Request` drops options that it does not know, so the client passes them
+to `fetch` as its second argument, beside the `Request`. Middleware sees only
+the `Request` and cannot read or change them.
 
 Headers are applied in the following order. Later headers replace earlier
 ones.
