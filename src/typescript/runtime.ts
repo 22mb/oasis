@@ -33,9 +33,11 @@ export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & 
 /**
  * The result of calling operation `O` of `paths`. One member per declared
  * response key, each with the statuses it covers: a code itself, a range such
- * as `4XX` minus the codes declared in it, and `default` every other status,
- * successes included. 204, 205 and 304 have `data: undefined` under any of
- * them. Statuses nothing covers are still possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
+ * as `4XX` minus the codes declared in it, and `default` every other status
+ * but 304, successes included. 304 needs a key that names it, since fetch
+ * returns it only to a conditional request the caller sent. 204, 205 and 304
+ * have `data: undefined` under any of them. Statuses nothing covers are still
+ * possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
  * declared success from a `default` or undeclared one.
  */
 export type ApiResponse<O extends Operation> = {

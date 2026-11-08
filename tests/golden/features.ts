@@ -86,12 +86,14 @@ export interface paths {
         "200": $Shape;
         /** Moved. */
         "301": undefined;
+        /** Any other redirection. */
+        "3XX": string;
         /** No such shape. */
         "404": undefined;
         /** Any other client error. */
         "4XX": string;
       };
-      statuses: Statuses_200_301_404_4XX_default;
+      statuses: Statuses_200_301_3XX_404_4XX_default;
     };
   };
   "/notes": {
@@ -400,35 +402,36 @@ export interface paths {
 type Statuses_200_202_default = {
   "200": [200, never];
   "202": [202, never];
-  default: [201 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205 | 304];
+  default: [201 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205];
 };
 type Statuses_200_2XX_default = {
   "200": [200, never];
   "2XX": [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, never, 204 | 205];
-  default: [never, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 304];
+  default: [never, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx];
 };
-type Statuses_200_301_404_4XX_default = {
+type Statuses_200_301_3XX_404_4XX_default = {
   "200": [200, never];
   "301": [never, 301];
+  "3XX": [never, 300 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x, 304];
   "404": [never, 404];
   "4XX": [never, 400 | 401 | 402 | 403 | 405 | 406 | 407 | 408 | 409 | Status41x | Status42x | Status43x | Status44x | Status45x | Status46x | Status47x | Status48x | Status49x];
-  default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status5xx, 204 | 205 | 304];
+  default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, Status5xx, 204 | 205];
 };
 type Statuses_200_4XX_default = {
   "200": [200, never];
   "4XX": [never, Status4xx];
-  default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status5xx, 204 | 205 | 304];
+  default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status5xx, 204 | 205];
 };
 type Statuses_201_default = {
   "201": [201, never];
-  default: [200 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205 | 304];
+  default: [200 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205];
 };
 type Statuses_204_default = {
   "204": [204, never];
-  default: [200 | 201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 205 | 304];
+  default: [200 | 201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 205];
 };
 type Statuses_default = {
-  default: [200 | 201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205 | 304];
+  default: [200 | 201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205];
 };
 type Status21x = 210 | 211 | 212 | 213 | 214 | 215 | 216 | 217 | 218 | 219;
 type Status22x = 220 | 221 | 222 | 223 | 224 | 225 | 226 | 227 | 228 | 229;
@@ -991,9 +994,11 @@ export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & 
 /**
  * The result of calling operation `O` of `paths`. One member per declared
  * response key, each with the statuses it covers: a code itself, a range such
- * as `4XX` minus the codes declared in it, and `default` every other status,
- * successes included. 204, 205 and 304 have `data: undefined` under any of
- * them. Statuses nothing covers are still possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
+ * as `4XX` minus the codes declared in it, and `default` every other status
+ * but 304, successes included. 304 needs a key that names it, since fetch
+ * returns it only to a conditional request the caller sent. 204, 205 and 304
+ * have `data: undefined` under any of them. Statuses nothing covers are still
+ * possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
  * declared success from a `default` or undeclared one.
  */
 export type ApiResponse<O extends Operation> = {

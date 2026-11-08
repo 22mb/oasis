@@ -22,6 +22,5 @@ export type Exact = [
     | Result<Exclude<Success, 200 | 204 | 205>, true, schemas["Error"]>
     | Result<Exclude<Failure, 304>, false, schemas["Error"]>
     | Result<204 | 205, true, undefined>
-    | Result<304, false, undefined>
   >>,
 ];

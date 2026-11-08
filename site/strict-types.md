@@ -18,8 +18,14 @@ a response can have, and each key under `responses` covers some of them:
 | --- | --- | --- |
 | A status code, such as `200` | That code | The type of that response |
 | A range, such as `4XX` | The codes in the range that are not declared on their own | The type of that response |
-| `default` | Every status that no other key covers, including 2xx | The type of the `default` response |
-| No key | The statuses that no key covers, when there is no `default` | `unknown` |
+| `default` | Every status that no other key covers, including 2xx, except `304` | The type of the `default` response |
+| No key | The statuses that no key covers, when there is no `default`, except `304` | `unknown` |
+
+A `304` response is in the type only when the document declares `304` or
+`3XX`. A server sends `304` only in reply to a conditional request, and `fetch`
+returns it to your code only when you send the request with a header such as
+`If-None-Match` yourself. When the browser's HTTP cache revalidates a response,
+`fetch` returns the cached `200` instead.
 
 Checking `status` narrows `data` to the matching response:
 
