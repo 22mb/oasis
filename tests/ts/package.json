@@ -11,7 +11,7 @@
     "check:browser": "node node_modules/typescript/bin/tsc -p tsconfig.browser.json"
   },
   "devDependencies": {
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@vitest/browser-playwright": "5.1.0",
     "playwright": "1.65.0",
     "typescript": "7.0.2",
