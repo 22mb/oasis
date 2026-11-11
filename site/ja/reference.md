@@ -3,14 +3,13 @@
 ## CLI {#cli}
 
 ```
-oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
+oasis-gen <SPEC> [-o <FILE>]
 ```
 
 | 引数 | 意味 |
 | --- | --- |
 | `SPEC` | OpenAPI ドキュメントの JSON または YAML ファイル、あるいは標準入力を表す `-` |
 | `-o`、`--output FILE` | 標準出力の代わりに `FILE` へ出力 |
-| `-l`、`--lang LANG` | 生成対象の言語。現在は `typescript`（既定値）のみ |
 | `-h`、`--help` | ヘルプの表示 |
 | `-V`、`--version` | バージョンの表示 |
 
