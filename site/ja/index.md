@@ -24,7 +24,7 @@ features:
   - icon:
       src: /icons/strict.svg
     title: 厳密な型
-    details: <code>status</code> によって <code>data</code> は宣言されたレスポンスの型に絞り込まれます。ドキュメントで宣言されていないステータスも型に残ります。また、リクエストの型には <code>readOnly</code> と <code>writeOnly</code> が反映されます。
+    details: <code>status</code> によって <code>data</code> は宣言されたレスポンスの型に絞り込まれます。ドキュメントで宣言されていないステータスも型に残ります。また、リクエストとレスポンスの型には <code>readOnly</code> と <code>writeOnly</code> が反映されます。
   - icon:
       src: /icons/file.svg
     title: 実行時の依存関係ゼロ

@@ -41,7 +41,7 @@ To use a different server for each environment, see the
 ## Calling an operation
 
 You select an operation by its HTTP method and path template, exactly as they
-are written in the document. The second argument groups the inputs by where they go
+are written in HTTP and in the document. The second argument groups the inputs by where they go
 in the request:
 
 ```ts twoslash
@@ -257,7 +257,7 @@ make a path segment empty, `.`, or `..`.
 ## The client object
 
 The client has one property for each HTTP method in the document, spelled
-exactly as in the document (`api.GET`, not `api.get`), plus `with` (see
+as in HTTP (`api.GET`, not `api.get`), plus `with` (see
 [Middleware](./middleware#per-client-middleware-with-with)). Any other
 property, including a lowercase method name, behaves as it does on a plain
 object, so inspecting or serializing the client never sends a request.

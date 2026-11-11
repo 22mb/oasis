@@ -257,7 +257,7 @@ impl Operation {
     /// those statuses when no `default` is declared. 304 is left out, as 1xx
     /// are: a server sends it only in answer to a conditional request, and
     /// fetch returns it only when the caller made that request itself, so only
-    /// a key that names it covers it.
+    /// a key or range (`3XX`) that includes it covers it.
     pub fn coverage(&self) -> Vec<(Option<&Response>, Vec<u16>)> {
         let mut covered = [false; 600];
         for r in &self.responses {
@@ -547,7 +547,7 @@ mod tests {
             vec![("default".into(), codes(200..600, &[304]))]
         );
         assert_eq!(coverage(&[]), vec![("-".into(), codes(200..600, &[304]))]);
-        // 304 appears only where a key names it, as 1xx statuses do.
+        // 304 appears only where a key or range includes it, as 1xx statuses do.
         assert_eq!(
             coverage(&[Code(304), Default]),
             vec![

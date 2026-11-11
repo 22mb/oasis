@@ -45,7 +45,7 @@ to respond.
 
 | Security scheme | Sent as |
 | --- | --- |
-| `http` with `bearer`, `oauth2`, `openIdConnect` | `Authorization: Bearer <credential>` |
+| `oauth2`, `openIdConnect`, `http` with `bearer` | `Authorization: Bearer <credential>` |
 | `http` with `basic` | `Authorization: Basic <credential, base64-encoded>`; the credential is `user:password` |
 | Other `http` schemes | `Authorization: <scheme> <credential>` |
 | `apiKey` in a header | The named header |

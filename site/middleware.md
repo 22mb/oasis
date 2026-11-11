@@ -34,7 +34,7 @@ const api = createClient({ middleware: [timing, retry] });
 ## How the chain runs
 
 <figure class="diagram">
-<svg viewBox="-2 0 756 272" role="img" aria-label="A request passes through the client's middleware, timing and then retry, and the call's middleware, cache, to fetch. The response returns through them in reverse order. cache can return a response without calling fetch. Each middleware is called once: its code before next runs on the way in, and its code after next on the way out. After the chain, the body is decoded into the result." fill="currentColor" font-size="13" style="max-width: 100%; height: auto">
+<svg viewBox="-2 0 756 272" role="img" aria-label="A request passes through the client's middleware, timing and then retry, and the call's middleware, cache, to fetch. The response returns through them in reverse order. cache can return a response without calling fetch. A middleware wraps both directions in one call: its code before next runs on the way in, and its code after next on the way out. After the chain, the body is decoded into the result." fill="currentColor" font-size="13" style="max-width: 100%; height: auto">
 <defs>
 <marker id="mw-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill: var(--vp-c-text-1)"/></marker>
 <marker id="mw-arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill: var(--vp-c-brand-1)"/></marker>
@@ -76,7 +76,7 @@ const api = createClient({ middleware: [timing, retry] });
 <text x="380" y="227" text-anchor="middle" style="font-family: var(--vp-font-family-mono)" font-size="14">{ ok, status, data, response }</text>
 <text x="0" y="266" font-size="12" style="fill: var(--vp-c-text-2)">DecodeError is thrown here</text>
 </svg>
-<figcaption>How <code>api.GET()</code> passes a request through <code>[timing, retry]</code> from <code>createClient</code> and <code>[cache]</code> from the call. Each middleware is called once: the code before <code>await next(request)</code> runs on the way in, and the code after it on the way out. The highlighted path is <code>cache</code> returning a <code>Response</code> without calling <code>next</code>.</figcaption>
+<figcaption>How <code>api.GET()</code> passes a request through <code>[timing, retry]</code> from <code>createClient</code> and <code>[cache]</code> from the call. A middleware wraps both directions in one call: the code before <code>await next(request)</code> runs on the way in, and the code after it on the way out. The highlighted path is <code>cache</code> returning a <code>Response</code> without calling <code>next</code>.</figcaption>
 </figure>
 
 - The first middleware is the outermost. Middleware passed to a single call

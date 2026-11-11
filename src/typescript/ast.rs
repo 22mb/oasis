@@ -19,7 +19,7 @@ pub enum Type {
     /// `T["key"]`.
     Index(Box<Type>, String),
     Array(Box<Type>),
-    /// `[A, B]`, then `...R[]` for the rest.
+    /// `[A, B]` or `[A, B, ...R[]]`.
     Tuple(Vec<Type>, Option<Box<Type>>),
     /// An object type, on one line (`{ k: V }`) or one member per line.
     Object {

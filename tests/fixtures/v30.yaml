@@ -1,5 +1,5 @@
 # An OpenAPI 3.0 document: `nullable` instead of a `"null"` type, `format: binary`
-# and `byte` for raw and base64-encoded data, and 3.0-only keywords (`example`,
+# and `byte` for raw and base64-encoded data, and 3.0-style keywords (`example`,
 # boolean `exclusiveMinimum`) that do not affect the generated types.
 openapi: 3.0.3
 info:

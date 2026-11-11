@@ -67,7 +67,7 @@ before(async () => {
 });
 after(() => server.close());
 
-test("serializes path, query, header and cookie parameters", async () => {
+test("serializes query, header and cookie parameters", async () => {
   const res = await api.GET("/pets", {
     query: { limit: 2, tags: ["a b", "c"], ids: [1, 2], filter: { kind: "cat", minAge: 3 } },
     header: { "X-Request-Id": "r1" },

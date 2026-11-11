@@ -224,7 +224,7 @@ paths:
       responses:
         "204":
           description: Saved.
-  # Parts are typed so also in a body composed with `allOf` or `oneOf`, through
+  # Parts are also typed in a body composed with `allOf` or `oneOf`, through
   # the schemas it references, and encoded binary strings among them are sent
   # as `application/octet-stream`.
   /avatars:
