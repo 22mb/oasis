@@ -5,6 +5,19 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.9.0](https://github.com/22mb/oasis/compare/v0.8.0...v0.9.0) - 2026-11-11
+
+### Fixed
+
+- **Breaking:** `default`, and the statuses no key covers, included 304,
+  whose `data` is `undefined`. With `200` and `default: Error`, `data` in
+  `if (!res.ok)` therefore had to allow for `undefined`. 304 is now covered
+  only by a key that names it, `304` or `3XX`, as 1xx statuses already are,
+  because fetch returns 304 only to a caller that sends a conditional
+  request itself. Code that compares `status` with 304 under `default` or no
+  key no longer type-checks: declare `304` in the document.
+  ([#102](https://github.com/22mb/oasis/pull/102))
+
 ## [0.8.0](https://github.com/22mb/oasis/compare/v0.7.0...v0.8.0) - 2026-11-07
 
 ### Fixed
