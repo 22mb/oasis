@@ -733,6 +733,31 @@ mod tests {
     }
 
     #[test]
+    fn says_which_uri_a_missing_file_was_mapped_from() {
+        let dir =
+            std::env::temp_dir().join(format!("oasis-gen-missing-self-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir); // left behind by a failed run
+        std::fs::create_dir_all(dir.join("lib")).unwrap();
+        std::fs::write(
+            dir.join("lib/index.yaml"),
+            "$self: https://api.example.com/schemas/index.yaml\n",
+        )
+        .unwrap();
+        let pet = "https://api.example.com/schemas/pet.yaml";
+        let entry = dir.join("openapi.yaml");
+        let doc = json!({"a": {"$ref": "lib/index.yaml"}, "b": {"$ref": pet}});
+        std::fs::write(&entry, doc.to_string()).unwrap();
+        let docs = Documents::from_file(&entry).unwrap();
+        let err = docs
+            .resolve(&docs.root_base(), pet)
+            .unwrap_err()
+            .to_string();
+        // The reason before the hint is the operating system's.
+        assert!(err.contains(&format!("(mapped from `{pet}`;")), "{err}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn reports_remote_references() {
         let docs =
             Documents::from_value(json!({"x": {"$ref": "https://elsewhere.example/a.yaml"}}))
