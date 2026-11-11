@@ -33,9 +33,6 @@ fn writes_the_client_to_stdout() {
     assert!(out.status.success(), "{}", text(&out.stderr));
     assert!(out.stderr.is_empty());
     assert_eq!(text(&out.stdout), std::fs::read_to_string(GOLDEN).unwrap());
-
-    let out = run(&["--lang", "ts", PETSTORE], "");
-    assert!(out.status.success(), "{}", text(&out.stderr));
 }
 
 #[test]
@@ -91,10 +88,7 @@ fn rejects_bad_invocations() {
         (&["--nope", PETSTORE], "unknown option `--nope`"),
         (&[PETSTORE, "extra"], "unexpected argument `extra`"),
         (&[PETSTORE, "-o"], "missing value for --output"),
-        (
-            &["--lang", "kotlin", PETSTORE],
-            "unsupported language `kotlin`",
-        ),
+        (&["--lang", "ts", PETSTORE], "unknown option `--lang`"),
         (
             &["/nonexistent/openapi.yaml"],
             "cannot read /nonexistent/openapi.yaml",

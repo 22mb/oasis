@@ -4,14 +4,13 @@ use std::process::ExitCode;
 const USAGE: &str = "\
 Generate an API client from an OpenAPI 3.0, 3.1 or 3.2 document.
 
-Usage: oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
+Usage: oasis-gen <SPEC> [-o <FILE>]
 
 Arguments:
   <SPEC>             OpenAPI document (JSON or YAML), or `-` for stdin
 
 Options:
   -o, --output FILE  Write to FILE instead of stdout
-  -l, --lang LANG    Target language [default: typescript]
   -h, --help         Print help
   -V, --version      Print version
 ";
@@ -37,7 +36,6 @@ fn main() -> ExitCode {
 fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut spec = None;
     let mut output = None;
-    let mut lang = oasis_gen::Lang::TypeScript;
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -51,11 +49,6 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 return Ok(());
             }
             "-o" | "--output" => output = Some(args.next().ok_or("missing value for --output")?),
-            "-l" | "--lang" => {
-                let name = args.next().ok_or("missing value for --lang")?;
-                lang = oasis_gen::Lang::from_name(&name)
-                    .ok_or(format!("unsupported language `{name}`"))?;
-            }
             s if s.starts_with('-') && s != "-" => {
                 return Err(format!("unknown option `{s}`\n\n{USAGE}").into());
             }
@@ -65,6 +58,7 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
     let spec = spec.ok_or(format!("missing <SPEC>\n\n{USAGE}"))?;
 
+    let lang = oasis_gen::Lang::TypeScript;
     let code = if spec == "-" {
         let mut source = String::new();
         std::io::stdin()

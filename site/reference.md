@@ -3,14 +3,13 @@
 ## CLI
 
 ```
-oasis-gen <SPEC> [-o <FILE>] [--lang <LANG>]
+oasis-gen <SPEC> [-o <FILE>]
 ```
 
 | Argument | Meaning |
 | --- | --- |
 | `SPEC` | An OpenAPI document as a JSON or YAML file, or `-` for stdin |
 | `-o`, `--output FILE` | Write to `FILE` instead of stdout |
-| `-l`, `--lang LANG` | The target language; currently only `typescript` (the default) |
 | `-h`, `--help` | Print help |
 | `-V`, `--version` | Print the version |
 

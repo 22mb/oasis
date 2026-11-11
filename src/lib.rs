@@ -14,18 +14,11 @@ pub use parse::parse;
 
 use std::fmt;
 
+/// The language of the generated client. An emitter for another language
+/// adds a variant here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Lang {
     TypeScript,
-}
-
-impl Lang {
-    pub fn from_name(name: &str) -> Option<Lang> {
-        match name {
-            "typescript" | "ts" => Some(Lang::TypeScript),
-            _ => None,
-        }
-    }
 }
 
 /// Generates client source code from an OpenAPI 3.0, 3.1 or 3.2 document file in JSON or
