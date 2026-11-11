@@ -4,13 +4,14 @@ use std::process::ExitCode;
 const USAGE: &str = "\
 Generate an API client from an OpenAPI 3.0, 3.1 or 3.2 document.
 
-Usage: oasis-gen <SPEC> [-o <FILE>]
+Usage: oasis-gen <SPEC> [-o <FILE>] [--banner <TEXT>]
 
 Arguments:
   <SPEC>             OpenAPI document (JSON or YAML), or `-` for stdin
 
 Options:
   -o, --output FILE  Write to FILE instead of stdout
+      --banner TEXT  Put TEXT at the top of the output, such as `/* eslint-disable */`
   -h, --help         Print help
   -V, --version      Print version
 ";
@@ -36,6 +37,7 @@ fn main() -> ExitCode {
 fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut spec = None;
     let mut output = None;
+    let mut banner = None;
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -49,6 +51,7 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 return Ok(());
             }
             "-o" | "--output" => output = Some(args.next().ok_or("missing value for --output")?),
+            "--banner" => banner = Some(args.next().ok_or("missing value for --banner")?),
             s if s.starts_with('-') && s != "-" => {
                 return Err(format!("unknown option `{s}`\n\n{USAGE}").into());
             }
@@ -67,6 +70,11 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         oasis_gen::generate(&source, lang)?
     } else {
         oasis_gen::generate_file(std::path::Path::new(&spec), lang)?
+    };
+    let code = match banner {
+        Some(text) if text.ends_with('\n') => text + &code,
+        Some(text) => text + "\n" + &code,
+        None => code,
     };
     match output {
         Some(path) => {
