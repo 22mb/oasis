@@ -36,7 +36,9 @@ pub fn parse(docs: &Documents) -> Result<Api, Error> {
 /// documents differently.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Version {
-    /// 3.0: schemas have `nullable` instead of a `"null"` type.
+    /// 3.0: schemas have `nullable` instead of a `"null"` type, mark binary
+    /// data with `format: binary` or `format: byte`, and have no
+    /// `propertyNames`.
     V30,
     /// 3.1 and 3.2: JSON Schema 2020-12; nothing else differs for the parser.
     V31Plus,
@@ -320,7 +322,6 @@ impl<'a> Parser<'a> {
         Ok(key)
     }
 
-    /// Follows `$ref` chains of non-schema objects to their target.
     /// The names `propertyNames` allows in `node`, where it lists them with
     /// `enum` or `const`, through `$ref`s. OpenAPI 3.0 has no `propertyNames`.
     fn property_names(&self, node: &Node<'a>) -> Result<Option<Vec<String>>, Error> {
@@ -341,6 +342,7 @@ impl<'a> Parser<'a> {
         Ok(Some(names.map(String::from).collect()))
     }
 
+    /// Follows `$ref` chains of non-schema objects to their target.
     fn deref(&self, mut node: Node<'a>) -> Result<Node<'a>, Error> {
         for _ in 0..MAX_DEPTH {
             match node.str("$ref") {

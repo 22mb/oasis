@@ -1447,7 +1447,6 @@ fn is_bare_object(s: &Schema) -> bool {
         if properties.is_empty() && pattern_properties.is_empty())
 }
 
-/// Visits a schema tree without following references.
 /// An array of `item`, whose first `min` items are required: `T[]`, or
 /// `[T, T, ...T[]]` for `minItems: 2`.
 fn array(item: Type, min: u64) -> Type {
@@ -1460,6 +1459,7 @@ fn array(item: Type, min: u64) -> Type {
     )
 }
 
+/// Visits a schema tree without following references.
 fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
     f(s);
     match s {
@@ -1491,8 +1491,6 @@ fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
     }
 }
 
-/// The media type a request body is sent as when the call names none: the
-/// only one declared, or else the first `application/json` one.
 /// Whether media type `mt`, an essence, is in `types`, itself or within a
 /// range such as `text/*`. The runtime's `decodeBody` matches the same way.
 fn covers(types: &[String], mt: &str) -> bool {
@@ -1503,6 +1501,8 @@ fn covers(types: &[String], mt: &str) -> bool {
     })
 }
 
+/// The media type a request body is sent as when the call names none: the
+/// only one declared, or else the first `application/json` one.
 fn default_media_type(body: &Body) -> Option<&str> {
     let declared: Vec<&str> = body
         .content
