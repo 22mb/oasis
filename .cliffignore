@@ -1,0 +1,4 @@
+# Commits that git-cliff leaves out of the changelog.
+
+# --banner (#116) was removed again (#120) before any release had it.
+16c333382087634b613f25d3f603d4faee47ae1f
