@@ -112,7 +112,7 @@ error: openapi.yaml:6:34: paths./a: GET: parameter `x`: invalid `in` `body`: exp
 1. Run the **Prepare release** workflow from the Actions tab. It picks the
    next version from the pull requests merged since the last release (until
    1.0.0, a breaking change bumps the minor version and anything else the
-   patch version), sets it in `Cargo.toml` and both lockfiles, adds its section
+   patch version), sets it in `Cargo.toml` and `Cargo.lock`, adds its section
    to `CHANGELOG.md` from their titles, and pushes the branch
    `release/<version>`.
 2. Open the pull request from the link in the run's summary. Its title is
