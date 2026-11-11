@@ -12,7 +12,7 @@ const FIXED_METHODS: [&str; 9] = [
     "get", "put", "post", "delete", "options", "head", "patch", "trace", "query",
 ];
 
-/// Methods that fetch (and most HTTP clients) normalize to uppercase, so an
+/// Methods that `fetch` (and most HTTP clients) normalize to uppercase, so an
 /// `additionalOperations` entry like `post` would be sent as `POST`.
 const NORMALIZED_METHODS: [&str; 6] = ["delete", "get", "head", "options", "post", "put"];
 
@@ -976,7 +976,7 @@ impl<'a> Parser<'a> {
 
 /// A 3.0 schema with `nullable: true` in its 3.1 form: `"null"` joins the
 /// type, and an `enum` gains `null`. The latter is how generators read 3.0
-/// documents, although 3.0.3 itself leaves an `enum` without `null` excluding it.
+/// documents, although in 3.0.3 itself an `enum` without `null` still excludes it.
 fn nullable(s: Schema) -> Schema {
     let types = |variants| Schema::Union {
         kind: UnionKind::Types,

@@ -82,7 +82,7 @@ The generated file exports the following:
 type Middleware = (
   request: Request,
   next: (request: Request) => Promise<Response>,
-  context: { operation: OperationInfo },
+  context: MiddlewareContext,
 ) => Promise<Response>;
 ```
 

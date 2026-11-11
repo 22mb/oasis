@@ -71,7 +71,7 @@ See [Schemas](./schemas) for the TypeScript type that each keyword becomes.
 | `get`, `put`, `post`, `delete`, `options`, `head`, `patch`, `trace` | Supported | |
 | `query` (the HTTP `QUERY` method) | Supported | |
 | `additionalOperations` | Supported | Custom methods such as `LINK` |
-| Some `additionalOperations` names | Rejected | `delete`, `get`, `head`, `options`, `post`, and `put` regardless of case, and `PATCH`, `TRACE`, and `QUERY` in uppercase, because fetch would send them as the same methods as the fixed fields; also `with` and `then`, which the client reserves |
+| Some `additionalOperations` names | Rejected | `delete`, `get`, `head`, `options`, `post`, and `put` regardless of case, and `PATCH`, `TRACE`, and `QUERY` in uppercase, because `fetch` would send them as the same methods as the fixed fields; also `with` and `then`, which the client reserves |
 | Callbacks and webhooks | Not supported | |
 
 ## Parameters

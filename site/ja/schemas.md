@@ -77,6 +77,8 @@ if (animal.kind === "Dog") {
 
 `kind` プロパティを判定すると、`Animal` 型は `Dog` または `Cat` に絞り込まれます。
 
+サブタイプには、自身か親スキーマのどちらかに `type` または `properties` が必要です。親スキーマがサブタイプを列挙するだけで、サブタイプも何も追加しないときは、サブタイプの型が定まらないため、oasis-gen はそのドキュメントを拒否します。
+
 なお、oasis-gen は、`oneOf` を持たずサブタイプから `allOf` で参照されるだけの親スキーマに置かれた `discriminator` には対応していません。このような親スキーマは、通常のオブジェクト型のままになります。
 
 ## 型エイリアスと `components` {#type-aliases-and-components}

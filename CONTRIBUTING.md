@@ -36,8 +36,8 @@ reports, next to the exact text it prints (`<case>.stderr`).
 Add a case to an existing fixture, usually `features.yaml`. Each golden file
 repeats the whole runtime, so a new fixture is only for what applies to a
 whole document: its `openapi` version, `securitySchemes`, several files, or
-injection. Give the schemas and paths one change adds a common prefix naming
-its subject (`MultipartAllOf…`, `/multipart-allof`), so that no name needs to
+injection. Give the schemas and paths that one change adds a common prefix naming
+their subject (`MultipartAllOf…`, `/multipart-allof`), so that no name needs to
 be looked for and they stay together in the fixture, the golden file and the
 type checks.
 
@@ -89,7 +89,7 @@ error: openapi.yaml:6:34: paths./a: GET: parameter `x`: invalid `in` `body`: exp
   Other errors name the value with `Error::about`, or the schema with
   `Error::about_schema`, and `Documents::locate` finds its position.
 - The location in the document comes next, as reached from the entry
-  document: keys joined with `.`, then the method, `parameter `name``,
+  document: keys joined with `.`, then the method, `` parameter `name` ``,
   `response 200` and so on. A schema reached through a `$ref` outside
   `components.schemas` is named by its reference, such as `schemas.yaml#/B`.
 - The message quotes names and values from the document in backticks and

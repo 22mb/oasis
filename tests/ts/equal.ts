@@ -10,7 +10,7 @@ export type Expect<T extends true> = T;
 /** A generated client's result, spelled out. */
 export type Result<S, O, D> = { status: S; ok: O; data: D; response: Response };
 
-// Status ranges, counted with tuples rather than the runtime's template literals.
+// Status ranges, counted with tuples rather than the runtime's template literal types.
 type Below<N extends number, Acc extends unknown[] = [], Out = never> =
   Acc["length"] extends N ? Out : Below<N, [...Acc, unknown], Out | Acc["length"]>;
 /** `From` up to, but excluding, `To`. */
