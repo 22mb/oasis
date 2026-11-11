@@ -29,8 +29,7 @@ oasis-gen <SPEC> [-o <FILE>] [--banner <TEXT>]
   Bun.
 - **TypeScript** 5.0 or later. The generated file needs `lib` ES2022 or later,
   plus either the `dom` lib or `@types/node` for `fetch`, `Request`, and
-  `Response`. It type-checks only with `strictNullChecks` on, which
-  `strict` includes.
+  `Response`.
 - The file uses only erasable TypeScript syntax, so it also runs directly under
   Node's type stripping, which is on by default since Node.js 22.18.
 
