@@ -17,14 +17,6 @@ fn error_messages() {
         .collect();
     cases.sort();
     assert!(!cases.is_empty());
-    // Files read through a `$ref` are named by their full path. On Windows it
-    // may carry the `\\?\` prefix of a canonical path.
-    let canonical = root.canonicalize().unwrap().display().to_string();
-    let dirs = [
-        canonical.clone(),
-        canonical.trim_start_matches(r"\\?\").to_string(),
-        root.display().to_string(),
-    ];
     let mut failures = Vec::new();
     for path in cases {
         let name = path.file_name().unwrap().to_str().unwrap();
@@ -41,12 +33,8 @@ fn error_messages() {
             .unwrap();
         assert_eq!(out.status.code(), Some(1), "{spec}");
         assert!(out.stdout.is_empty(), "{spec}");
-        let mut actual = String::from_utf8(out.stderr).unwrap();
-        for dir in &dirs {
-            actual = actual.replace(dir.as_str(), ".");
-        }
         // Windows prints paths with `\`.
-        let actual = actual.replace('\\', "/");
+        let actual = String::from_utf8(out.stderr).unwrap().replace('\\', "/");
         let expected_path = root.join(name).with_extension("stderr");
         if update {
             std::fs::write(&expected_path, &actual).unwrap();
