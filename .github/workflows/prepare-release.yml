@@ -1,7 +1,7 @@
 name: Prepare release
 
 # Run by hand to start a release. It picks the next version from the commits
-# since the last tag (cliff.toml), sets it in Cargo.toml and the lockfiles,
+# since the last tag (cliff.toml), sets it in Cargo.toml and Cargo.lock,
 # prepends its section to CHANGELOG.md and pushes the branch `release/<version>`.
 # Open the pull request from the link in the run's summary: a pull request
 # opened with the workflow's token would not run CI. Merging it releases

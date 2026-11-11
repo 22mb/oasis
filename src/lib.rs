@@ -1,7 +1,7 @@
 //! oasis-gen: generate API clients from OpenAPI 3.0, 3.1 or 3.2 documents.
 //!
 //! The pipeline is [`Documents`] (JSON/YAML files and the `$ref`s between
-//! them) -> [`parse`] (language-neutral [`ir::Api`]) -> an emitter for the
+//! them) -> [`parse()`] (language-neutral [`ir::Api`]) -> an emitter for the
 //! target language.
 
 mod documents;
@@ -170,14 +170,14 @@ impl Error {
         }
     }
 
-    /// Records that the error is about document value `v`, unless a more
-    /// specific value was recorded where the error was made.
     /// Records that an emitter error is about the schema with key `key`.
     pub(crate) fn about_schema(mut self, key: &str) -> Error {
         self.details.schema = Some(key.to_string());
         self
     }
 
+    /// Records that the error is about document value `v`, unless a more
+    /// specific value was recorded where the error was made.
     pub(crate) fn about(mut self, v: &serde_json::Value) -> Error {
         self.details
             .value
