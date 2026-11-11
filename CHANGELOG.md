@@ -5,6 +5,12 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.9.0](https://github.com/22mb/oasis/compare/v0.8.0...v0.9.0) - 2026-11-11
+
+### Fixed
+
+- **Breaking:** Leave 304 out of the statuses that default and no key cover ([#102](https://github.com/22mb/oasis/pull/102))
+
 ## [0.8.0](https://github.com/22mb/oasis/compare/v0.7.0...v0.8.0) - 2026-11-07
 
 ### Fixed
