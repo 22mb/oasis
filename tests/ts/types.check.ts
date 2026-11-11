@@ -75,14 +75,14 @@ export async function checks() {
   }
   // @ts-expect-error not every failure is the declared 404
   if (!pet.ok) pet.data satisfies schemas["Error"];
-  // Undeclared statuses can be compared with.
+  // pet.status can be compared with undeclared statuses.
   if (pet.status === 500) pet.data satisfies unknown;
   if (pet.status === 404) {
     const e: schemas["Error"] = pet.data;
     void e;
   }
 
-  // Operations without required inputs take no init.
+  // Operations without required inputs do not require init.
   await api.GET("/pets");
   await api.GET("/pets", { query: { limit: 10, ids: [1, 2], filter: { kind: "cat" } }, signal: AbortSignal.timeout(1000) });
   // @ts-expect-error unknown enum value

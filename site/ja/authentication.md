@@ -33,7 +33,7 @@ const api = createClient({
 
 | セキュリティスキーム | 送信形式 |
 | --- | --- |
-| `http`（`bearer`）、`oauth2`、`openIdConnect` | `Authorization: Bearer <credential>` |
+| `oauth2`、`openIdConnect`、`http`（`bearer`） | `Authorization: Bearer <credential>` |
 | `http`（`basic`） | `Authorization: Basic <credential, base64-encoded>`（資格情報は `user:password` 形式） |
 | その他の `http` スキーム | `Authorization: <scheme> <credential>` |
 | `apiKey`（ヘッダー） | 指定された名前のヘッダー |
