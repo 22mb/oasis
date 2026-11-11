@@ -29,9 +29,10 @@ pub struct Api {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NamedSchema {
-    /// The component name, or for hoisted schemas the normalized JSON pointer
-    /// of the `$ref` target (always starting with `#/`). Component names cannot
-    /// start with `#`, so keys never collide.
+    /// The component name, or for hoisted schemas the location of the `$ref`
+    /// target: `#/pointer` in the entry document, `relative/path.yaml#/pointer`
+    /// in another file. Component names cannot contain `#`, so keys never
+    /// collide.
     pub key: String,
     /// `true` for schemas hoisted from `$ref`s outside `components.schemas`
     /// (e.g. `#/components/schemas/Tree/$defs/node`).
@@ -462,9 +463,13 @@ pub enum UnionKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Discriminator {
     pub property_name: String,
-    /// Discriminating value -> schema key in [`Api::schemas`]. Includes the
-    /// implicit mapping (component name -> component) for `Ref` variants.
+    /// Discriminating value -> schema key in [`Api::schemas`]: the explicit
+    /// `mapping`, then the implicit one (component name -> component) for
+    /// each `Ref` variant that names a component, unless `mapping` has that
+    /// value or the variant is [`Self::default_mapping`].
     pub mapping: Vec<(String, String)>,
+    /// `defaultMapping`: the schema key that takes every value not in
+    /// [`Self::mapping`].
     pub default_mapping: Option<String>,
 }
 
