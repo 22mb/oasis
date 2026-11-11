@@ -36,6 +36,18 @@ fn writes_the_client_to_stdout() {
 }
 
 #[test]
+fn puts_the_banner_at_the_top() {
+    let golden = std::fs::read_to_string(GOLDEN).unwrap();
+    for banner in ["/* eslint-disable */", "/* eslint-disable */\n"] {
+        let out = run(&["--banner", banner, PETSTORE], "");
+        assert!(out.status.success(), "{}", text(&out.stderr));
+        assert_eq!(text(&out.stdout), format!("/* eslint-disable */\n{golden}"));
+    }
+    let out = run(&["--banner", "// a\n// b", PETSTORE], "");
+    assert_eq!(text(&out.stdout), format!("// a\n// b\n{golden}"));
+}
+
+#[test]
 fn reads_json_from_stdin() {
     let doc = r#"{
         "openapi": "3.2.0",
@@ -83,11 +95,12 @@ fn prints_version_and_help() {
 
 #[test]
 fn rejects_bad_invocations() {
-    let cases: [(&[&str], &str); 6] = [
+    let cases: [(&[&str], &str); 7] = [
         (&[], "missing <SPEC>"),
         (&["--nope", PETSTORE], "unknown option `--nope`"),
         (&[PETSTORE, "extra"], "unexpected argument `extra`"),
         (&[PETSTORE, "-o"], "missing value for --output"),
+        (&[PETSTORE, "--banner"], "missing value for --banner"),
         (&["--lang", "ts", PETSTORE], "unknown option `--lang`"),
         (
             &["/nonexistent/openapi.yaml"],
