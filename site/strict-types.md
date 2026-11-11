@@ -122,7 +122,7 @@ type InRequests = AccountRequest;
   `never`. In the other type, these properties stay required or optional as
   the schema declares.
 - A property is also `readOnly` or `writeOnly` when its `$ref` target is, or
-  when another `allOf` member marks a property of the same name.
+  when another `allOf` member marks a property of the same name as such.
 - Request bodies use the request variant automatically. A schema that refers
   to a schema with a request variant also gets a request variant.
 

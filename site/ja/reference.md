@@ -67,11 +67,11 @@ cargo install --git https://github.com/22mb/oasis
 type Middleware = (
   request: Request,
   next: (request: Request) => Promise<Response>,
-  context: { operation: OperationInfo },
+  context: MiddlewareContext,
 ) => Promise<Response>;
 ```
 
-| `OperationInfo` のフィールド | 型 | 内容 |
+| `OperationInfo` のフィールド | 型 | 説明 |
 | --- | --- | --- |
 | `method` | `string` | 呼び出しで使われたとおりの HTTP メソッド |
 | `path` | `string` | `/pets/{petId}` などのパステンプレート |

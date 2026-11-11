@@ -231,7 +231,7 @@ export default [
 ```
 
 To keep the exclusion in the file itself, pass `--banner`. oasis-gen puts
-its text at the top of the output as it is, so it can be any comment your
+the text at the top of the output as it is, so it can be any comment your
 tools read:
 
 ```sh

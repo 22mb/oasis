@@ -40,7 +40,7 @@ struct Document {
     value: Value,
     /// Schema resources (`$id`) inside the document: pointer and base URI.
     ids: Vec<(String, Rc<Url>)>,
-    /// The name errors give the document, and its text, to find positions in.
+    /// The name that errors give the document, and its text, to find positions in.
     name: Option<String>,
     source: Option<String>,
 }

@@ -466,7 +466,7 @@ pub struct Discriminator {
     /// Discriminating value -> schema key in [`Api::schemas`]: the explicit
     /// `mapping`, then the implicit one (component name -> component) for
     /// each `Ref` variant that names a component, unless `mapping` has that
-    /// value or the variant is [`Self::default_mapping`].
+    /// value or the variant is the target of [`Self::default_mapping`].
     pub mapping: Vec<(String, String)>,
     /// `defaultMapping`: the schema key that takes every value not in
     /// [`Self::mapping`].

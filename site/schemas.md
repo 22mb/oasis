@@ -41,7 +41,7 @@ type PetKind = Pet["kind"];
 | `type: object` with `properties` | An object type; properties not in `required` are optional |
 | `additionalProperties` | An index signature (`unknown` when the object also has `properties`) |
 | `propertyNames` with `enum` or `const` | An optional property for each listed name, of the type of `additionalProperties`, and no index signature. Ignored with `patternProperties` |
-| `patternProperties` | An index signature over every key, since TypeScript cannot restrict keys to a pattern: the patterns' types and that of `additionalProperties` (`unknown` when the object also has `properties`, or no `additionalProperties`) |
+| `patternProperties` | An index signature over every key, since TypeScript cannot restrict keys to a pattern: the patterns' types and that of `additionalProperties` (`unknown` when the object also has `properties`, or has no `additionalProperties`) |
 | `oneOf`, `anyOf` | A union; with a `discriminator`, each member is tagged with its value, in the type of the discriminating property (`"true"` in `mapping` is `true` for a boolean) |
 | `allOf` | An intersection |
 | `$ref` to a component | That schema's type |
