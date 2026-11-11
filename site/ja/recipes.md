@@ -212,12 +212,6 @@ export default [
 ];
 ```
 
-除外の指定を生成されるファイル自体に持たせるには、`--banner` を使います。oasis-gen は指定されたテキストをそのまま出力の先頭に挿入するため、使用しているツールが読み取るコメントであれば何でも指定できます。
-
-```sh
-oasis-gen openapi.yaml -o src/api.ts --banner '/* eslint-disable */'
-```
-
 ## トラブルシューティング {#common-problems}
 
 | 問題 | 原因 | 解決方法 |

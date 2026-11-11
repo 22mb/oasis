@@ -230,14 +230,6 @@ export default [
 ];
 ```
 
-To keep the exclusion in the file itself, pass `--banner`. oasis-gen puts
-the text at the top of the output as it is, so it can be any comment your
-tools read:
-
-```sh
-oasis-gen openapi.yaml -o src/api.ts --banner '/* eslint-disable */'
-```
-
 ## Troubleshooting {#common-problems}
 
 | Problem | Cause | Solution |
