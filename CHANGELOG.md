@@ -5,6 +5,14 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.10.0](https://github.com/22mb/oasis/compare/v0.9.0...v0.10.0) - 2026-11-12
+
+### Removed
+
+- **Breaking:** The CLI no longer has the `--lang` (`-l`) option. TypeScript
+  was its only value, so remove the option from the command
+  ([#115](https://github.com/22mb/oasis/pull/115)).
+
 ## [0.9.0](https://github.com/22mb/oasis/compare/v0.8.0...v0.9.0) - 2026-11-11
 
 ### Fixed
