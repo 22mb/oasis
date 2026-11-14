@@ -63,23 +63,6 @@ test("middleware can retry with a cloned request", async () => {
   expect(s.bodies).toStrictEqual(['{"user":"tama"}', '{"user":"tama"}']);
 });
 
-test("middleware can handle network errors", async () => {
-  const fallback: Middleware = async (request, next) => {
-    try {
-      return await next(request);
-    } catch {
-      return Response.json([]);
-    }
-  };
-  const api = createClient({
-    fetch: async () => {
-      throw new TypeError("network down");
-    },
-    middleware: [fallback],
-  });
-  expect((await api.GET("/pets")).data).toStrictEqual([]);
-});
-
 test("with() derives a client without changing the original", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch });

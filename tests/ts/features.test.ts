@@ -307,17 +307,13 @@ test("a body for a media type range is sent by its kind unless the call names on
   await api.POST("/blobs", { body: new TextEncoder().encode("raw") });
   await api.POST("/blobs", { body: { a: 1 } });
   await api.POST("/blobs", { contentType: "text/csv", body: "a,b" });
+  await api.PUT("/avatar", { contentType: "image/png", body: new Blob(["png"]) }); // `image/*`
   expect(sent.map((s) => [s.headers.get("content-type"), s.body])).toStrictEqual([
     [null, "raw"],
     ["application/json", '{"a":1}'],
     ["text/csv", "a,b"],
+    ["image/png", "png"],
   ]);
-});
-
-test("a body for a media type range other than `*/*` is sent as the call names it", async () => {
-  const { api, sent } = recording();
-  await api.PUT("/avatar", { contentType: "image/png", body: new Blob(["png"]) });
-  expect(sent.map((s) => [s.headers.get("content-type"), s.body])).toStrictEqual([["image/png", "png"]]);
 });
 
 test("a multipart/form-data body without a schema is a FormData sent as it is", async () => {
