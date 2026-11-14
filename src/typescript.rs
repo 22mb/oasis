@@ -666,7 +666,10 @@ impl<'a> Emitter<'a> {
             } => Type::Union(
                 variants
                     .iter()
-                    .map(|v| self.tag(self.form_data(v, visiting), v, discriminator.as_ref()))
+                    .map(|v| {
+                        let t = self.tag(self.form_data(v, visiting), v, discriminator.as_ref());
+                        exclusive(t, v, s)
+                    })
                     .collect(),
             ),
             Schema::Intersection(parts) => {
@@ -912,7 +915,10 @@ impl<'a> Emitter<'a> {
             } => Type::Union(
                 variants
                     .iter()
-                    .map(|v| self.tag(self.ty(v, view), v, discriminator.as_ref()))
+                    .map(|v| {
+                        let t = self.tag(self.ty(v, view), v, discriminator.as_ref());
+                        exclusive(t, v, s)
+                    })
                     .collect(),
             ),
             Schema::Intersection(parts) => {
@@ -1227,7 +1233,7 @@ impl<'a> Emitter<'a> {
                     .iter()
                     .map(|v| {
                         let t = Type::Intersection(self.eager(v, d, false));
-                        self.tag(t, v, discriminator.as_ref())
+                        exclusive(self.tag(t, v, discriminator.as_ref()), v, s)
                     })
                     .collect();
                 vec![Type::Union(types)]
@@ -1369,6 +1375,59 @@ fn check_cycles(api: &Api, edges: &[(&str, &str)]) -> Result<(), Error> {
 }
 
 /// Whether `s` is `type: object` without other keywords.
+/// The property names of a schema that only requires properties, such as
+/// `required: [a, b]`: it matches exactly the objects that have them all.
+fn required_only(s: &Schema) -> Option<Vec<&str>> {
+    match s {
+        Schema::Object {
+            properties,
+            pattern_properties,
+            additional: None,
+        } if !properties.is_empty()
+            && pattern_properties.is_empty()
+            && properties
+                .iter()
+                .all(|p| p.required && p.schema == Schema::Any) =>
+        {
+            Some(properties.iter().map(|p| p.name.as_str()).collect())
+        }
+        _ => None,
+    }
+}
+
+/// `t`, the type of object `variant` of `union`, limited to the values that
+/// match none of the other variants that only require properties. A `oneOf`
+/// takes a value that matches exactly one variant, and a variant that only
+/// requires properties matches unless one of them is absent. So
+/// `oneOf: [{required: [a]}, {required: [b, c]}]` is
+/// `{ a } & ({ b?: never } | { c?: never }) | { b, c } & { a?: never }`.
+fn exclusive(t: Type, variant: &Schema, union: &Schema) -> Type {
+    let Schema::Union {
+        kind: UnionKind::OneOf,
+        variants,
+        ..
+    } = union
+    else {
+        return t;
+    };
+    if !matches!(variant, Schema::Object { .. }) {
+        return t;
+    }
+    let absent = |name: &str| Type::inline(vec![Member::new(name, true, Type::name("never"))]);
+    let others = variants
+        .iter()
+        .filter(|v| !std::ptr::eq(*v, variant))
+        .filter_map(required_only)
+        .map(|names| Type::Union(names.into_iter().map(absent).collect()));
+    let mut parts = vec![t];
+    parts.extend(others);
+    if parts.len() == 1 {
+        parts.pop().unwrap()
+    } else {
+        Type::Intersection(parts)
+    }
+}
+
 fn is_bare_object(s: &Schema) -> bool {
     matches!(s, Schema::Object { properties, pattern_properties, additional: None }
         if properties.is_empty() && pattern_properties.is_empty())

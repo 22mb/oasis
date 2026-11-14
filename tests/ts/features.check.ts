@@ -373,3 +373,21 @@ export const inheritedRequest: InheritedRequest = { valueOf: 1, constructor: 1.5
 export const inheritedWrong: schemas["Inherited"] = { valueOf: 1, constructor: 2 };
 // @ts-expect-error a readOnly property is still not sent
 export const inheritedReadOnly: InheritedRequest = { valueOf: 1, toString: "a" };
+
+// A `oneOf` over `required` alone takes exactly one of the groups.
+export const oneGroup: schemas["ExactlyOne"][] = [
+  { id: 1 },
+  { owner: "o", repo: "r" },
+  { url: "u" },
+  // Part of another group does not make that group present.
+  { id: 1, owner: "o" },
+  { url: "u", repo: "r" },
+];
+// @ts-expect-error none of the groups
+export const noGroup: schemas["ExactlyOne"] = {};
+// @ts-expect-error part of a group
+export const partOfGroup: schemas["ExactlyOne"] = { owner: "o" };
+// @ts-expect-error two groups, each of one property
+export const twoGroups: schemas["ExactlyOne"] = { id: 1, url: "u" };
+// @ts-expect-error two groups, one of them of two properties
+export const twoGroupsOfTwo: schemas["ExactlyOne"] = { id: 1, owner: "o", repo: "r" };
