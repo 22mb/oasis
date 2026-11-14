@@ -9,7 +9,11 @@ change the generated code or the CLI in incompatible ways.
 
 ### Added
 
-- Support the label, matrix, spaceDelimited and pipeDelimited styles ([#146](https://github.com/22mb/oasis/pull/146))
+- The `label` and `matrix` styles for path parameters, and the
+  `spaceDelimited` and `pipeDelimited` styles for query parameters and for the
+  Encoding Objects of form bodies. A parameter with one of these styles
+  stopped generation for the whole document
+  ([#146](https://github.com/22mb/oasis/pull/146)).
 
 ## [0.10.1](https://github.com/22mb/oasis/compare/v0.10.0...v0.10.1) - 2026-11-14
 
