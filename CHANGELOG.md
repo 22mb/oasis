@@ -5,6 +5,25 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.11.0](https://github.com/22mb/oasis/compare/v0.10.2...v0.11.0) - 2026-11-14
+
+### Added
+
+- Show formats, examples, parameter defaults and request body descriptions in JSDoc ([#151](https://github.com/22mb/oasis/pull/151))
+
+### Changed
+
+- **Breaking:** Drop operationId from the operation info passed to middleware ([#161](https://github.com/22mb/oasis/pull/161))
+
+### Fixed
+
+- Separate the title, summary and description in JSDoc comments ([#149](https://github.com/22mb/oasis/pull/149))
+- Send a form field as JSON when its Encoding Object gives a range of media types ([#150](https://github.com/22mb/oasis/pull/150))
+- Leave out of a parent's request type what all of its subtypes hide ([#157](https://github.com/22mb/oasis/pull/157))
+- Allow leaving out optional properties named like Object.prototype members ([#153](https://github.com/22mb/oasis/pull/153))
+- Show the location of a component schema in errors the same way everywhere ([#158](https://github.com/22mb/oasis/pull/158))
+- Make a oneOf over required properties take exactly one group ([#159](https://github.com/22mb/oasis/pull/159))
+
 ## [0.10.2](https://github.com/22mb/oasis/compare/v0.10.1...v0.10.2) - 2026-11-14
 
 ### Added
