@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install stable --profile minimal -c clippy,rustfmt
+      - run: rustup toolchain install # the one in rust-toolchain.toml
       # Dependencies are cached per toolchain and Cargo.lock. Release builds never use the cache.
       - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
       - uses: actions/cache@v6.1.0
@@ -41,6 +41,11 @@ jobs:
           key: cargo-rust-v2-${{ runner.os }}-${{ env.RUSTC_VERSION }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-rust-v2-${{ runner.os }}-${{ env.RUSTC_VERSION }}-
       - run: cargo fmt --check
+      # Every dependency comes from crates.io: not from a git repository or
+      # another registry.
+      - name: Check where the locked crates come from
+        run: |
+          ! grep '^source = ' Cargo.lock | grep -v '^source = "registry+https://github.com/rust-lang/crates.io-index"$'
       # With the workspace, so that the playground still compiles against the library.
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --locked
@@ -69,7 +74,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install stable --profile minimal --target "$TARGET"
+      - run: rustup toolchain install --target "$TARGET" # the one in rust-toolchain.toml
       - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
       - uses: actions/cache@v6.1.0
         with:

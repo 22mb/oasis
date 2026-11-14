@@ -58,7 +58,7 @@ attached to each [GitHub release](https://github.com/22mb/oasis/releases).
 To build from source instead:
 
 ```sh
-cargo install --git https://github.com/22mb/oasis
+cargo install --locked --git https://github.com/22mb/oasis
 ```
 
 ## Documentation
