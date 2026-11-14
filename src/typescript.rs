@@ -537,7 +537,7 @@ impl<'a> Emitter<'a> {
                         // Other content-based parameters are passed pre-serialized.
                         ParamValue::Content(_) => Type::name("string"),
                     };
-                    Member::new(&p.name, !p.required, t).doc(doc(&p.meta, &[]))
+                    property(&p.name, !p.required, t).doc(doc(&p.meta, &[]))
                 })
                 .collect();
             fields.push(Member::new(loc.as_str(), !required, Type::object(members)));
@@ -1079,7 +1079,7 @@ impl<'a> Emitter<'a> {
                     }
                     t => t,
                 };
-                Member::new(&p.name, !p.required || absent, t).doc(doc(&p.meta, &[]))
+                property(&p.name, !p.required || absent, t).doc(doc(&p.meta, &[]))
             })
             .collect();
         members.extend(index.map(Member::index));
@@ -1121,7 +1121,7 @@ impl<'a> Emitter<'a> {
             }
             (false, Type::Union(values))
         };
-        let tag = Member::new(&d.property_name, optional, values);
+        let tag = property(&d.property_name, optional, values);
         Type::Intersection(vec![t, Type::inline(vec![tag])])
     }
 
@@ -1489,6 +1489,34 @@ fn status_runs(statuses: &BTreeMap<String, Type>) -> Vec<Item> {
         Item::alias(format!("Status{h}xx"), Type::Union(tens.collect()))
     }));
     items
+}
+
+/// The members that every object inherits from `Object.prototype`.
+const INHERITED: &[&str] = &[
+    "constructor",
+    "hasOwnProperty",
+    "isPrototypeOf",
+    "propertyIsEnumerable",
+    "toLocaleString",
+    "toString",
+    "valueOf",
+];
+
+/// A member for a property or parameter from the document. An object that
+/// leaves out an optional property named like an inherited member still has
+/// that member, and TypeScript compares its type, so the type allows it.
+fn property(name: &str, optional: bool, ty: Type) -> Member {
+    let ty = if optional && INHERITED.contains(&name) && !ty.is("unknown") {
+        let inherited = Type::name(format!("Object[{}]", quote(name)));
+        if ty.is("never") {
+            inherited
+        } else {
+            Type::Union(vec![ty, inherited])
+        }
+    } else {
+        ty
+    };
+    Member::new(name, optional, ty)
 }
 
 /// The lines of the doc comment for `meta`, with `extra` after its text.

@@ -7,6 +7,7 @@ import {
   type AccountRequest,
   type ApiResponse,
   type Client_2,
+  type InheritedRequest,
   type components,
   type paths,
   type schemas,
@@ -361,3 +362,12 @@ export async function mediaTypeRanges() {
   // `*/*` without a default media type: the body's kind picks one.
   await api.POST("/blobs", { body: new Blob() });
 }
+
+// An object that leaves out an optional property named like a member of
+// `Object.prototype` still has the inherited member, so the type allows it.
+export const inherited: schemas["Inherited"] = { valueOf: 1 };
+export const inheritedRequest: InheritedRequest = { valueOf: 1, constructor: 1.5 };
+// @ts-expect-error another value is still rejected
+export const inheritedWrong: schemas["Inherited"] = { valueOf: 1, constructor: 2 };
+// @ts-expect-error a readOnly property is still not sent
+export const inheritedReadOnly: InheritedRequest = { valueOf: 1, toString: "a" };
