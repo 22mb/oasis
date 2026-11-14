@@ -33,6 +33,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Pet" }
+    additionalOperations:
+      *text :
+        responses: {}
   /forms:
     post:
       requestBody:

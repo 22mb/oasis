@@ -290,6 +290,8 @@ export interface paths {
             kind?: string;
           };
           note?: string;
+          plain?: string;
+          csv?: string;
         };
       } | {
         contentType: "application/x-www-form-urlencoded";
@@ -388,6 +390,15 @@ export interface paths {
     GET: {
       request: {
         querystring?: Record<string, unknown>;
+      };
+      responses: {
+        default: unknown;
+      };
+      statuses: Statuses_default;
+    };
+    PUT: {
+      request: {
+        querystring?: string;
       };
       responses: {
         default: unknown;
@@ -1727,10 +1738,11 @@ const spec: Spec = {
     "PUT /forms/{id}": { contentType: "application/json" },
     "POST /avatars": { contentType: "multipart/form-data", encoding: { "multipart/form-data": { checksum: { contentType: "application/octet-stream" } } } },
     "POST /imports": { contentType: "multipart/form-data" },
-    "POST /uploads": { encoding: { "multipart/form-data": { photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, labels: { style: { style: "pipeDelimited" } }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
+    "POST /uploads": { encoding: { "multipart/form-data": { photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, plain: { contentType: "text/plain" }, csv: { contentType: "text/csv" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, labels: { style: { style: "pipeDelimited" } }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
     "PUT /avatar": { contentType: "application/json" },
     "POST /attachments": { contentType: "multipart/form-data" },
     "GET /blobs": { querystring: "application/x-www-form-urlencoded" },
+    "PUT /blobs": { querystring: "application/x-www-form-urlencoded" },
     "GET /report": { binary: { "200": ["text/csv"], "4XX": [] } },
     "GET /exports": { binary: { "200": ["text/*"], "4XX": [], default: [] } },
   },

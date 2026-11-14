@@ -31,6 +31,13 @@ export interface paths {
       };
       statuses: Statuses_200_default;
     };
+    "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": {
+      request: {};
+      responses: {
+        default: unknown;
+      };
+      statuses: Statuses_default;
+    };
   };
   "/forms": {
     POST: {
@@ -853,7 +860,7 @@ function setCookie(headers: Headers, name: string, value: string): void {
 
 const spec: Spec = {
   baseUrl: "https://api.example.com/*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //",
-  methods: ["GET", "POST"],
+  methods: ["GET", "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //", "POST"],
   security: [],
   securitySchemes: {
     key: { type: "apiKey", in: "header", name: "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //" },

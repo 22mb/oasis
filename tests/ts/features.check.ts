@@ -277,6 +277,8 @@ export type Operations = [
   // No `responses` at all, a form querystring without a schema, and a `*/*` body.
   Expect<Equal<Operation<"/blobs", "GET">, { request: { querystring?: Record<string, unknown> }; responses: { default: unknown } }>>,
   Expect<Equal<Operation<"/blobs", "POST">["request"], { contentType?: string; body?: unknown }>>,
+  // A form querystring with a string schema is the encoded string.
+  Expect<Equal<Operation<"/blobs", "PUT">["request"], { querystring?: string }>>,
   // A `text/*` schema without a `type` is binary, for every response of that media type;
   // a `type: string` schema or none is text.
   Expect<Equal<Operation<"/report", "GET">["responses"], { "200": Blob | string; "4XX": string }>>,
@@ -298,6 +300,8 @@ export type Operations = [
           tags?: string[];
           filter?: { kind?: string };
           note?: string;
+          plain?: string;
+          csv?: string;
         };
       }
     | {

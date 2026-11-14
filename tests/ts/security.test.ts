@@ -64,6 +64,18 @@ test("with() derives a client without changing the original", async () => {
   expect(s.sent[1]!.headers.get("x-tenant")).toBe(null);
 });
 
+test("with() adds middleware inside the client's own, in the order given", async () => {
+  const s = server(noContent);
+  const log: string[] = [];
+  const named = (name: string): Middleware => async (request, next) => {
+    log.push(name);
+    return next(request);
+  };
+  const api = createClient({ fetch: s.fetch, middleware: [named("a")] }).with(named("b"), named("c"));
+  await api.GET("/me");
+  expect(log).toStrictEqual(["a", "b", "c"]);
+});
+
 test("auth follows the document's security requirements", async () => {
   const s = server(() => Response.json([]), noContent);
   const scopesSeen: string[][] = [];
@@ -172,6 +184,18 @@ test("auth appends query API keys without rewriting the rest of the request", as
   expect(s.sent[1]!.method).toBe("POST");
   expect(s.sent[1]!.headers.get("content-type")).toBe("application/json");
   expect(s.sent[1]!.body).toBe('{"q":"x"}');
+
+  // A request that cannot have a body.
+  await api.HEAD("/reports");
+  expect(s.sent[2]!.url).toBe("https://api.example.com/reports?api_key=q%20k");
+  expect(s.sent[2]!.method).toBe("HEAD");
+});
+
+test("auth sends nothing for mutualTLS, even when given a credential", async () => {
+  const s = server(noContent);
+  const api = createClient({ fetch: s.fetch, middleware: [auth({ mtls: "certificate" })] });
+  await api.GET("/mtls");
+  expect(s.sent[0]!.headers.get("authorization")).toBe(null);
 });
 
 test("auth sets cookie API keys once, encoded, replacing an existing cookie", async () => {

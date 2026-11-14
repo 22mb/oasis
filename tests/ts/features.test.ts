@@ -26,7 +26,8 @@ test("serializes exploded, reserved, JSON and cookie parameters", async () => {
 
 test("rejects path parameters that would change the path", async () => {
   const { api, sent } = recording();
-  for (const dir of ["..", ".", ""]) {
+  // A missing value is an empty segment, not the text "undefined".
+  for (const dir of ["..", ".", "", undefined as never]) {
     await expect(api.GET("/files/{dir}/{name}", { path: { dir, name: "a" } })).rejects.toThrow(TypeError);
   }
   expect(sent.length).toBe(0);
@@ -154,8 +155,10 @@ test("decodes bodies by status and Content-Type", async () => {
   const item = (response: () => Response) =>
     recording(response).api.GET("/items/{coords}", { path: { coords: { x: 1 } } });
   const cases: [string, () => Response, unknown][] = [
-    ["205", () => new Response(null, { status: 205 }), undefined],
-    ["304", () => new Response(null, { status: 304 }), undefined],
+    // These statuses have no body, whatever the Content-Type says.
+    ["204", () => new Response(null, { status: 204, headers: { "content-type": "text/plain" } }), undefined],
+    ["205", () => new Response(null, { status: 205, headers: { "content-type": "text/plain" } }), undefined],
+    ["304", () => new Response(null, { status: 304, headers: { "content-type": "text/plain" } }), undefined],
     ["empty JSON", () => new Response("", { headers: { "content-type": "application/json" } }), undefined],
     ["no Content-Type", () => new Response(new TextEncoder().encode("raw")), "raw"],
     ["form", () => new Response("a=1", { headers: { "content-type": "application/x-www-form-urlencoded" } }), "a=1"],
@@ -175,6 +178,17 @@ test("decodes bodies by status and Content-Type", async () => {
   };
   expect(await collect("application/x-ndjson", '{"a":1}\n{"a":2}\n')).toStrictEqual([{ a: 1 }, { a: 2 }]);
   expect(await collect("application/foo+json-seq", '\x1e{"a":1}\n\x1e{"a":2}\n')).toStrictEqual([{ a: 1 }, { a: 2 }]);
+
+  // Server-sent events: a line without a colon is a field with an empty value, the
+  // space after the colon is optional, a `retry` that is not a number is ignored,
+  // and an event that the stream does not end with a blank line is dropped.
+  const stream = "data\n\ndata:x\n\nretry: soon\ndata: y\n\nretry: 10\nid\ndata: z\n\ndata: lost";
+  expect(await collect("text/event-stream", stream)).toStrictEqual([
+    { data: "" },
+    { data: "x" },
+    { data: "y" },
+    { retry: 10, id: "", data: "z" },
+  ]);
 });
 
 test("serializes arrays and objects in every location", async () => {
@@ -226,7 +240,8 @@ test("adds cookie parameters to a cookie from async client headers", async () =>
 
 test("form bodies repeat array values and leave out null", async () => {
   const { api, sent } = recording();
-  await api.PUT("/forms/{id}", { path: { id: 1 }, contentType: "application/x-www-form-urlencoded", body: { tags: ["a", "b c"], note: null } });
+  const tags = ["a", null as never, undefined as never, "b c"];
+  await api.PUT("/forms/{id}", { path: { id: 1 }, contentType: "application/x-www-form-urlencoded", body: { tags, note: null } });
   await api.PUT("/forms/{id}", { path: { id: 1 }, body: { tags: ["a"], note: null } });
   expect(sent.map((s) => [s.url, s.headers.get("content-type"), s.body])).toStrictEqual([
     ["https://api.example.com/forms/1", "application/x-www-form-urlencoded", "tags=a&tags=b+c"],
@@ -272,11 +287,19 @@ test("multipart parts take their media type from the value or the Encoding Objec
       meta: { tags: ["a"] },
       caption: "Tama",
       checksum: "iQ==",
-      tags: ["a", "b"],
+      tags: ["a", null as never, undefined as never, "b"],
       filter: { kind: "cat" },
       note: "n",
+      plain: "p",
+      csv: "a,b",
     },
   });
+  // A Blob with a type keeps it, even when the Encoding Object names another.
+  await api.POST("/uploads", {
+    contentType: "multipart/form-data",
+    body: { file: new Blob(["f"]), meta: {}, photo: new Blob(["p"], { type: "image/webp" }) },
+  });
+  expect(parts(sent[1]!).at(-1)).toStrictEqual(["photo", "image/webp", "p"]);
   expect(sent[0]!.body).toMatch(/name="file"; filename="a.jpg"/);
   expect(parts(sent[0]!)).toStrictEqual([
     // A Blob keeps its own type; if it has none, it is sent as the single media type
@@ -292,6 +315,9 @@ test("multipart parts take their media type from the value or the Encoding Objec
     ["tags", null, "b"],
     ["filter[kind]", null, "cat"],
     ["note", "application/json", '"n"'],
+    // `text/plain` is how a string is sent anyway; another media type needs a Blob.
+    ["plain", null, "p"],
+    ["csv", "text/csv", "a,b"],
   ]);
 });
 
@@ -318,6 +344,13 @@ test("infers the media type from the body for a media type range unless specifie
     ["text/csv", "a,b"],
     ["image/png", "png"],
   ]);
+
+  // Without a media type, a string, a URLSearchParams and an ArrayBuffer are
+  // sent as they are, not as JSON.
+  await api.POST("/blobs", { body: "text" });
+  await api.POST("/blobs", { body: new URLSearchParams({ a: "1" }) });
+  await api.POST("/blobs", { body: new TextEncoder().encode("buffer").buffer });
+  expect(sent.slice(4).map((s) => s.body)).toStrictEqual(["text", "a=1", "buffer"]);
 });
 
 test("sends a schema-less multipart/form-data FormData body as-is", async () => {
@@ -338,11 +371,13 @@ test("a multipart body other than multipart/form-data is a Blob that carries its
 test("a form querystring takes fields or an encoded string", async () => {
   const { api, sent } = recording();
   await api.GET("/blobs", { querystring: { a: 1, b: [2, 3], c: null } });
-  // A form querystring with a string schema is passed as-is, with any leading "?" stripped.
-  await api.GET("/blobs", { querystring: "?a=1&b=%202" as unknown as Record<string, unknown> });
+  // A form querystring with a string schema is passed as-is, with only a leading "?" stripped.
+  await api.PUT("/blobs", { querystring: "?a=1&b=%202" });
+  await api.PUT("/blobs", { querystring: "a=?1" });
   expect(sent.map((s) => s.url)).toStrictEqual([
     "https://api.example.com/blobs?a=1&b=2&b=3",
     "https://api.example.com/blobs?a=1&b=%202",
+    "https://api.example.com/blobs?a=?1",
   ]);
 });
 
@@ -365,8 +400,11 @@ test("merges a per-call Cookie header with cookie parameters", async () => {
   await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "lang=ja; token=a=b" } });
   // A matching cookie name replaces the earlier value; other headers with the same name are still overwritten.
   await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "theme=light", "x-ids": "9" }, header: { "X-Ids": [1] } });
+  // Empty pairs and pairs without a name are skipped, and spaces around names and values are dropped.
+  await api.GET("/params/{list}/{pair}", { path, headers: { cookie: " lang = ja ;; =x; token=a=b " } });
   expect(sent.map(({ headers }) => [headers.get("cookie"), headers.get("x-ids")])).toStrictEqual([
     ["theme=dark; multi=x; lang=ja; token=a=b", null],
     ["multi=x; theme=light", "9"],
+    ["theme=dark; lang=ja; token=a=b", null],
   ]);
 });

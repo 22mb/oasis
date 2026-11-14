@@ -311,11 +311,15 @@ paths:
                 tags: { type: array, items: { type: string } }
                 filter: { type: object, properties: { kind: { type: string } } }
                 note: { type: string }
+                plain: { type: string }
+                csv: { type: string }
             encoding:
               file: { contentType: "image/png, image/jpeg" }
               photo: { contentType: image/png }
               filter: { style: deepObject }
               note: { contentType: application/json }
+              plain: { contentType: text/plain }
+              csv: { contentType: text/csv }
               tags:
                 headers:
                   X-Note: { schema: { type: string } }
@@ -399,6 +403,14 @@ paths:
           in: querystring
           content:
             application/x-www-form-urlencoded: {}
+    # A form querystring whose schema is a string is passed already encoded.
+    put:
+      parameters:
+        - name: q
+          in: querystring
+          content:
+            application/x-www-form-urlencoded:
+              schema: { type: string }
     post:
       requestBody:
         content:

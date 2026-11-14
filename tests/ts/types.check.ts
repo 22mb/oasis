@@ -1,5 +1,16 @@
 // Type-level tests for the generated client, compiled by `tsc` and never run.
-import { createClient, type RequestOptions, type schemas } from "../golden/petstore.ts";
+import {
+  createClient,
+  type Client,
+  type Middleware,
+  type MiddlewareContext,
+  type OperationInfo,
+  type paths,
+  type RequestOptions,
+  type schemas,
+  type SecurityRequirement,
+  type ServerSentEvent,
+} from "../golden/petstore.ts";
 import type { Equal, Expect, Failure, Result, Success } from "./equal.ts";
 
 const api = createClient();
@@ -7,6 +18,16 @@ const api = createClient();
 // Check exact shapes so that widening a type (e.g. to `unknown`) or making a
 // required input optional fails here.
 export type Exact = [
+  // The runtime's own types.
+  Expect<Equal<ServerSentEvent, { data: string; event?: string; id?: string; retry?: number }>>,
+  Expect<Equal<
+    Extract<Awaited<ReturnType<typeof api.GET<"/stream/events">>>, { status: 200 }>["data"],
+    AsyncIterable<ServerSentEvent>
+  >>,
+  Expect<Equal<MiddlewareContext, { operation: OperationInfo }>>,
+  Expect<Equal<OperationInfo, { method: string; path: string; operationId?: string; security: SecurityRequirement[] }>>,
+  Expect<Equal<Parameters<typeof api.with>, Middleware[]>>,
+  Expect<Equal<ReturnType<typeof api.with>, Client<paths>>>,
   Expect<Equal<schemas["NewPet"], { name: string; kind: "cat" | "dog"; tag?: string | null }>>,
   Expect<Equal<schemas["Pet"], schemas["NewPet"] & { id: number; owner?: schemas["Owner"] }>>,
   Expect<Equal<schemas["Owner"], { type: "person"; name: string } | { type: "shelter"; id: number }>>,
@@ -94,6 +115,8 @@ export async function checks() {
   // @ts-expect-error body is required
   await api.POST("/pets", {});
   // @ts-expect-error unknown method for this path
+  await api.LINK("/pets", {});
+  // @ts-expect-error a method that the document does not use
   await api.PATCH("/pets", {});
   // @ts-expect-error unknown path
   await api.GET("/nope");
