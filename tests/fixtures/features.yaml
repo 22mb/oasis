@@ -327,8 +327,10 @@ paths:
                 path: { type: string }
                 id: { type: string }
                 labels: { type: array, items: { type: string } }
+                extra: { type: object, properties: { a: { type: integer } } }
             encoding:
               filter: { explode: true }
+              extra: { contentType: application/* }
               labels: { style: pipeDelimited }
               path: { allowReserved: true }
               id: { contentType: application/json }

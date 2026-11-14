@@ -302,7 +302,7 @@ export type Operations = [
       }
     | {
         contentType: "application/x-www-form-urlencoded";
-        body: { meta?: schemas["Form"]; filter?: { kind?: string; size?: number }; path?: string; id?: string; labels?: string[] };
+        body: { meta?: schemas["Form"]; filter?: { kind?: string; size?: number }; path?: string; id?: string; labels?: string[]; extra?: { a?: number } };
       }
   >>,
   // ... also in a body composed with `allOf` or `oneOf`, through the schemas it references.
