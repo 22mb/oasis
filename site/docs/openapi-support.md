@@ -103,7 +103,7 @@ and decoded.
 | Sequential media types and `itemSchema` | Supported | JSON Lines, NDJSON, JSON text sequences, and server-sent events, streamed as async iterables |
 | `multipart/form-data` request bodies | Supported | Typed by the schema and sent as `FormData`; see [Form bodies](./client#form-bodies) |
 | Other `multipart` request bodies, such as `multipart/mixed` | Not supported | Passed as a `Blob` the caller builds, whose `type` gives the media type with its `boundary` |
-| Encoding Object (`encoding`) | Supported | `contentType`, `style`, `explode`, and `allowReserved`. `FormData` cannot send part headers or nested parts, so optional `headers` are left out, and a required header or a `multipart` part is rejected |
+| Encoding Object (`encoding`) | Supported | `contentType`, `style`, `explode`, and `allowReserved`. `FormData` cannot send part headers or nested parts, so optional `headers` are left out, and a required header or a `multipart` part in a request body is rejected |
 | `prefixEncoding`, `itemEncoding` | Not supported | They apply only to other `multipart` media types |
 | Typed response headers | Not supported | |
 
