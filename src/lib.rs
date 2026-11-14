@@ -171,10 +171,16 @@ impl Error {
 
     /// Records that the error is about document value `v`, unless a more
     /// specific value was recorded where the error was made.
-    pub(crate) fn about(mut self, v: &serde_json::Value) -> Error {
-        self.details
-            .value
-            .get_or_insert(v as *const serde_json::Value as usize);
+    pub(crate) fn about(self, v: &serde_json::Value) -> Error {
+        self.about_origin(ir::Origin::of(v))
+    }
+
+    /// Like [`Error::about`], for an emitter error about the IR node read
+    /// from `origin`.
+    pub(crate) fn about_origin(mut self, origin: ir::Origin) -> Error {
+        if self.details.value.is_none() {
+            self.details.value = origin.address();
+        }
         self
     }
 

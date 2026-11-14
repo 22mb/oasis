@@ -86,8 +86,9 @@ error: openapi.yaml:6:34: paths./a: GET: parameter `x`: invalid `in` `body`: exp
   contains it. The entry document is named as given, a file read through a
   `$ref` by its path from the current directory, and standard input
   `<input>`. Syntax errors take the position from the YAML or JSON parser.
-  Other errors name the value with `Error::about`, or the schema with
-  `Error::about_schema`, and `Documents::locate` finds its position.
+  Other errors name the value with `Error::about`. An emitter names the IR
+  node with `Error::about_origin`, or the schema with `Error::about_schema`.
+  `Documents::locate` finds the position.
 - The location in the document comes next, as reached from the entry
   document: keys joined with `.`, then the method, `` parameter `name` ``,
   `response 200` and so on. A schema reached through a `$ref` outside

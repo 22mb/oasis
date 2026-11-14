@@ -12,10 +12,6 @@ const FIXED_METHODS: [&str; 9] = [
     "get", "put", "post", "delete", "options", "head", "patch", "trace", "query",
 ];
 
-/// Methods that `fetch` (and most HTTP clients) normalize to uppercase, so an
-/// `additionalOperations` entry like `post` would be sent as `POST`.
-const NORMALIZED_METHODS: [&str; 6] = ["delete", "get", "head", "options", "post", "put"];
-
 /// Header parameters the spec says SHALL be ignored.
 const IGNORED_HEADERS: [&str; 3] = ["accept", "content-type", "authorization"];
 
@@ -478,18 +474,10 @@ impl<'a> Parser<'a> {
             }
         }
         for (method, op) in item.entries_of("additionalOperations") {
-            if matches!(method.as_str(), "with" | "then") {
-                return Err(Error::new(format!(
-                        "additionalOperations must not define `{method}`: the generated client reserves that name"
-                    ))
-                    .about(op.v));
-            }
+            // A method with a fixed field must be defined there. Methods are
+            // case-sensitive, so `post` is another method.
             let lower = method.to_ascii_lowercase();
-            let fixed = FIXED_METHODS.contains(&lower.as_str());
-            if fixed
-                && (NORMALIZED_METHODS.contains(&lower.as_str())
-                    || *method == lower.to_ascii_uppercase())
-            {
+            if FIXED_METHODS.contains(&lower.as_str()) && *method == lower.to_ascii_uppercase() {
                 return Err(Error::new(format!(
                         "additionalOperations must not define `{method}`: it is sent as `{}`, use the `{lower}` field",
                         lower.to_ascii_uppercase()
@@ -617,6 +605,7 @@ impl<'a> Parser<'a> {
             body,
             responses,
             security,
+            origin: Origin::of(op.v),
         })
     }
 
@@ -1826,21 +1815,17 @@ mod tests {
 
     #[test]
     fn additional_operations_cannot_shadow_fixed_methods() {
-        for method in ["POST", "post", "PATCH"] {
+        for method in ["POST", "PATCH"] {
             let paths = json!({"/s": {"additionalOperations": {method: {"responses": {}}}}});
             rejects(
                 json!({"openapi": "3.2.0", "paths": paths}),
                 "additionalOperations must not define",
             );
         }
-        for method in ["with", "then"] {
+        // Methods are case-sensitive; what a target can send is its emitter's concern.
+        for method in ["LINK", "post", "with"] {
             let paths = json!({"/s": {"additionalOperations": {method: {"responses": {}}}}});
-            rejects(
-                json!({"openapi": "3.2.0", "paths": paths}),
-                "reserves that name",
-            );
+            assert!(api(paths, json!({})).is_ok(), "{method}");
         }
-        let paths = json!({"/s": {"additionalOperations": {"LINK": {"responses": {}}}}});
-        assert!(api(paths, json!({})).is_ok());
     }
 }
