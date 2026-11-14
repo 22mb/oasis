@@ -5,6 +5,52 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.11.0](https://github.com/22mb/oasis/compare/v0.10.2...v0.11.0) - 2026-11-14
+
+### Added
+
+- JSDoc comments show a schema's `format` as `@format` and its `example` or
+  `examples` as `@example`. A parameter also shows the `format`, `default`,
+  and examples of its schema, and `body` shows the `description` of the
+  request body ([#151](https://github.com/22mb/oasis/pull/151)).
+
+### Changed
+
+- **Breaking:** `OperationInfo`, which middleware receives as
+  `context.operation`, no longer has `operationId`. Identify the operation by
+  `operation.method` and `operation.path`, the path template, instead. The
+  IDs were most of the client's runtime data: for the GitHub REST API, the
+  minified client shrinks from 155 KB to 43 KB ([#161](https://github.com/22mb/oasis/pull/161)).
+- A `oneOf` whose members only require properties, such as
+  `oneOf: [{required: [a]}, {required: [b]}]`, takes exactly one of the
+  groups. A value with both `a` and `b` was accepted and is now a type error
+  ([#159](https://github.com/22mb/oasis/pull/159)).
+- The client's runtime data stores the encoding of a form field in one
+  object instead of two. For the Stripe API, the minified client shrinks from
+  148 KB to 137 KB. Requests are sent as before
+  ([#162](https://github.com/22mb/oasis/pull/162)).
+- Errors about a component schema start with its location, as in
+  `components.schemas.A: discriminator mapping key ...`, like other errors.
+  The error for a schema that references itself ends with the path, as in
+  `... alone: A -> B -> A` ([#158](https://github.com/22mb/oasis/pull/158)).
+
+### Fixed
+
+- JSDoc comments put a schema's `title` and `description`, or an operation's
+  `summary`, `description`, and `operationId`, on consecutive lines, which
+  editors showed as one paragraph. They are now separated by a blank line
+  ([#149](https://github.com/22mb/oasis/pull/149)).
+- In an `application/x-www-form-urlencoded` body, an object property whose
+  Encoding Object gives a range or a list of media types, such as
+  `application/*`, was sent as `[object Object]`. It is now sent as JSON, as
+  in a `multipart/form-data` body ([#150](https://github.com/22mb/oasis/pull/150)).
+- An object type with an optional property named like a member of
+  `Object.prototype`, such as `constructor` or `toString`, rejected every
+  object that left the property out ([#153](https://github.com/22mb/oasis/pull/153)).
+- A schema that lists its subtypes in `oneOf` and requires a property that
+  every subtype marks `readOnly` had a request type that no value satisfied
+  ([#157](https://github.com/22mb/oasis/pull/157)).
+
 ## [0.10.2](https://github.com/22mb/oasis/compare/v0.10.1...v0.10.2) - 2026-11-14
 
 ### Added
