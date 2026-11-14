@@ -117,17 +117,6 @@
   }
 }
 
-:lang(ja) {
-  /* Break Japanese headings between phrases rather than inside words. */
-  & :is(.VPHero .text, .VPHero .tagline, .vp-doc h1) {
-    word-break: auto-phrase;
-  }
-
-  & .vp-doc {
-    line-break: strict;
-  }
-}
-
 /* Hand-drawn SVG diagrams: strokes and text follow the theme through currentColor. */
 .vp-doc figure.diagram {
   margin-block: 24px;
