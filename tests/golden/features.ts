@@ -537,6 +537,7 @@ export interface components {
     PropertyNamesEnum: $PropertyNamesEnum;
     PropertyNamesRef: $PropertyNamesRef;
     PropertyNamesConst: $PropertyNamesConst;
+    ExactlyOne: $ExactlyOne;
     Inherited: $Inherited;
     Level: $Level;
     Json: $Json;
@@ -682,6 +683,19 @@ type $PropertyNamesRef = {
 type $PropertyNamesConst = {
   only?: unknown;
 };
+type $ExactlyOne = {
+  id?: number;
+  owner?: string;
+  repo?: string;
+  url?: string;
+} & ({
+  id: {} | null;
+} & ({ owner?: never } | { repo?: never }) & { url?: never } | {
+  owner: {} | null;
+  repo: {} | null;
+} & { id?: never } & { url?: never } | {
+  url: {} | null;
+} & { id?: never } & ({ owner?: never } | { repo?: never }));
 type $Inherited = {
   constructor?: 1.5 | Object["constructor"];
   toString?: string | Object["toString"];
@@ -941,6 +955,7 @@ export type {
   $PropertyNamesEnum as PropertyNamesEnum,
   $PropertyNamesRef as PropertyNamesRef,
   $PropertyNamesConst as PropertyNamesConst,
+  $ExactlyOne as ExactlyOne,
   $Inherited as Inherited,
   $Json as Json,
   $Animal as Animal,

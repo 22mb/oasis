@@ -532,6 +532,18 @@ components:
     PropertyNamesConst:
       type: object
       propertyNames: { const: only }
+    # A `oneOf` over `required` alone: exactly one of the groups is present.
+    ExactlyOne:
+      type: object
+      properties:
+        id: { type: integer }
+        owner: { type: string }
+        repo: { type: string }
+        url: { type: string }
+      oneOf:
+        - required: [id]
+        - required: [owner, repo]
+        - required: [url]
     # Optional properties named like members of `Object.prototype`.
     Inherited:
       type: object
