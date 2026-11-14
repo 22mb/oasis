@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: oasis-gen
-  text: OpenAPI 3.2 向けの最小限の API クライアント生成ツール
+  text: 厳密な型と依存関係ゼロの OpenAPI クライアントを生成
   tagline: 出力は依存関係のない TypeScript ファイル 1 つで、すべての操作の型と fetch ベースの小さなランタイムを含みます。
   image:
     src: /logo.svg
@@ -20,10 +20,6 @@ hero:
 
 features:
   - icon:
-      src: /icons/spec.svg
-    title: OpenAPI 3.2
-    details: QUERY 操作、逐次的なメディアタイプ（sequential media types）、複数のファイルに分割した OpenAPI ドキュメント、JSON Schema 2020-12 に対応しています。また、oasis-gen は OpenAPI 3.0 と 3.1 のドキュメントも受け付けます。
-  - icon:
       src: /icons/strict.svg
     title: 厳密な型
     details: <code>status</code> によって <code>data</code> は宣言されたレスポンスの型に絞り込まれます。ドキュメントで宣言されていないステータスも型に残ります。また、リクエストとレスポンスの型には <code>readOnly</code> と <code>writeOnly</code> が反映されます。
@@ -31,6 +27,10 @@ features:
       src: /icons/file.svg
     title: 実行時の依存関係ゼロ
     details: 出力は 1 つの TypeScript ファイルで、fetch を使用できる環境ならどこでも動作します。インストールするランタイムパッケージも、設定する項目もありません。
+  - icon:
+      src: /icons/spec.svg
+    title: OpenAPI 3.0〜3.2
+    details: oasis-gen は OpenAPI 3.0、3.1、3.2 のドキュメントを読み込めます。QUERY 操作、逐次的なメディアタイプ（sequential media types）、複数のファイルに分割した OpenAPI ドキュメント、JSON Schema 2020-12 にも対応しています。
 ---
 
 ## 例 {#example}

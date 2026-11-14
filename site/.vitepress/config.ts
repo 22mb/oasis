@@ -109,7 +109,7 @@ export default defineConfig({
     root: {
       label: "English",
       lang: "en",
-      description: "A minimal API client generator for OpenAPI 3.2",
+      description: "A strictly typed API client generator for OpenAPI, with zero runtime dependencies",
       themeConfig: {
         nav: [
           { text: "Guide", link: "/getting-started" },
@@ -147,7 +147,7 @@ export default defineConfig({
     ja: {
       label: "日本語",
       lang: "ja",
-      description: "OpenAPI 3.2 向けの最小限の API クライアント生成ツール",
+      description: "厳密な型と依存関係ゼロの OpenAPI クライアント生成ツール",
       themeConfig: {
         nav: [
           { text: "ガイド", link: "/ja/getting-started" },

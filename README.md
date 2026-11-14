@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/22mb/oasis/main/site/public/logo-512.png" alt="" width="96" height="96">
   <h1>oasis-gen</h1>
-  <p>A minimal API client generator for <b>OpenAPI 3.2</b>.</p>
+  <p>A <b>strictly typed</b> API client generator for OpenAPI, with <b>zero runtime dependencies</b>.</p>
   <p>
     <a href="https://22mb.github.io/oasis/"><b>Documentation</b></a> ·
     <a href="https://22mb.github.io/oasis/playground"><b>Playground</b></a> ·
@@ -14,14 +14,14 @@ file, with types for every operation and a small `fetch`-based runtime.
 
 <img src="https://raw.githubusercontent.com/22mb/oasis/main/site/public/strict-types.png" alt="In the generated client, res.data has the type $Pet when res.status is 200, $Error when it is 404, and unknown for any other status">
 
-- **OpenAPI 3.2**: `QUERY` operations, sequential media types (JSON Lines,
-  server-sent events), multi-file documents, and JSON Schema 2020-12.
-  OpenAPI 3.0 and 3.1 documents are accepted too.
 - **Strict types**: `status` narrows `data` to the declared response.
-  Statuses that the document does not declare stay in the type. Request types
-  respect `readOnly` and `writeOnly`.
+  Statuses that the document does not declare stay in the type. Request and
+  response types respect `readOnly` and `writeOnly`.
 - **Zero runtime dependencies**: the output runs anywhere `fetch` is
   available. There is no runtime package to install and nothing to configure.
+- **OpenAPI 3.0 to 3.2**: including `QUERY` operations, sequential media types
+  (JSON Lines, server-sent events), multi-file documents, and JSON Schema
+  2020-12.
 
 ## Example
 
