@@ -27,6 +27,13 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: false,
   markdown: {
+    // Every table has one row of column headers.
+    config(md) {
+      md.renderer.rules.th_open = (tokens, idx, options, _env, self) => {
+        tokens[idx]!.attrSet("scope", "col");
+        return self.renderToken(tokens, idx, options);
+      };
+    },
     // The default GitHub themes leave some tokens, such as comments, below 4.5:1.
     theme: { light: "github-light-high-contrast", dark: "github-dark-high-contrast" },
     // VitePress loads only the languages of code blocks, but Twoslash also
@@ -53,7 +60,7 @@ export default defineConfig({
     ],
   },
   themeConfig: {
-    logo: "/logo.svg",
+    logo: { src: "/logo.svg", width: 24, height: 24 },
     search: {
       provider: "local",
       options: {

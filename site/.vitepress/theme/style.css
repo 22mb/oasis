@@ -4,6 +4,10 @@
  * hero wordmark reaches 3:1 along its whole gradient.
  */
 :root {
+  /* Browsers from before 2024 do not parse a gradient with an interpolation
+     color space, and the hero wordmark is transparent text over one. */
+  --in-oklch: ;
+
   --oasis-mint: oklch(0.92 0.04 180);
   --oasis-navy: oklch(0.22 0.03 220);
   --oasis-sun: oklch(0.79 0.14 70);
@@ -16,18 +20,24 @@
 
   --vp-home-hero-name-color: transparent;
   --vp-home-hero-name-background: linear-gradient(
-    120deg in oklch,
+    120deg var(--in-oklch),
     oklch(0.48 0.09 185) 20%,
     oklch(0.6 0.13 60) 90%
   );
   --vp-home-hero-image-background-image: linear-gradient(
-    -45deg in oklch,
+    -45deg var(--in-oklch),
     var(--oasis-mint) 45%,
     var(--oasis-sun) 55%
   );
   --vp-home-hero-image-filter: blur(56px);
 
   --vp-code-lang-color: var(--vp-c-text-2);
+}
+
+@supports (background: linear-gradient(in oklch, white, black)) {
+  :root {
+    --in-oklch: in oklch;
+  }
 }
 
 .dark {
@@ -50,12 +60,12 @@
   --vp-button-brand-active-text: var(--oasis-navy);
 
   --vp-home-hero-name-background: linear-gradient(
-    120deg in oklch,
+    120deg var(--in-oklch),
     var(--oasis-mint) 15%,
     var(--oasis-sun) 90%
   );
   --vp-home-hero-image-background-image: linear-gradient(
-    -45deg in oklch,
+    -45deg var(--in-oklch),
     oklch(0.6 0.1 185) 45%,
     oklch(0.65 0.13 65) 55%
   );
@@ -122,11 +132,55 @@
 .vp-doc figure.diagram {
   margin-block: 24px;
   color: var(--vp-c-text-1);
-  /* On narrow screens, scroll the drawing instead of shrinking its text. */
-  overflow-x: auto;
+
+  /* On narrow screens, scroll the drawing instead of shrinking its text. Only
+     the drawing scrolls: the caption stays outside the scroll container. */
+  & .drawing {
+    overflow-x: auto;
+  }
+
+  & .drawing:focus-visible {
+    outline: 2px solid var(--vp-c-brand-1);
+    outline-offset: 2px;
+  }
 
   & svg {
+    display: block;
     min-inline-size: 560px;
+  }
+
+  & :is(.box, line) {
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  & .box {
+    fill: var(--vp-c-bg-soft);
+  }
+
+  & .mono {
+    font-family: var(--vp-font-family-mono);
+  }
+
+  & .muted {
+    fill: var(--vp-c-text-2);
+  }
+
+  & .accent {
+    fill: var(--vp-c-brand-1);
+  }
+
+  & .accent-stroke {
+    stroke: var(--vp-c-brand-1);
+  }
+
+  /* Text takes the system color there, but shapes keep theirs, which may be
+     those of the other color scheme. */
+  @media (forced-colors: active) {
+    --vp-c-bg-soft: Canvas;
+    --vp-c-text-1: CanvasText;
+    --vp-c-text-2: CanvasText;
+    --vp-c-brand-1: Highlight;
   }
 
   & figcaption {

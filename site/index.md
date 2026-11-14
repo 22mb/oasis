@@ -8,6 +8,8 @@ hero:
   image:
     src: /logo.svg
     alt: ""
+    width: 280
+    height: 280
   actions:
     - theme: brand
       text: Get started
