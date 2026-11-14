@@ -1,7 +1,7 @@
 {
   "name": "oasis-gen",
   "version": "0.0.0",
-  "description": "Minimal API client generator for OpenAPI 3.2",
+  "description": "Strictly typed API client generator for OpenAPI, with zero runtime dependencies",
   "license": "MIT OR Apache-2.0",
   "homepage": "https://22mb.github.io/oasis/",
   "keywords": [
