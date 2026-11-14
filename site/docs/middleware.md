@@ -15,8 +15,7 @@ const timing: Middleware = async (request, next, { operation }) => {
   try {
     return await next(request);
   } finally {
-    const name = operation.operationId ?? operation.path;
-    console.log(name, performance.now() - start);
+    console.log(operation.method, operation.path, performance.now() - start);
   }
 };
 
@@ -103,7 +102,6 @@ operation defined in the document:
 | --- | --- |
 | `method` | The HTTP method, as used in the call |
 | `path` | The path template, such as `/pets/{petId}` |
-| `operationId` | The `operationId`, when the document has one |
 | `security` | The security requirements that apply, in document order |
 
 ## Per-client middleware with `with`

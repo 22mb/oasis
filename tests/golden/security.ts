@@ -294,7 +294,6 @@ export type OperationInfo = {
   method: string;
   /** Path template, e.g. `/pets/{petId}`. */
   path: string;
-  operationId?: string;
   /** Alternatives, in document order; empty when no security applies. */
   security: SecurityRequirement[];
 };
@@ -383,7 +382,6 @@ type Spec = {
   security: SecurityRequirement[];
   securitySchemes: { [K in SecuritySchemeName]: SecuritySchemeSpec };
   operations: Record<string, {
-    operationId?: string;
     /** The operation's first server, or its path's if none; overridden by `baseUrl`. */
     server?: string;
     /** Parameters with a non-default serialization, keyed by `location:name`. */
@@ -474,7 +472,6 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
       operation: {
         method,
         path,
-        ...(info.operationId ? { operationId: info.operationId } : {}),
         security: info.security ?? spec.security,
       },
     };
@@ -951,18 +948,18 @@ const spec: Spec = {
     mtls: { type: "mutualTLS" },
   },
   operations: {
-    "POST /login": { operationId: "login", security: [], contentType: "application/json" },
-    "GET /pets": { operationId: "listPets", security: [{}, { bearer: [] }] },
-    "DELETE /admin/users": { operationId: "deleteUsers", security: [{ oauth: ["admin", "write"] }] },
-    "POST /webhooks": { operationId: "webhook", security: [{ apiKey: [] }] },
-    "GET /reports": { operationId: "reports", styles: { "query:ids": { explode: false } }, security: [{ queryKey: [] }, { basic: [] }] },
-    "POST /reports": { operationId: "createReport", security: [{ queryKey: [] }], contentType: "application/json" },
+    "POST /login": { security: [], contentType: "application/json" },
+    "GET /pets": { security: [{}, { bearer: [] }] },
+    "DELETE /admin/users": { security: [{ oauth: ["admin", "write"] }] },
+    "POST /webhooks": { security: [{ apiKey: [] }] },
+    "GET /reports": { styles: { "query:ids": { explode: false } }, security: [{ queryKey: [] }, { basic: [] }] },
+    "POST /reports": { security: [{ queryKey: [] }], contentType: "application/json" },
     "HEAD /reports": { security: [{ queryKey: [] }] },
-    "GET /both": { operationId: "both", security: [{ apiKey: [], session: [] }] },
-    "GET /digest": { operationId: "digest", security: [{ digest: [] }] },
-    "GET /oidc": { operationId: "oidc", security: [{ oidc: [] }] },
-    "GET /mtls": { operationId: "mtls", security: [{ mtls: [] }] },
-    "GET /mtls-or-bearer": { operationId: "mtlsOrBearer", security: [{ mtls: [] }, { bearer: [] }] },
-    "GET /by-uri": { operationId: "byUri", security: [{ bearer: [] }] },
+    "GET /both": { security: [{ apiKey: [], session: [] }] },
+    "GET /digest": { security: [{ digest: [] }] },
+    "GET /oidc": { security: [{ oidc: [] }] },
+    "GET /mtls": { security: [{ mtls: [] }] },
+    "GET /mtls-or-bearer": { security: [{ mtls: [] }, { bearer: [] }] },
+    "GET /by-uri": { security: [{ bearer: [] }] },
   },
 };

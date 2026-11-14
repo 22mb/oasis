@@ -252,7 +252,6 @@ export type OperationInfo = {
   method: string;
   /** Path template, e.g. `/pets/{petId}`. */
   path: string;
-  operationId?: string;
   /** Alternatives, in document order; empty when no security applies. */
   security: SecurityRequirement[];
 };
@@ -341,7 +340,6 @@ type Spec = {
   security: SecurityRequirement[];
   securitySchemes: { [K in SecuritySchemeName]: SecuritySchemeSpec };
   operations: Record<string, {
-    operationId?: string;
     /** The operation's first server, or its path's if none; overridden by `baseUrl`. */
     server?: string;
     /** Parameters with a non-default serialization, keyed by `location:name`. */
@@ -432,7 +430,6 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
       operation: {
         method,
         path,
-        ...(info.operationId ? { operationId: info.operationId } : {}),
         security: info.security ?? spec.security,
       },
     };
@@ -899,9 +896,8 @@ const spec: Spec = {
   security: [],
   securitySchemes: {},
   operations: {
-    "GET /pets": { operationId: "listPets" },
-    "PUT /pets/{petId}/photo": { operationId: "uploadPhoto", contentType: "application/octet-stream" },
-    "POST /pets/{petId}/photo": { operationId: "uploadPhotoForm", contentType: "multipart/form-data", encoding: { "multipart/form-data": { checksum: { contentType: "application/octet-stream" } } } },
-    "GET /pets/export": { operationId: "exportPets", binary: { "200": ["text/csv"] } },
+    "PUT /pets/{petId}/photo": { contentType: "application/octet-stream" },
+    "POST /pets/{petId}/photo": { contentType: "multipart/form-data", encoding: { "multipart/form-data": { checksum: { contentType: "application/octet-stream" } } } },
+    "GET /pets/export": { binary: { "200": ["text/csv"] } },
   },
 };

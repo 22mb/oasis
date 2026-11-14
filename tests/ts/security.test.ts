@@ -20,7 +20,6 @@ test("runs middleware outermost first, with the operation from the document", as
   expect(contexts[0]!.operation).toStrictEqual({
     method: "GET",
     path: "/pets",
-    operationId: "listPets",
     security: [{}, { bearer: [] }],
   });
 

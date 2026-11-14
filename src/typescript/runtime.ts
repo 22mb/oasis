@@ -65,7 +65,6 @@ export type OperationInfo = {
   method: string;
   /** Path template, e.g. `/pets/{petId}`. */
   path: string;
-  operationId?: string;
   /** Alternatives, in document order; empty when no security applies. */
   security: SecurityRequirement[];
 };
@@ -154,7 +153,6 @@ type Spec = {
   security: SecurityRequirement[];
   securitySchemes: { [K in SecuritySchemeName]: SecuritySchemeSpec };
   operations: Record<string, {
-    operationId?: string;
     /** The operation's first server, or its path's if none; overridden by `baseUrl`. */
     server?: string;
     /** Parameters with a non-default serialization, keyed by `location:name`. */
@@ -245,7 +243,6 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
       operation: {
         method,
         path,
-        ...(info.operationId ? { operationId: info.operationId } : {}),
         security: info.security ?? spec.security,
       },
     };

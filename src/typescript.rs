@@ -415,9 +415,6 @@ impl<'a> Emitter<'a> {
         content_type: Option<&str>,
     ) -> Option<(String, Expr)> {
         let mut info = Vec::new();
-        if let Some(id) = &op.operation_id {
-            info.push(("operationId".into(), Expr::string(id)));
-        }
         if let Some(s) = op.servers.first().or(item.servers.first()) {
             info.push(("server".into(), Expr::string(&s.default_url())));
         }

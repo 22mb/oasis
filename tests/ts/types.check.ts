@@ -25,7 +25,7 @@ export type Exact = [
     AsyncIterable<ServerSentEvent>
   >>,
   Expect<Equal<MiddlewareContext, { operation: OperationInfo }>>,
-  Expect<Equal<OperationInfo, { method: string; path: string; operationId?: string; security: SecurityRequirement[] }>>,
+  Expect<Equal<OperationInfo, { method: string; path: string; security: SecurityRequirement[] }>>,
   Expect<Equal<Parameters<typeof api.with>, Middleware[]>>,
   Expect<Equal<ReturnType<typeof api.with>, Client<paths>>>,
   Expect<Equal<schemas["NewPet"], { name: string; kind: "cat" | "dog"; tag?: string | null }>>,
