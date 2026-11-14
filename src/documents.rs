@@ -40,9 +40,9 @@ struct Document {
     value: Value,
     /// Schema resources (`$id`) inside the document: pointer and base URI.
     ids: Vec<(String, Rc<Url>)>,
-    /// Name shown in errors, and source text for finding error positions.
-    name: Option<String>,
-    source: Option<String>,
+    /// The name shown in errors, and the source text for finding error
+    /// positions.
+    file: Option<(String, String)>,
 }
 
 /// A loaded document: the entry document, or one loaded through a reference.
@@ -72,8 +72,7 @@ impl Document {
             base: Rc::new(base),
             value,
             ids: Vec::new(),
-            name: file.as_ref().map(|(name, _)| name.clone()),
-            source: file.map(|(_, source)| source),
+            file,
         }
     }
 }
@@ -88,15 +87,20 @@ impl Documents {
         let canonical = path
             .canonicalize()
             .map_err(|e| Error::new(format!("cannot read {name}: {e}")))?;
-        Ok(Documents::new(value, file_url(&canonical)?)?.named(&name, &source))
+        Documents::new(value, file_url(&canonical)?, Some((name, source)))
     }
 
-    /// Sets the name used for the entry document in errors and keeps its text
-    /// for finding error positions.
-    pub(crate) fn named(mut self, name: &str, source: &str) -> Documents {
-        self.entry.name = Some(name.to_string());
-        self.entry.source = Some(source.to_string());
-        self
+    /// Like [`Documents::from_file`] for document text, which errors call
+    /// `<input>`; relative references are resolved against the current
+    /// directory.
+    pub fn from_text(source: &str) -> Result<Documents, Error> {
+        let name = "<input>";
+        let value = crate::load(source).map_err(|e| e.in_file(name))?;
+        Documents::new(
+            value,
+            current_dir_url()?,
+            Some((name.into(), source.into())),
+        )
     }
 
     /// Attaches a location to `e`: the file name, and the line and column of
@@ -114,31 +118,30 @@ impl Documents {
             (None, None) => None,
         };
         let doc = found.as_ref().map_or(&self.entry, |(id, _)| self.doc(*id));
-        let e = match &doc.name {
-            Some(name) => e.in_file(name),
-            None => e,
+        let Some((name, source)) = &doc.file else {
+            return e;
         };
-        let at = match (&found, &doc.source) {
-            (Some((_, pointer)), Some(source)) => position(source, pointer),
-            _ => None,
-        };
-        match at {
+        let e = e.in_file(name);
+        match found.and_then(|(_, pointer)| position(source, &pointer)) {
             Some((line, column)) => e.at(line, column),
             None => e,
         }
     }
 
-    /// Like [`Documents::from_file`] for a document already in memory;
-    /// relative references are resolved against the current directory.
+    /// Like [`Documents::from_file`] for a document already in memory, whose
+    /// errors have no file name or position; relative references are resolved
+    /// against the current directory.
     pub fn from_value(value: Value) -> Result<Documents, Error> {
-        let cwd = current_dir()
-            .map_err(|e| Error::new(format!("cannot resolve the current directory: {e}")))?;
-        Documents::new(value, file_url(&cwd.join("-"))?)
+        Documents::new(value, current_dir_url()?, None)
     }
 
-    fn new(root: Value, retrieval: Url) -> Result<Documents, Error> {
+    fn new(
+        root: Value,
+        retrieval: Url,
+        file: Option<(String, String)>,
+    ) -> Result<Documents, Error> {
         let mut docs = Documents {
-            entry: Document::new(root, retrieval, None),
+            entry: Document::new(root, retrieval, file),
             referenced: Vec::new(),
             resources: HashMap::new(),
             anchors: HashMap::new(),
@@ -601,6 +604,14 @@ impl<'de> serde::Deserialize<'de> for Spans {
         }
         d.deserialize_any(V)
     }
+}
+
+/// A `file:` URL in the current directory, as the retrieval URI of a
+/// document that was not read from a file.
+fn current_dir_url() -> Result<Url, Error> {
+    let cwd = current_dir()
+        .map_err(|e| Error::new(format!("cannot resolve the current directory: {e}")))?;
+    file_url(&cwd.join("-"))
 }
 
 #[cfg(any(unix, windows))]

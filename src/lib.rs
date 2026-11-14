@@ -30,11 +30,7 @@ pub fn generate_file(path: &std::path::Path, lang: Lang) -> Result<String, Error
 /// Like [`generate_file`] for document text; relative `$ref`s to other files
 /// resolve against the current directory.
 pub fn generate(source: &str, lang: Lang) -> Result<String, Error> {
-    let value = load(source).map_err(|e| e.in_file("<input>"))?;
-    convert(
-        &Documents::from_value(value)?.named("<input>", source),
-        lang,
-    )
+    convert(&Documents::from_text(source)?, lang)
 }
 
 /// Parses and emits, locating any error in its document.
