@@ -4,7 +4,9 @@ export interface paths {
   "/items/*/\u2028\"'`\\": {
     /**
      * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
+     *
      * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
+     *
      * operationId: *\/ } } (globalThis.__oasis_pwned ??= []).push(7); interface _ { _: { /*
      */
     GET: {
@@ -115,6 +117,7 @@ export type schemas = components["schemas"];
 // shape where readOnly or writeOnly properties make it differ.
 /**
  * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
+ *
  * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
  */
 type $Pet = $Cat & { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": "\" + ((globalThis.__oasis_pwned ??= []).push(9)) + \"\u2028`${0}`" | "Cat" };

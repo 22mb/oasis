@@ -600,6 +600,7 @@ export type schemas = components["schemas"];
 // shape where readOnly or writeOnly properties make it differ.
 /**
  * Account
+ *
  * A user account.
  */
 type $Account = {
@@ -611,6 +612,7 @@ type $Account = {
 };
 /**
  * Account
+ *
  * A user account.
  */
 type $Account$Request = {

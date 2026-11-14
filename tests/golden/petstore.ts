@@ -4,6 +4,7 @@ export interface paths {
   "/pets": {
     /**
      * List pets
+     *
      * operationId: listPets
      */
     GET: {
@@ -52,6 +53,7 @@ export interface paths {
     };
     /**
      * The list's headers without its body.
+     *
      * operationId: countPets
      */
     HEAD: {
@@ -64,6 +66,7 @@ export interface paths {
     };
     /**
      * Search pets with a query body (HTTP QUERY method).
+     *
      * operationId: searchPets
      */
     QUERY: {
