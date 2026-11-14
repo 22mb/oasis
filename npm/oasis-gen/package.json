@@ -6,11 +6,18 @@
   "homepage": "https://22mb.github.io/oasis/",
   "keywords": [
     "openapi",
+    "openapi3",
     "openapi-3.2",
-    "codegen",
+    "swagger",
     "typescript",
+    "codegen",
+    "code-generator",
+    "api-client",
+    "client",
     "fetch",
-    "client"
+    "rest",
+    "type-safe",
+    "zero-dependency"
   ],
   "bin": {
     "oasis-gen": "bin/oasis-gen.js"
