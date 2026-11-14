@@ -1,6 +1,6 @@
-//! The TypeScript the emitter writes, as a tree, and its printer. The emitter
-//! builds the tree from the IR; indentation, parentheses, quoting and comments
-//! are decided here alone.
+//! A syntax tree and printer for the TypeScript written by the emitter. The
+//! emitter builds the tree from the IR; only this module handles indentation,
+//! parentheses, quoting, and comments.
 
 use serde_json::Value;
 use std::collections::HashSet;
@@ -73,8 +73,8 @@ impl Type {
         }
     }
 
-    /// Writes the type, on a line at nesting level `indent`, and says whether
-    /// it is a union or intersection at the top, which an operand parenthesizes.
+    /// Writes the type at nesting level `indent`, and returns whether it is a
+    /// top-level union or intersection (which needs parentheses as an operand).
     fn write(&self, out: &mut String, indent: usize) -> bool {
         match self {
             Type::Name(n) => out.push_str(n),
@@ -82,7 +82,7 @@ impl Type {
             Type::Template(parts) => {
                 out.push('`');
                 join(out, parts, "${string}", |out, part| {
-                    // A string literal's escapes, and those of the template's own syntax.
+                    // Escape as in a string literal, plus template syntax (` and $).
                     let quoted = quote(part);
                     let inner = &quoted[1..quoted.len() - 1];
                     out.push_str(&inner.replace('`', "\\`").replace('$', "\\$"));
@@ -134,8 +134,8 @@ impl Type {
                 join(out, members, "; ", |out, m| m.write(out, indent + 1));
                 out.push_str(" }");
             }
-            // `&` binds tighter than `|`, so no member needs parentheses.
-            // Duplicates are found by their text.
+            // `&` binds tighter than `|`, so members do not need parentheses.
+            // Deduplicate by rendered text.
             Type::Union(ts) => {
                 let mut seen = HashSet::new();
                 let mut types = Vec::new();
@@ -342,7 +342,7 @@ pub enum Item {
     ExportTypes(Vec<(String, String)>),
     /// `export { local as name, ... };`
     Export(Vec<(String, String)>),
-    /// Text written as it is.
+    /// Verbatim text.
     Raw(String),
 }
 
@@ -420,7 +420,7 @@ pub fn print(items: &[Item]) -> String {
     out
 }
 
-/// Writes a doc comment of `lines` at level `indent`, if there are any.
+/// Writes `lines` as a doc comment at level `indent`, if non-empty.
 fn jsdoc(out: &mut String, lines: &[String], indent: usize) {
     // Every line may contain document text; `*/` would end the comment.
     let escape = |l: &str| l.replace("*/", "*\\/");
@@ -461,9 +461,9 @@ pub fn quote(s: &str) -> String {
     literal(&Value::from(s))
 }
 
-/// A JSON value as a TypeScript literal. U+2028 and U+2029 are escaped too:
-/// JSON allows them raw, but they end a `//` comment and TypeScript before
-/// 5.3 rejects them in string literals.
+/// Formats a JSON value as a TypeScript literal. Also escapes U+2028 and
+/// U+2029, because JSON allows them unescaped, while they terminate `//`
+/// comments and TypeScript before 5.3 rejects them in string literals.
 fn literal(v: &Value) -> String {
     v.to_string()
         .replace('\u{2028}', "\\u2028")
@@ -476,7 +476,7 @@ fn pad(out: &mut String, level: usize) {
     }
 }
 
-/// Writes each of `items` with `write`, `sep` between them.
+/// Writes `items` separated by `sep`, formatting each item with `write`.
 fn join<I: IntoIterator>(
     out: &mut String,
     items: I,

@@ -6,8 +6,9 @@ import { twoslashQueriesAsLines } from "./twoslash-queries.ts";
 const repository = "https://github.com/22mb/oasis";
 
 // `ts twoslash` code blocks type-check against clients generated from the test
-// fixtures, which `cargo test` keeps current: `./api.ts` is the petstore one,
-// and a block can import `./features.ts` or `./security.ts` before `// ---cut---`.
+// fixtures, which `cargo test` keeps current. `./api.ts` is the petstore
+// client, and a block can import `./features.ts` or `./security.ts` before
+// `// ---cut---`.
 const golden = (name: string) =>
   readFileSync(new URL(`../tests/golden/${name}.ts`, import.meta.url), "utf8");
 
@@ -67,7 +68,8 @@ export default defineConfig({
     }),
   ],
   themeConfig: {
-    // No "Copy Markdown" button on the pages: llms.txt is there for that.
+    // Disable the "Copy Markdown" button on pages because llms.txt
+    // serves that purpose.
     llmsUI: false,
     nav: [
       {

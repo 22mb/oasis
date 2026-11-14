@@ -1,11 +1,11 @@
-// Type-level tests for the generated client: compiled by `tsc`, never run.
+// Type-level tests for the generated client, compiled by `tsc` and never run.
 import { createClient, type RequestOptions, type schemas } from "../golden/petstore.ts";
 import type { Equal, Expect, Failure, Result, Success } from "./equal.ts";
 
 const api = createClient();
 
-// Exact shapes, so that a type widening (e.g. to `unknown`) or a required input
-// becoming optional fails here.
+// Check exact shapes so that widening a type (e.g. to `unknown`) or making a
+// required input optional fails here.
 export type Exact = [
   Expect<Equal<schemas["NewPet"], { name: string; kind: "cat" | "dog"; tag?: string | null }>>,
   Expect<Equal<schemas["Pet"], schemas["NewPet"] & { id: number; owner?: schemas["Owner"] }>>,
@@ -32,8 +32,8 @@ export type Exact = [
   >>,
   Expect<Equal<
     Awaited<ReturnType<typeof api.GET<"/pets">>>,
-    // `default` covers every other status but 304, successes included, but 204
-    // and 205 never have a body.
+    // `default` covers every other status except 304, including successes, but
+    // 204 and 205 never have a body.
     | Result<200, true, schemas["Pet"][]>
     | Result<Exclude<Success, 200 | 204 | 205>, true, schemas["Error"]>
     | Result<Exclude<Failure, 304>, false, schemas["Error"]>
@@ -46,7 +46,7 @@ export type Exact = [
     | Result<Exclude<Failure, 304>, false, unknown>
     | Result<205, true, undefined>
   >>,
-  // No required inputs: init is optional.
+  // With no required inputs, init is optional.
   Expect<Equal<Parameters<typeof api.QUERY<"/pets">>, [
     path: "/pets",
     init?: { contentType?: "application/json"; body?: { name?: string } } & RequestOptions,
@@ -61,8 +61,8 @@ export async function checks() {
   // @ts-expect-error wrong path param type
   await api.GET("/pets/{petId}", { path: { petId: "1" } });
 
-  // Results narrow by status. `ok` is `response.ok`, which an undeclared 2xx
-  // also has, so it does not narrow to the declared success.
+  // Results narrow by status. `ok` is `response.ok`, which is also true for an
+  // undeclared 2xx, so `ok` does not narrow to the declared success.
   if (pet.status === 200) {
     const p: schemas["Pet"] = pet.data;
     const id: number = p.id;
@@ -88,7 +88,7 @@ export async function checks() {
   // @ts-expect-error unknown enum value
   await api.GET("/pets", { query: { filter: { kind: "bird" } } });
 
-  // Request bodies: JSON by default, other media types need an explicit contentType.
+  // Request bodies default to JSON; other media types need an explicit contentType.
   await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
   await api.POST("/pets", { contentType: "application/x-www-form-urlencoded", body: { name: "Tama", kind: "cat" } });
   // @ts-expect-error body is required

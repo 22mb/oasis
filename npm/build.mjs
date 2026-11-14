@@ -29,7 +29,8 @@ if (!artifacts || !out) {
 }
 const cargo = readFileSync(path.join(root, "Cargo.toml"), "utf8");
 const version = cargo.match(/^version = "(.+)"$/m)?.[1];
-// The single source of the repository URL; npm provenance checks it against the publishing repository.
+// Cargo.toml is the single source of the repository URL, which npm provenance
+// checks against the publishing repository.
 const repositoryUrl = cargo.match(/^repository = "(.+)"$/m)?.[1];
 
 const main = {

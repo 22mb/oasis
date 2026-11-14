@@ -1,5 +1,5 @@
-// The runtime tests that need no server, in Node.js and in Chromium, Firefox and
-// WebKit. e2e.test.ts, which starts a server, runs under `node --test`.
+// Runs the runtime tests that don't need a server in Node.js, Chromium, Firefox
+// and WebKit. e2e.test.ts, which starts a server, runs under `node --test`.
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 

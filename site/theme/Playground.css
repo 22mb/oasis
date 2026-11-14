@@ -46,7 +46,7 @@
     cursor: pointer;
   }
 
-  /* On touch screens, large enough to hit. */
+  /* Make buttons large enough to tap on touch screens. */
   @media (pointer: coarse) {
     & button {
       min-block-size: 44px;
@@ -64,7 +64,8 @@
     cursor: default;
   }
 
-  /* The document above the generated file; on wide screens, side by side. */
+  /* Stack the document above the generated file, or place them side by side
+   * on wide screens. */
   & .panes {
     display: grid;
     grid-template-columns: 1fr;
@@ -119,7 +120,7 @@
     display: none;
   }
 
-  /* The ring sits inside, since the pane clips what overflows it. */
+  /* Keep the focus ring inside because the pane clips overflow. */
   & .code:focus-visible {
     outline: 2px solid var(--rp-c-brand);
     outline-offset: -2px;
@@ -133,7 +134,7 @@
     tab-size: 2;
   }
 
-  /* The generated file takes the pane's type and spacing, not a code block's. */
+  /* The generated file uses the pane's font and spacing, not a code block's. */
   & .code :is(pre, code) {
     margin: 0;
     padding: 0;
@@ -145,7 +146,7 @@
     padding: 0;
   }
 
-  /* Takes the place of the generated file while there is a message. */
+  /* Replaces the generated file when there is a message. */
   & .problem {
     display: flex;
     min-block-size: 0;

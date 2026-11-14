@@ -31,10 +31,10 @@ pub fn parse(docs: &Documents) -> Result<Api, Error> {
     Ok(api)
 }
 
-/// Copies `readOnly` and `writeOnly` onto every property they apply to, so that
-/// an emitter can read them off the property: one whose schema is a `$ref` to
-/// a flagged schema, and one that an `allOf` member names (often only in
-/// `required`) while another member flags it.
+/// Copies `readOnly` and `writeOnly` onto every property they apply to, so an
+/// emitter can read them directly off the property. This covers properties
+/// whose schema is a `$ref` to a flagged schema, and properties named by one
+/// `allOf` member (often only in `required`) while flagged by another.
 fn inherit_access(api: &mut Api) {
     let owned = api.schemas.clone();
     let schemas = Schemas::new(&owned);
@@ -91,9 +91,10 @@ fn mark(s: &mut Schema, flagged: &(BTreeSet<String>, BTreeSet<String>)) {
     }
 }
 
-/// Rejects a mapping key that no value of its non-string property can have,
-/// which could never match. A key that is the name of its schema may be the
-/// implicit one, which only applies to strings.
+/// Rejects any discriminator mapping key that is not a valid value of a
+/// non-string property, since it could never match. A key equal to the schema's
+/// own name is skipped because it may be the implicit mapping, which only
+/// applies to strings.
 fn check_discriminators(api: &Api) -> Result<(), Error> {
     let schemas = Schemas::new(&api.schemas);
     let mut result = Ok(());
@@ -131,8 +132,8 @@ fn check_discriminators(api: &Api) -> Result<(), Error> {
     result
 }
 
-/// The `openapi` version of the entry document, as far as the parser reads
-/// documents differently.
+/// The `openapi` version of the entry document, grouped by how the parser
+/// handles it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Version {
     /// 3.0: schemas have `nullable` instead of a `"null"` type, mark binary
@@ -206,7 +207,7 @@ impl<'a> Node<'a> {
     fn items(&self) -> impl Iterator<Item = Node<'a>> + '_ {
         self.v.as_array().into_iter().flatten().map(|v| self.at(v))
     }
-    /// [`Node::entries`] of the value at `key`, none without it.
+    /// [`Node::entries`] of the value at `key`, or empty if absent.
     fn entries_of(&self, key: &str) -> impl Iterator<Item = (&'a String, Node<'a>)> {
         let map = self.v.get(key).and_then(Value::as_object);
         map.into_iter().flatten().map(|(k, v)| (k, self.at(v)))
@@ -218,7 +219,7 @@ impl<'a> Node<'a> {
         self.entries_of(key).filter(|(k, _)| !k.starts_with("x-"))
     }
 
-    /// [`Node::items`] of the value at `key`, none without it.
+    /// [`Node::items`] of the value at `key`, or empty if absent.
     fn items_of(&self, key: &str) -> impl Iterator<Item = Node<'a>> {
         let list = self.v.get(key).and_then(Value::as_array);
         list.into_iter().flatten().map(|v| self.at(v))
@@ -348,9 +349,9 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// A `security` list of Security Requirement Objects.
-    /// A malformed list is an error rather than read as fewer requirements,
-    /// since `[]` and `{}` would then mean no or anonymous access.
+    /// Parses a `security` list of Security Requirement Objects.
+    /// Rejects malformed lists instead of ignoring invalid entries, since
+    /// dropping entries could turn `[]` or `{}` into anonymous access.
     fn security(&mut self, list: &Node<'a>) -> Result<Vec<SecurityRequirement>, Error> {
         if !list.v.is_array() {
             return Err(Error::new("must be an array of security requirements").about(list.v));
@@ -421,8 +422,8 @@ impl<'a> Parser<'a> {
         Ok(key)
     }
 
-    /// The names `propertyNames` allows in `node`, where it lists them with
-    /// `enum` or `const`, through `$ref`s. OpenAPI 3.0 has no `propertyNames`.
+    /// Returns the names allowed by `propertyNames` in `node` when listed via
+    /// `enum` or `const` (following `$ref`s). OpenAPI 3.0 has no `propertyNames`.
     fn property_names(&self, node: &Node<'a>) -> Result<Option<Vec<String>>, Error> {
         let Some(n) = node.get("propertyNames") else {
             return Ok(None);
@@ -436,7 +437,7 @@ impl<'a> Parser<'a> {
             (None, Some(value)) => vec![value],
             _ => return Ok(None),
         };
-        // Names are strings: other values allow none.
+        // Property names are strings, so non-string values cannot match anything.
         let names = values.into_iter().filter_map(Value::as_str);
         Ok(Some(names.map(String::from).collect()))
     }
@@ -479,7 +480,7 @@ impl<'a> Parser<'a> {
             let lower = method.to_ascii_lowercase();
             if FIXED_METHODS.contains(&lower.as_str()) && *method == lower.to_ascii_uppercase() {
                 return Err(Error::new(format!(
-                        "additionalOperations must not define `{method}`: it is sent as `{}`, use the `{lower}` field",
+                        "additionalOperations must not define `{method}`: it is sent as `{}`; use the `{lower}` field instead",
                         lower.to_ascii_uppercase()
                     ))
                     .about(op.v));
@@ -1025,9 +1026,11 @@ impl<'a> Parser<'a> {
                     pattern_properties.push((pattern.clone(), self.schema(s, depth + 1)?));
                 }
                 let mut additional = self.boxed(node.get("additionalProperties"), depth)?;
-                // `propertyNames` that lists the names closes the object to
-                // them: each is an optional property of `additionalProperties`.
-                // TypeScript cannot match the names against patterns.
+                // When `propertyNames` lists the allowed names, close the
+                // object to just those names, as optional properties typed by
+                // `additionalProperties`. Skipped when `patternProperties` is
+                // present, since TypeScript cannot match names against regex
+                // patterns.
                 if pattern_properties.is_empty()
                     && let Some(names) = self.property_names(node)?
                 {
@@ -1060,9 +1063,10 @@ impl<'a> Parser<'a> {
     }
 }
 
-/// A 3.0 schema with `nullable: true` in its 3.1 form: `"null"` joins the
-/// type, and an `enum` gains `null`. The latter is how generators read 3.0
-/// documents, although in 3.0.3 itself an `enum` without `null` still excludes it.
+/// Converts a 3.0 schema with `nullable: true` to its 3.1 form by adding
+/// `"null"` to its type and `null` to any `enum`. Adding `null` to `enum`
+/// matches how generators interpret 3.0 documents, even though 3.0.3 strictly
+/// requires `null` to be listed in `enum`.
 fn nullable(s: Schema) -> Schema {
     let types = |variants| Schema::Union {
         kind: UnionKind::Types,
@@ -1207,8 +1211,8 @@ fn status(key: &str) -> Result<Status, Error> {
     }
 }
 
-/// The string in `from` that names `reference`: its `$ref`, or a discriminator's
-/// mapping value; `from` itself otherwise.
+/// Finds the string value inside `from` that matches `reference` (`$ref`,
+/// `defaultMapping`, or a discriminator `mapping` entry), falling back to `from`.
 fn referring<'v>(from: &'v Value, reference: &str) -> &'v Value {
     let mapping = from.get("mapping").and_then(Value::as_object);
     let candidates = [from.get("$ref"), from.get("defaultMapping")]

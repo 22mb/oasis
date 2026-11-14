@@ -61,7 +61,7 @@ test("serializes a querystring parameter as its media type", async () => {
   ]);
 });
 
-test("a body is sent as the operation's media type when the call names none", async () => {
+test("sends a body as the operation's media type when none is specified", async () => {
   const { api, sent } = recording();
   // A string is JSON when the operation takes JSON, not text/plain.
   await api.POST("/notes", { body: "hi" });
@@ -79,7 +79,7 @@ test("baseUrl replaces every server", async () => {
   expect(sent.map((s) => s.url)).toStrictEqual(["http://localhost:4010/upload", "http://localhost:4010/shapes"]);
 });
 
-test("a body that is not what its Content-Type says throws a DecodeError", async () => {
+test("throws a DecodeError when a body does not match its Content-Type", async () => {
   const html = () => new Response("<html>502</html>", { status: 502, headers: { "content-type": "application/json" } });
   const error = await recording(html).api.GET("/shapes").catch((e: unknown) => e);
   expect(error).toBeInstanceOf(DecodeError);
@@ -126,7 +126,7 @@ test("sends static and per-call headers, and is not a thenable", async () => {
   expect(await Promise.resolve(api)).toBe(api);
 });
 
-test("reads a text/* response the document declares binary as a Blob", async () => {
+test("reads a text/* response declared as binary in the document as a Blob", async () => {
   const report = async (status: number, contentType: string) => {
     const response = () => new Response("a,b\n", { status, headers: { "content-type": contentType } });
     return (await recording(response).api.GET("/report")).data;
@@ -134,18 +134,18 @@ test("reads a text/* response the document declares binary as a Blob", async () 
   const csv = await report(200, "text/csv; charset=Shift_JIS");
   expect(csv).toBeInstanceOf(Blob);
   expect(await (csv as Blob).text()).toBe("a,b\n");
-  // The same media type in another response, declared as text, is text there.
+  // The same media type is read as text in another response that declares it as text.
   expect(await report(400, "TEXT/CSV")).toBe("a,b\n");
   expect(await report(200, "text/plain")).toBe("a,b\n");
   expect(await report(200, "text/html")).toBe("a,b\n");
-  // A binary range covers every media type in it, and no other.
+  // A binary range covers every media type in it, and no others...
   const exported = async (contentType: string, status = 200) => {
     const response = () => new Response("1", { status, headers: { "content-type": contentType } });
     return (await recording(response).api.GET("/exports")).data as unknown;
   };
   expect(await exported("text/markdown; charset=utf-8")).toBeInstanceOf(Blob);
   expect(await exported("application/json")).toBe(1);
-  // ... in the responses it is declared for.
+  // ...only in the responses it is declared for.
   expect(await exported("text/plain", 404)).toBe("1");
 });
 
@@ -193,7 +193,7 @@ test("serializes arrays and objects in every location", async () => {
   if (cookieHeaders) expect(headers.get("cookie")).toBe("multi=x; multi=y");
   expect(res.data).toStrictEqual({ n: 1 });
 
-  // `undefined` leaves a parameter out too, as passed without `exactOptionalPropertyTypes`.
+  // `undefined` also omits a parameter, which can be passed without `exactOptionalPropertyTypes`.
   const absent = undefined as never;
   await api.GET("/params/{list}/{pair}", { path: { list: ["a"], pair: { x: 1 } }, query: { obj: absent }, header: { "X-Ids": absent } });
   expect(sent[1]!.url).toBe("https://operation.example.com/params/a/x,1");
@@ -220,7 +220,7 @@ test("form bodies repeat array values and leave out null", async () => {
   ]);
 });
 
-test("form fields are JSON for objects, and follow their Encoding Objects", async () => {
+test("serializes object form fields as JSON and follows Encoding Objects", async () => {
   const { api, sent } = recording();
   await api.POST("/uploads", {
     contentType: "application/x-www-form-urlencoded",
@@ -262,8 +262,8 @@ test("multipart parts take their media type from the value or the Encoding Objec
   });
   expect(sent[0]!.body).toMatch(/name="file"; filename="a.jpg"/);
   expect(parts(sent[0]!)).toStrictEqual([
-    // A Blob keeps its own type; with none, it is sent as application/octet-stream,
-    // the default, or as the single media type its Encoding Object names.
+    // A Blob keeps its own type; if it has none, it is sent as the single media type
+    // in its Encoding Object, or as application/octet-stream by default.
     ["file", "image/jpeg", "f"],
     ["attachments", "application/octet-stream", "x"],
     ["attachments", "application/octet-stream", "y"],
@@ -278,9 +278,9 @@ test("multipart parts take their media type from the value or the Encoding Objec
   ]);
 });
 
-test("a multipart body replaces a Content-Type set before it, so fetch can add the boundary", async () => {
+test("a multipart body replaces an existing Content-Type so fetch can add the boundary", async () => {
   const { api, sent } = recording(noContent, {
-    // Header objects cannot name Content-Type, but `Headers` and arrays can.
+    // Plain header objects cannot specify Content-Type, but `Headers` and arrays can.
     headers: new Headers({ "Content-Type": "application/json" }),
   });
   const body = { file: new Blob(["f"]), meta: {} };
@@ -289,7 +289,7 @@ test("a multipart body replaces a Content-Type set before it, so fetch can add t
   for (const { headers } of sent) expect(headers.get("content-type")!).toMatch(/^multipart\/form-data; boundary=/);
 });
 
-test("a body for a media type range is sent by its kind unless the call names one", async () => {
+test("infers the media type from the body for a media type range unless specified", async () => {
   const { api, sent } = recording();
   await api.POST("/blobs", { body: new TextEncoder().encode("raw") });
   await api.POST("/blobs", { body: { a: 1 } });
@@ -303,7 +303,7 @@ test("a body for a media type range is sent by its kind unless the call names on
   ]);
 });
 
-test("a multipart/form-data body without a schema is a FormData sent as it is", async () => {
+test("sends a schema-less multipart/form-data FormData body as-is", async () => {
   const { api, sent } = recording();
   const body = new FormData();
   body.append("a", "1");
@@ -321,7 +321,7 @@ test("a multipart body other than multipart/form-data is a Blob that carries its
 test("a form querystring takes fields or an encoded string", async () => {
   const { api, sent } = recording();
   await api.GET("/blobs", { querystring: { a: 1, b: [2, 3], c: null } });
-  // A form querystring whose schema is a string is passed as it is, without a leading "?".
+  // A form querystring with a string schema is passed as-is, with any leading "?" stripped.
   await api.GET("/blobs", { querystring: "?a=1&b=%202" as unknown as Record<string, unknown> });
   expect(sent.map((s) => s.url)).toStrictEqual([
     "https://api.example.com/blobs?a=1&b=2&b=3",
@@ -329,7 +329,7 @@ test("a form querystring takes fields or an encoded string", async () => {
   ]);
 });
 
-test("an optional body can be left out without a media type", async () => {
+test("an optional body can be omitted without specifying a media type", async () => {
   const { api, sent } = recording();
   await api.PUT("/photos/{id}", { path: { id: 1 } });
   await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new Uint8Array([1]) });
@@ -339,14 +339,14 @@ test("an optional body can be left out without a media type", async () => {
   ]);
 });
 
-test("a call's Cookie header joins the cookie parameters", async () => {
+test("merges a per-call Cookie header with cookie parameters", async () => {
   if (!cookieHeaders) return;
   const { api, sent } = recording(noContent, {
     headers: { cookie: "theme=dark" },
   });
   const path = { list: ["a"], pair: { x: 1 } };
   await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "lang=ja; token=a=b" } });
-  // A cookie of the same name is replaced; other headers of the same name still replace.
+  // A matching cookie name replaces the earlier value; other headers with the same name are still overwritten.
   await api.GET("/params/{list}/{pair}", { path, cookie: { multi: ["x"] }, headers: { cookie: "theme=light", "x-ids": "9" }, header: { "X-Ids": [1] } });
   expect(sent.map(({ headers }) => [headers.get("cookie"), headers.get("x-ids")])).toStrictEqual([
     ["theme=dark; multi=x; lang=ja; token=a=b", null],

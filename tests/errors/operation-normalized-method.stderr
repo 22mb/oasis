@@ -1,1 +1,1 @@
-error: operation-normalized-method.yaml:6:13: paths./a: additionalOperations must not define `post`: it is sent as `POST`, use the `post` field
+error: operation-normalized-method.yaml:6:13: paths./a: additionalOperations must not define `post`: it is sent as `POST`; use the `post` field instead

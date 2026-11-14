@@ -224,16 +224,17 @@ export type SecuritySchemeName = "bearer" | "basic" | "digest" | "apiKey" | "que
 // ---------------------------------------------------------------------------
 
 // `@types/node` declares `RequestInit` globally but not lib.dom's `HeadersInit`
-// and `BodyInit`, so derive them from it: the file then type-checks without the
-// dom lib. `Content-Type` comes from the body's media type (`contentType`), so a
-// header object cannot name it; `Headers` and arrays are not checked.
+// or `BodyInit`, so derive them from `RequestInit` to type-check without the
+// dom lib. `Content-Type` comes from the body's media type (`contentType`), so
+// a header object cannot set it; `Headers` and arrays are not checked.
 type HeadersInit = NonNullable<RequestInit["headers"]> & { "Content-Type"?: never; "content-type"?: never };
 type BodyInit = NonNullable<RequestInit["body"]>;
 
 export interface ClientOptions {
   /**
-   * Prepended to every path, replacing every server in the document. Defaults to
-   * the first server of the operation, or else of its path, or else of the document.
+   * Prepended to every path, replacing every server in the document. Defaults
+   * to the operation's first server, falling back to its path's and then the
+   * document's.
    */
   baseUrl?: string;
   /** Sent with every request; a function is called per request. */
@@ -252,14 +253,15 @@ export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & 
 };
 
 /**
- * The result of calling operation `O` of `paths`. One member per declared
- * response key, each with the statuses it covers: a code itself, a range such
- * as `4XX` minus the codes declared in it, and `default` every other status
- * but 304, successes included. 304 needs a key that names it, since fetch
- * returns it only to a conditional request the caller sent. 204, 205 and 304
- * have `data: undefined` under any of them. Statuses nothing covers are still
- * possible and have `data: unknown`. `ok` is `response.ok`, so narrow on `status` to tell a
- * declared success from a `default` or undeclared one.
+ * The result of calling operation `O` of `paths`. Contains one member per
+ * declared response key for the statuses it covers: a status code covers
+ * itself, a range such as `4XX` covers that range minus any codes declared in
+ * it, and `default` covers every other status except 304 (including successes).
+ * 304 requires a key that names it, since fetch returns it only for a
+ * conditional request sent by the caller. 204, 205, and 304 have
+ * `data: undefined` whichever key covers them. Uncovered statuses remain
+ * possible with `data: unknown`. `ok` is `response.ok`, so narrow on `status`
+ * to distinguish a declared success from a `default` or undeclared one.
  */
 export type ApiResponse<O extends Operation> = {
   [K in keyof O["statuses"]]: O["statuses"][K] extends [infer Ok, infer Failed, ...infer Empty]
@@ -314,8 +316,8 @@ export type Middleware = (
 
 /**
  * An operation in `paths`. `statuses` maps each response key to the statuses it
- * covers, as `[successes, failures]`, then those of 204, 205 and 304 that a range
- * or `default` covers; `default` also takes undeclared ones.
+ * covers as `[successes, failures]`, followed by any of 204, 205, and 304
+ * covered by a range or `default`. `default` also covers undeclared statuses.
  */
 type Operation = { request: object; responses: object; statuses: object };
 type Methods<P> = { [K in keyof P]: keyof P[K] }[keyof P] & string;
@@ -346,9 +348,10 @@ export type Client<P> = {
 type ParamStyle = { style?: "deepObject" | "cookie" | "json"; explode?: boolean; reserved?: true };
 
 /**
- * How a property of a form body is sent, where the document says: as a media type,
- * or like a query parameter. Other properties are sent by their value: objects as
- * JSON, arrays as one field per item, and the rest as text, or binary for a `Blob`.
+ * How a form-body property is serialized when specified in the document: either
+ * with a media type or like a query parameter. Other properties are serialized
+ * by value: objects as JSON, arrays as one field per item, a `Blob` as binary,
+ * and everything else as text.
  */
 type Encoding = { contentType: string } | { style: ParamStyle };
 
@@ -360,18 +363,21 @@ type SecuritySchemeSpec =
 /** Data from the document that the runtime needs; `operations` is keyed by `METHOD path`. */
 type Spec = {
   baseUrl: string;
-  /** Every HTTP method the document uses, as written: the client's callable properties. */
+  /**
+   * Every HTTP method used in the document, as written; each becomes a callable
+   * property on the client.
+   */
   methods: string[];
   security: SecurityRequirement[];
   securitySchemes: Record<string, SecuritySchemeSpec>;
   operations: Record<string, {
     operationId?: string;
-    /** The first server of the operation, or else of its path; `baseUrl` overrides it. */
+    /** The operation's first server, or its path's if none; overridden by `baseUrl`. */
     server?: string;
     /** Parameters with a non-default serialization, keyed by `location:name`. */
     styles?: Record<string, ParamStyle>;
     security?: SecurityRequirement[];
-    /** The media type a body is sent as when the call names none. */
+    /** Media type used for the body when the call does not specify one. */
     contentType?: string;
     /** The media type of the `querystring` parameter. */
     querystring?: string;
@@ -379,8 +385,9 @@ type Spec = {
     /** Form body encodings, keyed by media type and then by property. */
     encoding?: Record<string, Record<string, Encoding>>;
     /**
-     * By response key, the `text/*` media types the document declares binary,
-     * read as a `Blob`. Present with every key of the operation once any has one.
+     * Maps each response key to the `text/*` media types that the document
+     * declares as binary (read as a `Blob`). Set only when at least one
+     * response has such a type, in which case every response key is included.
      */
     binary?: Record<string, string[]>;
   }>;
@@ -402,7 +409,7 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
     const op = `${method} ${path}`;
     // A leading "//" would make a relative URL point at another host in browsers.
     if (!path.startsWith("/") || path.startsWith("//")) {
-      throw new TypeError(`${op}: the path must be a template from the document, starting with one "/"`);
+      throw new TypeError(`${op}: the path must be a template from the document, starting with a single "/"`);
     }
     const info = spec.operations[op] ?? {};
     const style = (location: string, name: string) => info.styles?.[`${location}:${name}`] ?? {};
@@ -435,7 +442,7 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
     }
     new Headers(rest.headers).forEach((value, name) => {
       if (name !== "cookie") return headers.set(name, value);
-      // The call's cookies join the ones set so far, replacing those of the same name.
+      // Add the call's cookies to those already set, replacing any with the same name.
       for (const pair of value.split(";")) {
         const [cookie = "", ...parts] = pair.split("=");
         if (cookie.trim()) setCookie(headers, cookie.trim(), parts.join("=").trim());
@@ -489,8 +496,8 @@ function present(values: object | undefined): [string, unknown][] {
 type Encode = (s: string) => string;
 
 /**
- * The whole query string from the value of a `querystring` parameter: form
- * fields, or else the value serialized as its media type and percent-encoded.
+ * Encodes a `querystring` parameter as a full query string: either form fields
+ * or the value serialized for its media type and percent-encoded.
  */
 function encodeQuerystring(
   value: unknown,
@@ -543,7 +550,7 @@ function pairs(name: string, value: unknown, s: ParamStyle): string[] {
     : present(value).map(([k, v]) => `${enc(k)}=${enc(String(v))}`);
 }
 
-/** `application/x-www-form-urlencoded` fields, encoded as {@link Encoding} says. */
+/** `application/x-www-form-urlencoded` fields, encoded per {@link Encoding}. */
 function formEncode(value: Record<string, unknown>, encoding: Record<string, Encoding> = {}): string {
   return present(value).flatMap(([name, v]) => {
     const e = encoding[name];
@@ -557,8 +564,9 @@ function formEncode(value: Record<string, unknown>, encoding: Record<string, Enc
 }
 
 /**
- * `multipart/form-data` parts, encoded as {@link Encoding} says. A part with a
- * media type is sent as a `Blob`, as `FormData` has no other way to give it one.
+ * Builds `multipart/form-data` parts according to {@link Encoding}. A part with
+ * a media type is sent as a `Blob`, because `FormData` has no other way to set
+ * one.
  */
 function formData(value: Record<string, unknown>, encoding: Record<string, Encoding> = {}): FormData {
   const data = new FormData();
@@ -640,9 +648,10 @@ function encodeBody(
 }
 
 /**
- * A response body that is not what its `Content-Type` says (an HTML error page
- * served as `application/json`, say). `response` is the response, its body
- * consumed; `text` is the body, or the offending item of a sequential media type.
+ * Thrown when a response body does not match its `Content-Type` (for example,
+ * an HTML error page served as `application/json`). `response` is the response
+ * with its body consumed; `text` is the body text, or the offending item of a
+ * sequential media type.
  */
 export class DecodeError extends Error {
   response: Response;
@@ -666,9 +675,9 @@ function parseJson(response: Response, text: string): unknown {
 }
 
 /**
- * `binary` lists, by response key, media types or ranges such as `text/*` to
- * read as a `Blob`. Those of the key that covers the status apply, as in the
- * response type: its code, else its range, else `default`.
+ * `binary` maps each response key to media types or ranges (such as `text/*`)
+ * to read as a `Blob`. The matching key is chosen the same way as in the
+ * response type: exact status code, then range, then `default`.
  */
 async function decodeBody(response: Response, method: string, binary: Record<string, string[]> = {}): Promise<unknown> {
   const { status } = response;
@@ -728,8 +737,8 @@ async function* jsonItems(response: Response, separator: string): AsyncGenerator
 }
 
 /**
- * One event. `id` and `retry` are the last ones the stream set, possibly in an
- * earlier block: the last event ID and the reconnection time.
+ * A server-sent event. `id` (last event ID) and `retry` (reconnection time)
+ * hold the most recent values set by the stream, possibly in an earlier block.
  */
 export type ServerSentEvent = { data: string; event?: string; id?: string; retry?: number };
 
@@ -763,12 +772,13 @@ export type Credential =
   | ((scopes: string[], context: MiddlewareContext) => string | undefined | Promise<string | undefined>);
 
 /**
- * Middleware that authenticates each request as the document's `security` says:
- * it picks the first alternative whose credentials are all available and places
- * each credential where its security scheme expects it. A credential given as
- * `undefined`, such as an unset environment variable, is unavailable. Alternatives that add
- * nothing to the request (anonymous `{}`, `mutualTLS` alone) are taken only when
- * no other is; with none, the request goes out unauthenticated.
+ * Middleware that authenticates each request according to the document's
+ * `security` requirements. It picks the first alternative whose credentials are
+ * all available and places each credential where its security scheme expects
+ * it. A credential set to `undefined`, such as an unset environment variable,
+ * is treated as unavailable. Alternatives that add nothing to the request
+ * (anonymous `{}` or `mutualTLS` alone) are used only when no other alternative
+ * can be satisfied; if none can, the request is sent unauthenticated.
  *
  * - `http` bearer, `oauth2`, `openIdConnect`: `Authorization: Bearer <credential>`
  * - `http` basic: the credential is `user:password`, sent base64-encoded
@@ -782,9 +792,9 @@ export type Credential =
  * ```
  */
 export function auth(credentials: { [K in SecuritySchemeName]?: Credential | undefined }): Middleware {
-  // The headers each Request had before credentials were set on it. A Request
-  // sent again, as a retrying middleware may, gets them back first, so that it
-  // carries only the credentials chosen this time.
+  // Headers each Request had before credentials were applied. If a retrying
+  // middleware resends a Request, its original headers are restored first so it
+  // carries only the credentials chosen on that attempt.
   const before = new WeakMap<Request, Map<string, string | null>>();
   return async (request, next, context) => {
     const saved = before.get(request) ?? new Map<string, string | null>();
@@ -793,8 +803,8 @@ export function auth(credentials: { [K in SecuritySchemeName]?: Credential | und
       if (value === null) request.headers.delete(name);
       else request.headers.set(name, value);
     }
-    // Alternatives that resolve to no credentials are skipped: sending nothing is
-    // also what happens when none is satisfiable.
+    // Skip alternatives that add no credentials, since the request is sent
+    // without credentials anyway if nothing else matches.
     for (const requirement of context.operation.security) {
       const resolved = await satisfy(requirement, credentials, context);
       if (resolved?.length) {
@@ -862,12 +872,12 @@ async function withQuery(request: Request, pair: string): Promise<Request> {
   const hash = request.url.indexOf("#");
   const [url, fragment] = hash < 0 ? [request.url, ""] : [request.url.slice(0, hash), request.url.slice(hash)];
   const joined = `${url}${url.includes("?") ? "&" : "?"}${pair}${fragment}`;
-  // Firefox has no `Request.body`, so the method also tells that there is none.
+  // Firefox has no `Request.body`, so also check the method for a missing body.
   if (request.body === null || request.method === "GET" || request.method === "HEAD") {
     return new Request(joined, request);
   }
-  // `new Request(joined, request)` would pass the body on as a stream, which Chromium
-  // and WebKit refuse and Firefox sends empty: read it first.
+  // `new Request(joined, request)` would pass the body on as a stream, which
+  // Chromium and WebKit reject and Firefox sends empty, so read it first.
   return new Request(joined, {
     method: request.method,
     headers: request.headers,

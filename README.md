@@ -49,8 +49,8 @@ npm install --save-dev oasis-gen
 
 The CLI and the generated client need Node.js 22 or later. The client also
 runs in browsers (tested in Chromium, Firefox, and WebKit) and Bun, and
-type-checks with TypeScript 5.0 or later. Generate only from documents you
-trust: oasis-gen reads any local file that a `$ref` points to.
+type-checks with TypeScript 5.0 or later. Generate clients only from documents
+you trust, because oasis-gen reads any local file that a `$ref` points to.
 
 The package ships prebuilt binaries for macOS, Linux, and Windows, on arm64
 and x64. npm installs only the one for your platform. Archives are also

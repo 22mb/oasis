@@ -1,5 +1,5 @@
-// Type-level tests for tests/fixtures/multifile (a document split across files):
-// compiled by `tsc`, never run.
+// Type-level tests for tests/fixtures/multifile (a document split across
+// files), compiled by `tsc` and never run.
 import { createClient, type RequestOptions, type schemas } from "../golden/multifile.ts";
 import type { Equal, Expect, Failure, Result, Success } from "./equal.ts";
 

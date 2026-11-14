@@ -1,7 +1,7 @@
 # Authentication
 
-`auth` is a middleware that authenticates each operation as its `security`
-specifies. You only provide a way to get each credential:
+`auth` is middleware that authenticates each operation according to its
+`security`. You only need to provide a way to get each credential:
 
 ```ts twoslash
 // @filename: api.ts
@@ -17,7 +17,7 @@ const api = createClient({
     auth({
       // Keys are the scheme names in components.securitySchemes.
       bearer: (scopes) => getToken(scopes),
-      // An unset variable skips the alternatives that need it.
+      // If this variable is unset, alternatives that need it are skipped.
       apiKey: process.env.API_KEY,
     }),
   ],
@@ -28,11 +28,11 @@ const api = createClient({
 
 The keys are the names in `components.securitySchemes` (typed as
 `SecuritySchemeName`). Each value is a `Credential` (a string, or a function
-that returns one, possibly asynchronously) or `undefined`. A function is called
-for each request with the values that the requirement lists (scopes, or role
-names for schemes other than OAuth 2.0 and OpenID Connect) and the
-[middleware context](./middleware#the-operation). A value or a returned value
-of `undefined` or `""` means that the credential is unavailable.
+that returns one, possibly asynchronously) or `undefined`. If a value is a
+function, it is called for each request with the values listed in the
+requirement (scopes, or role names for schemes other than OAuth 2.0 and OpenID
+Connect) and the [middleware context](./middleware#the-operation). If a value
+or return value is `undefined` or `""`, the credential is unavailable.
 
 For each request, `auth` picks the first of the operation's `security`
 alternatives whose credentials are all available. Alternatives that add
@@ -57,8 +57,7 @@ in Node and Bun.
 
 ## When no credentials are sent {#when-nothing-is-sent}
 
-`auth` follows only the document's `security`. It sends nothing for
-operations with `security: []`. It also sends nothing for any operation when
-the document declares `securitySchemes` but no `security` requirement. To send
-a header with every request regardless of the document, use the client's
-`headers` option instead.
+`auth` only acts on `security` in the document. It sends nothing for
+operations with `security: []`, or when the document declares `securitySchemes`
+without any `security` requirement. To send a header with every request
+regardless of the document, use the client's `headers` option instead.

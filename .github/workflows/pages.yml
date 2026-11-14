@@ -1,8 +1,8 @@
 name: Pages
 
-# Build the documentation site in site/ on every change to it or to the
-# generator its playground runs, and deploy it to GitHub Pages from main.
-# Pull requests only build, which catches dead links.
+# Build the documentation site in site/ on changes to the site or the
+# generator run by its playground, and deploy to GitHub Pages from main.
+# Pull requests only run the build, which catches dead links.
 on:
   push:
     branches: [main]
@@ -38,10 +38,10 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      # The toolchain in rust-toolchain.toml, and the target for it.
+      # Install the toolchain in rust-toolchain.toml and its target.
       - run: rustup toolchain install && rustup target add wasm32-unknown-unknown
       - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
-      # The playground's dependencies, cached per toolchain and Cargo.lock.
+      # Cache the playground's dependencies by toolchain and Cargo.lock.
       - uses: actions/cache@v6.1.0
         with:
           path: |

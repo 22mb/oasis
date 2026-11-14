@@ -7,7 +7,7 @@ name: Release
 # steps already done are skipped. The release is created as a draft and
 # published last, which works with immutable releases (assets cannot change
 # afterwards).
-# Run it by hand (workflow_dispatch) to build every platform without publishing.
+# Run this workflow manually (workflow_dispatch) to build every platform without publishing.
 on:
   push:
     branches: [main]
@@ -65,7 +65,7 @@ jobs:
       - name: Check that the release's version matches Cargo.toml
         if: needs.version.outputs.release == 'true'
         run: test "$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)" = "$VERSION"
-      # The toolchain in rust-toolchain.toml, and the target for it.
+      # Install the toolchain from rust-toolchain.toml and add the build target.
       - run: rustup toolchain install && rustup target add "$TARGET"
       - run: cargo build --release --locked --target "$TARGET"
       - uses: actions/upload-artifact@v7.0.2
@@ -80,8 +80,8 @@ jobs:
     # Only a release commit on main publishes; a manual run stops after the builds.
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
-    # The environment accepts only main, where only merged pull requests land:
-    # a `v*` tag pushed by anyone else cannot publish.
+    # The environment accepts only main, where only merged pull requests land,
+    # so a `v*` tag pushed by anyone else cannot publish.
     environment: release
     concurrency:
       group: release-publish
@@ -152,8 +152,8 @@ jobs:
             # Re-run: replace assets on a draft; a published release is final.
             if [[ "$(cat draft)" == true ]]; then gh release upload "$TAG" release/* --clobber; fi
           else
-            # The notes are the version's section of CHANGELOG.md, which must exist, with
-            # wrapped lines joined: GitHub shows every line break in release notes.
+            # Extract this version's section from CHANGELOG.md (which must exist) and join
+            # wrapped lines, because GitHub renders every line break in release notes.
             awk -v heading="## [$VERSION]" '
               function flush() { if (have) print buf; have = 0 }
               /^## \[/ { if (found) { flush(); exit } found = index($0, heading) == 1; next }
@@ -170,14 +170,14 @@ jobs:
             [[ "$VERSION" == *-* ]] && flags+=(--prerelease)
             gh release create "$TAG" release/* --draft --notes-file notes.md --verify-tag "${flags[@]}"
           fi
-      # npm authenticates with OIDC: every package trusts this workflow's `release`
-      # environment as its trusted publisher (`npm trust github`).
+      # npm authenticates with OIDC. Every package trusts this workflow's
+      # `release` environment as its trusted publisher (`npm trust github`).
       - name: Publish to npm
         run: |
           version="$VERSION"
           tag=latest
           [[ "$version" == *-* ]] && tag=next
-          # Platform packages first, so the main package's optional dependencies resolve.
+          # Publish platform packages first so the main package's optional dependencies resolve.
           for dir in npm-dist/platforms/* npm-dist/oasis-gen; do
             name=$(node -p "require('./$dir/package.json').name")
             if npm view "$name@$version" version > /dev/null 2>&1; then

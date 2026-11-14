@@ -1,4 +1,4 @@
-// Generates and highlights off the main thread: highlighting the generated
+// Generates and highlights off the main thread. Highlighting the generated
 // file takes a few hundred milliseconds, which would block typing.
 import type { HighlighterCore } from "shiki/core";
 
@@ -27,7 +27,7 @@ function generate(module: WebAssembly.Module, text: string): { ok: boolean; text
     output_len(): number;
   };
   const bytes = new TextEncoder().encode(text);
-  // Read `memory.buffer` after each call: growing the memory replaces it.
+  // Growing memory replaces `memory.buffer`, so read it after each call.
   const at = wasm.input(bytes.length);
   new Uint8Array(wasm.memory.buffer, at, bytes.length).set(bytes);
   const ok = wasm.generate() === 1;
@@ -36,9 +36,9 @@ function generate(module: WebAssembly.Module, text: string): { ok: boolean; text
   return { ok, text: new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, ptr, len)) };
 }
 
-// Colors come from the `--shiki-*` variables of the site's code blocks, so the
-// output follows the color scheme. The JavaScript regex engine stands in for
-// Oniguruma's WebAssembly.
+// Colors come from the `--shiki-*` variables used by the site's code blocks,
+// so the output follows the color scheme. The JavaScript regex engine is
+// used instead of the Oniguruma WebAssembly engine.
 async function createHighlighter(): Promise<HighlighterCore> {
   const [{ createHighlighterCore, createCssVariablesTheme }, { createJavaScriptRegexEngine }] =
     await Promise.all([import("shiki/core"), import("shiki/engine/javascript")]);

@@ -17,13 +17,13 @@ change the generated code or the CLI in incompatible ways.
 
 ### Fixed
 
-- **Breaking:** `default`, and the statuses no key covers, included 304,
+- **Breaking:** `default` and statuses not covered by any key included 304,
   whose `data` is `undefined`. With `200` and `default: Error`, `data` in
   `if (!res.ok)` therefore had to allow for `undefined`. 304 is now covered
-  only by a key that names it, `304` or `3XX`, as 1xx statuses already are,
+  only by a key that names it (`304` or `3XX`), as 1xx statuses already are,
   because fetch returns 304 only to a caller that sends a conditional
-  request itself. Code that compares `status` with 304 under `default` or no
-  key no longer type-checks: declare `304` in the document.
+  request itself. Code that compares `status` with 304 under `default` or
+  with no matching key no longer type-checks. Declare `304` in the document.
   ([#102](https://github.com/22mb/oasis/pull/102))
 
 ## [0.8.0](https://github.com/22mb/oasis/compare/v0.7.0...v0.8.0) - 2026-11-07
@@ -32,18 +32,18 @@ change the generated code or the CLI in incompatible ways.
 
 - Add a query API key to a GET request in Firefox ([#93](https://github.com/22mb/oasis/pull/93))
 - Leave out a flagged property from a nested allOf of references ([#95](https://github.com/22mb/oasis/pull/95))
-- **Breaking:** A `text/*` media type declared binary (a schema without a
+- **Breaking:** A `text/*` media type declared as binary (a schema without a
   `type`) in one response was read as a `Blob` in every response of the
   operation, even where its type was `string` or an event stream. It is now
   read as a `Blob` only for the statuses of the response that declares it,
-  so `data` is what its type says. Code that read such `data` as a `Blob`
-  against its type must read it as typed.
+  so `data` matches its type. Code that read such `data` as a `Blob` despite
+  its type must now read it according to its type.
   ([#97](https://github.com/22mb/oasis/pull/97))
 - **Breaking:** The `data` of a 204, 205 or 304 response that the document
   covers only with `2XX`, `3XX` or `default` was typed as that key's body,
-  though the client returns `undefined` for it. It is now `undefined`. With
-  `200` and `default: Error`, `data` in `if (!res.ok)` now includes the
-  `undefined` of a 304: read it with `?.`, or narrow by `status` first.
+  even though the client returns `undefined` for it. It is now `undefined`.
+  With `200` and `default: Error`, `data` in `if (!res.ok)` now includes
+  `undefined` for 304. Read it with `?.`, or narrow by `status` first.
   ([#96](https://github.com/22mb/oasis/pull/96))
 - Send a request resent through auth with only the credentials chosen for it ([#98](https://github.com/22mb/oasis/pull/98))
 - **Breaking:** A response declared as the range `text/*` was typed
@@ -75,15 +75,15 @@ change the generated code or the CLI in incompatible ways.
   ([#78](https://github.com/22mb/oasis/pull/78))
 - Send encoded binary parts of a composed multipart body as octets ([#79](https://github.com/22mb/oasis/pull/79))
 - Leave out what a subtype flags from the parent it extends ([#80](https://github.com/22mb/oasis/pull/80))
-- **Breaking:** A component name with other characters than ASCII letters,
+- **Breaking:** A component name with characters other than ASCII letters,
   digits, `.`, `-` and `_`, which the specification does not allow, was
   exported without them (`ユーザー` as `_`, `Café` as `Caf`). Such a name is now
   an error. Rename the component.
   ([#88](https://github.com/22mb/oasis/pull/88))
-- **Breaking:** `propertyNames` was not read, so a map whose keys an `enum`
-  limits took any key. Where `propertyNames` lists the names with `enum` or
-  `const`, the object now has an optional property for each of them, of the
-  type of `additionalProperties`, and no other key.
+- **Breaking:** `propertyNames` was not read, so a map whose keys were limited
+  by an `enum` accepted any key. Where `propertyNames` lists the names with
+  `enum` or `const`, the object now has an optional property for each of them,
+  with the type of `additionalProperties`, and allows no other keys.
   ([#89](https://github.com/22mb/oasis/pull/89))
 
 ## [0.6.0](https://github.com/22mb/oasis/compare/v0.5.1...v0.6.0) - 2026-11-06
@@ -106,7 +106,7 @@ change the generated code or the CLI in incompatible ways.
   ([#73](https://github.com/22mb/oasis/pull/73))
 - **Breaking:** A request body could be a value that fetch sends as another
   media type. A multipart body other than `multipart/form-data` is now a `Blob`
-  instead of `FormData`: build it yourself and give the `Blob` a `type` with
+  instead of `FormData`. Build it yourself and give the `Blob` a `type` with
   the boundary, such as `multipart/mixed; boundary=b`. A binary body no longer
   takes `FormData` or `URLSearchParams`.
   ([#74](https://github.com/22mb/oasis/pull/74))
@@ -137,8 +137,8 @@ change the generated code or the CLI in incompatible ways.
 ### Fixed
 
 - A generated file declared status aliases it did not use, such as
-  `Status1xx`, so a project that type-checks it with `noUnusedLocals` failed
-  since 0.4.0. It now declares only the ones it uses.
+  `Status1xx`, which broke type-checking with `noUnusedLocals` starting in
+  0.4.0. It now declares only the ones it uses.
   ([#43](https://github.com/22mb/oasis/pull/43))
 
 ## [0.4.0](https://github.com/22mb/oasis/compare/v0.3.0...v0.4.0) - 2026-10-27
@@ -146,10 +146,11 @@ change the generated code or the CLI in incompatible ways.
 ### Changed
 
 - **Breaking:** The generator computes which statuses each response key
-  covers, instead of conditional types at every call, so calls type-check
-  faster. `ApiResponse` takes the operation instead of its `responses`:
-  `ApiResponse<paths["/pets/{petId}"]["GET"]>`. Each operation in `paths` has
-  a `statuses` member. ([#39](https://github.com/22mb/oasis/pull/39))
+  covers, instead of using conditional types at every call, so calls
+  type-check faster. `ApiResponse` takes the operation instead of its
+  `responses`: `ApiResponse<paths["/pets/{petId}"]["GET"]>`. Each operation in
+  `paths` has a `statuses` member.
+  ([#39](https://github.com/22mb/oasis/pull/39))
 
 ### Fixed
 
@@ -188,13 +189,13 @@ change the generated code or the CLI in incompatible ways.
   restrict keys to a pattern, so such an object now has an index signature
   over every key, typed as the patterns and `additionalProperties` allow.
 - The variant that a discriminator's `defaultMapping` names no longer requires
-  the discriminating property. The specification lets a value leave it out,
-  and uses the `defaultMapping` schema then.
+  the discriminating property. The specification lets a value leave it out, in
+  which case the `defaultMapping` schema is used.
 - `auth()` accepts `undefined` credentials, such as an unset environment
   variable, under `exactOptionalPropertyTypes`. It already treated them as
   unavailable at runtime.
 - A call can leave out an optional request body without naming a media type,
-  also when the operation declares several and none is implied.
+  even when the operation declares several and none is implied.
 - A `Cookie` header in a call's `headers` option now joins the `cookie`
   parameters and replaces only the cookies of the same name. Before, it
   replaced them all.

@@ -23,10 +23,10 @@ export type Exact = [
     components["requestSchemas"]["Account"],
     { id?: never; name: string; password: string; owner?: components["requestSchemas"]["Owner"] }
   >>,
-  // ... also when they come from a referenced schema or another allOf member.
+  // ... even when they come from a referenced schema or another allOf member.
   Expect<Equal<Flat<schemas["Entry"]>, { serial: number; secret?: never; label: string }>>,
   Expect<Equal<Flat<components["requestSchemas"]["Entry"]>, { serial?: never; secret: string; label: string }>>,
-  // A `$ref` member that requires a property another member flags leaves it out where it is hidden.
+  // Even if a `$ref` member requires a property another member flags, it is left out where hidden.
   Expect<Equal<Flat<schemas["Signup"]>, { id: number; email: string; password?: never }>>,
   Expect<Equal<Flat<components["requestSchemas"]["Signup"]>, { password: string; email: string; id?: never }>>,
   Expect<Equal<Flat<schemas["Login"]>, { id: number; email: string; password?: never }>>,
@@ -37,7 +37,7 @@ export type Exact = [
   Expect<Equal<components["requestSchemas"]["Holder"], { serial?: never }>>,
   // Recursion through an array or index signature at the top of a schema.
   Expect<Equal<schemas["Json"], string | number | boolean | null | schemas["Json"][] | { [key: string]: schemas["Json"] }>>,
-  // A parent listing its subtypes in `oneOf` while they extend it with `allOf`: the parent
+  // If a parent lists its subtypes in `oneOf` and they extend it with `allOf`, the parent
   // is the union, and each subtype gets the parent's own part instead of a reference back.
   Expect<Equal<schemas["Animal"], { kind: string } & ((schemas["Dog"] & { kind: "Dog" }) | (schemas["Cat"] & { kind: "Cat" }))>>,
   Expect<Equal<schemas["Dog"], { kind: string } & { bark?: boolean }>>,
@@ -53,7 +53,7 @@ export type Exact = [
   Expect<Equal<schemas["ParcelOrName"], object & (schemas["Parcel"] | string)>>,
   Expect<Equal<schemas["OptionalParcel"], (object | null) & schemas["Parcel"]>>,
   Expect<Equal<schemas["Bag"], { [key: string]: unknown }>>,
-  // Mapping keys take the type of a discriminating property that is not a string.
+  // When the discriminating property is not a string, mapping keys take its type.
   Expect<Equal<schemas["Switch"], schemas["SwitchOn"] & { enabled: true } | schemas["SwitchOff"] & { enabled: false }>>,
   Expect<Equal<
     schemas["Report"],
@@ -111,7 +111,7 @@ export async function checks() {
   const bag: schemas["Bag"] = { anything: 1 };
   void unknownName, unknownAlias, unknownVariant, notObject, unknownOptional, bag;
 
-  // Values of a non-string discriminating property are assignable, and narrow.
+  // Non-string discriminator values are assignable and narrow the union.
   const on: schemas["Switch"] = { enabled: true };
   // @ts-expect-error `SwitchOn` holds only `true`
   const off: schemas["SwitchOn"] = { enabled: false };
@@ -153,10 +153,10 @@ export type DefaultMayBeOk = Expect<
   Equal<Extract<ApiResponse<paths["/blobs"]["GET"]>, { ok: true }>["status"], Success>
 >;
 
-// Each response key covers its own statuses: a range minus the codes declared in
-// it, `default` the rest but 304, and statuses nothing covers have an unknown
-// body. 204, 205 and 304 never have a body, under whichever key covers them.
-// 304 is covered only by a key that names it, as 1xx are.
+// Each response key covers its own statuses: a range excludes codes declared
+// in it, and `default` covers the rest except 304. Uncovered statuses have
+// an unknown body. 204, 205, and 304 never have a body, whichever key covers
+// them. 304 is covered only by a key that names it, and so are 1xx.
 export type Statuses = [
   Expect<Equal<
     Awaited<ReturnType<typeof api.GET<"/shapes">>>,
@@ -232,7 +232,7 @@ export type Nested = [
   Expect<Equal<components["requestSchemas"]["Batch"], [components["requestSchemas"]["Holder"], ...components["requestSchemas"]["Holder"][]]>>,
   // `additionalProperties: false` adds no index signature.
   Expect<Equal<schemas["Closed"], { x?: string }>>,
-  // `propertyNames` that lists the names closes the object to them.
+  // When `propertyNames` lists names, only those keys are allowed.
   Expect<Equal<schemas["PropertyNamesEnum"], { a?: number; b?: number }>>,
   Expect<Equal<schemas["PropertyNamesRef"], { N?: string; Y?: boolean; yes?: boolean; off?: boolean; A?: boolean }>>,
   Expect<Equal<schemas["Empty"], Record<string, never>>>,
@@ -244,7 +244,7 @@ export type Nested = [
   Expect<Equal<schemas["Counts"], { [key: string]: number | string }>>,
 ];
 
-// A property matching a pattern is a valid value, also with `additionalProperties: false`.
+// A property matching a pattern is allowed even with `additionalProperties: false`.
 export const labeled: schemas["LabeledPet"] = { name: "Tama", "x-id": "1" };
 export const labels: schemas["Labels"] = { "x-id": "1", "n-count": 2 };
 
@@ -264,8 +264,8 @@ export type Operations = [
   // Several response media types are a union; a sequence without a schema has unknown items.
   Expect<Equal<Operation<"/params/{list}/{pair}", "GET">["responses"], { "200": { n?: number } | string; "202": AsyncIterable<unknown> }>>,
   // An optional body without an implied media type: either a media type and its body, or neither.
-  // A binary body is a `BodyInit` that fetch sends as it is, not a `FormData` or
-  // `URLSearchParams` (derived as the generated file does, for the check without the dom lib).
+  // A binary body is a `BodyInit` that fetch sends as-is, not a `FormData` or
+  // `URLSearchParams` (derived as in the generated file, to type-check without the dom lib).
   Expect<Equal<
     Operation<"/photos/{id}", "PUT">["request"],
     { path: { id: number } } & (
@@ -281,8 +281,8 @@ export type Operations = [
   // a `type: string` schema or none is text.
   Expect<Equal<Operation<"/report", "GET">["responses"], { "200": Blob | string; "4XX": string }>>,
   Expect<Equal<Operation<"/exports", "GET">["responses"], { "200": Blob; "4XX": string; default: unknown }>>,
-  // Form bodies are typed by their schema. A multipart part without a `type` is binary,
-  // an array of them one part per item; a `type: string` part is text, also when encoded.
+  // Form bodies are typed by their schema. Multipart parts without `type` are binary
+  // (one part per array item), and `type: string` parts are text, even when encoded.
   Expect<Equal<
     Operation<"/uploads", "POST">["request"],
     | {

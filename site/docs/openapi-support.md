@@ -21,7 +21,7 @@ In an OpenAPI 3.0 document, these keywords are handled as follows:
 
 | Keyword | Handling |
 | --- | --- |
-| `nullable: true` | Adds `null` to the type. On an `enum`, `null` is added even if the list omits it. Other generators read it this way, although under 3.0.3 itself such an `enum` still disallows `null` |
+| `nullable: true` | Adds `null` to the type. On an `enum`, `null` is added even if the list omits it. Other generators treat it the same way, even though 3.0.3 itself still disallows `null` in that case |
 | `nullable: true` next to a `$ref`, or on an `allOf` with one `$ref` | Adds `null` to the referenced type |
 | Other keywords next to a `$ref` | Applied, as in 3.1 and later, although 3.0 says to ignore them: `{ $ref: Base, properties: {...} }` is `Base & {...}` |
 | `type: string, format: binary` | Raw binary, read as a schema without a `type`: `unknown`, or `Blob` in a multipart body or a `text/*` response |
@@ -47,12 +47,12 @@ Schemas from other files get type aliases of their own, but only component
 schemas are exported and listed in `components` (see
 [Schemas](./schemas#type-aliases-and-components)).
 
-Generate only from documents you trust: oasis-gen reads any local file that a
-`$ref` points to, wherever it is.
+Only generate clients from documents you trust, because oasis-gen reads any
+local file that a `$ref` points to, wherever it is.
 
 ## Schemas
 
-See [Schemas](./schemas) for the TypeScript type that each keyword becomes.
+See [Schemas](./schemas) for how each keyword maps to a TypeScript type.
 
 | Feature | Support | Notes |
 | --- | --- | --- |
@@ -71,7 +71,7 @@ See [Schemas](./schemas) for the TypeScript type that each keyword becomes.
 | `get`, `put`, `post`, `delete`, `options`, `head`, `patch`, `trace` | Supported | |
 | `query` (the HTTP `QUERY` method) | Supported | |
 | `additionalOperations` | Supported | Custom methods such as `LINK` |
-| Some `additionalOperations` names | Rejected | `delete`, `get`, `head`, `options`, `post`, and `put` regardless of case, and `PATCH`, `TRACE`, and `QUERY` in uppercase, because `fetch` would send them as the same methods as the fixed fields; also `with` and `then`, which the client reserves |
+| Some `additionalOperations` names | Rejected | `delete`, `get`, `head`, `options`, `post`, and `put` regardless of case, and `PATCH`, `TRACE`, and `QUERY` in uppercase, because `fetch` would send the same method as the corresponding fixed field. `with` and `then` are also rejected because the client reserves them |
 | Callbacks and webhooks | Not supported | |
 
 ## Parameters
@@ -85,9 +85,9 @@ See [Schemas](./schemas) for the TypeScript type that each keyword becomes.
 | `querystring` | Supported | Typed and encoded by its media type; see [`querystring` parameters](./client#querystring-parameters) |
 
 Every style supports `explode`. Parameters with `content` instead of a schema
-are supported. A JSON query parameter is typed from its schema and serialized
-as JSON. Other parameters with `content` are passed as strings that are already
-serialized.
+are also supported. JSON query parameters are typed from their schema and
+serialized as JSON, while other parameters with `content` are passed as
+pre-serialized strings.
 
 Cookie parameters and cookie API keys are sent as a `Cookie` header, which
 browsers ignore in `fetch`. They work in Node and Bun.
@@ -102,7 +102,7 @@ and decoded.
 | --- | --- | --- |
 | Sequential media types and `itemSchema` | Supported | JSON Lines, NDJSON, JSON text sequences, and server-sent events, streamed as async iterables |
 | `multipart/form-data` request bodies | Supported | Typed by the schema and sent as `FormData`; see [Form bodies](./client#form-bodies) |
-| Other `multipart` request bodies, such as `multipart/mixed` | Not supported | Passed as a `Blob` the caller builds, whose `type` gives the media type with its `boundary` |
+| Other `multipart` request bodies, such as `multipart/mixed` | Not supported | Passed as a `Blob` built by the caller, with `type` set to the media type and its `boundary` |
 | Encoding Object (`encoding`) | Supported | `contentType`, `style`, `explode`, and `allowReserved`. `FormData` cannot send part headers or nested parts, so optional `headers` are left out, and a required header or a `multipart` part in a request body is rejected |
 | `prefixEncoding`, `itemEncoding` | Not supported | They apply only to other `multipart` media types |
 | Typed response headers | Not supported | |

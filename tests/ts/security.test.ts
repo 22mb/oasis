@@ -28,7 +28,7 @@ test("runs middleware outermost first, with the operation from the document", as
   expect(contexts.at(-1)!.operation).toStrictEqual({ method: "GET", path: "/me", security: [{ bearer: [] }] });
 });
 
-test("middleware can answer without sending", async () => {
+test("middleware can respond without sending a request", async () => {
   const s = server(noContent);
   const cached: Middleware = async () => Response.json(["cached"]);
   const api = createClient({ fetch: s.fetch, middleware: [cached] });
@@ -115,7 +115,7 @@ test("auth follows the document's security requirements", async () => {
   expect(headers.get("x-api-key")).toBe("k3y");
   expect(headers.get("authorization")).toBe(null);
 
-  headers = await sent(() => api.GET("/reports")); // no queryKey credential: falls back to basic
+  headers = await sent(() => api.GET("/reports")); // no queryKey credential, so falls back to basic
   expect(headers.get("authorization")).toBe(`Basic ${btoa(String.fromCharCode(...new TextEncoder().encode("user:päss")))}`);
 
   headers = await sent(() => api.GET("/both")); // both schemes together
@@ -128,9 +128,9 @@ test("auth follows the document's security requirements", async () => {
   headers = await sent(() => api.GET("/oidc"));
   expect(headers.get("authorization")).toBe("Bearer 0idc");
 
-  headers = await sent(() => api.GET("/mtls")); // satisfied by the TLS configuration: nothing to add
+  headers = await sent(() => api.GET("/mtls")); // satisfied by the TLS configuration, so nothing to add
   expect(headers.get("authorization")).toBe(null);
-  headers = await sent(() => api.GET("/mtls-or-bearer")); // `mutualTLS` alone adds nothing: the bearer alternative wins
+  headers = await sent(() => api.GET("/mtls-or-bearer")); // `mutualTLS` alone adds nothing, so the bearer alternative wins
   expect(headers.get("authorization")).toBe("Bearer t0k3n");
 
   headers = await sent(() => api.GET("/by-uri")); // a requirement naming the scheme by its URI
@@ -148,7 +148,7 @@ test("auth follows the document's security requirements", async () => {
 test("auth treats an undefined credential as unavailable", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ queryKey: undefined, basic: "u:p" })] });
-  await api.GET("/reports"); // the queryKey alternative is skipped for basic
+  await api.GET("/reports"); // skips queryKey in favor of basic
   expect(s.sent[0]!.url).toBe("https://api.example.com/reports");
   expect(s.sent[0]!.headers.get("authorization")).toBe(`Basic ${btoa("u:p")}`);
 });
@@ -206,7 +206,7 @@ test("auth sends a resent request with only the credentials chosen for it", asyn
     middleware: [retry, auth({ queryKey: () => (tries++ === 0 ? undefined : "k"), basic: "u:p" })],
   });
   await reports.GET("/reports");
-  // A token, then none: the request goes without credentials.
+  // A token on the first attempt, then none, so the retry goes out without credentials.
   let token: string | undefined = "t1";
   const pets = createClient({
     fetch: async (request) => {

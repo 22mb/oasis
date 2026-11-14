@@ -16,9 +16,9 @@ const t = {
   loadFailed: "The playground could not be loaded.",
 };
 
-// The share link carries the document, if it differs from the example, as
-// `#spec=…`: its UTF-8, compressed with raw DEFLATE and encoded as unpadded
-// base64url.
+// If the document differs from the example, the share link carries it in
+// `#spec=…` as UTF-8 bytes compressed with raw DEFLATE and encoded as
+// unpadded base64url.
 async function encode(text: string): Promise<string> {
   const stream = new Blob([text]).stream().pipeThrough(new CompressionStream("deflate-raw"));
   const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
@@ -40,15 +40,15 @@ async function fromHash(): Promise<string> {
   try {
     return await decode(code);
   } catch {
-    // A truncated or edited link: keep the example.
+    // If the link was truncated or edited, keep the example.
     return exampleSpec;
   }
 }
 
 /**
- * Puts `text` in the page URL, unless it is no longer the playground's text by
- * the time it is encoded: `current` gives that text, or `null` once the
- * playground is gone.
+ * Puts `text` in the page URL unless the playground's text has changed by the
+ * time `text` is encoded. `current` returns the current text, or `null` once
+ * the playground is gone.
  */
 async function updateHash(text: string, current: () => string | null): Promise<void> {
   const hash = text === exampleSpec ? "" : `#${new URLSearchParams({ spec: await encode(text) })}`;
@@ -95,7 +95,7 @@ export function Playground() {
     worker.current = w;
     let unmounted = false;
     const ready = new Promise<void>((resolve, reject) => {
-      // The event of a script that failed to load has no message.
+      // When a script fails to load, its error event has no message.
       w.addEventListener("error", (e) => reject(e.message));
       w.addEventListener("message", ({ data }: MessageEvent<Reply>) => {
         if (data.type === "ready") resolve();
@@ -120,7 +120,7 @@ export function Playground() {
     };
   }, []);
 
-  // Regenerates once typing pauses; the first document is generated at once.
+  // Regenerate once typing pauses; generate the first document immediately.
   useEffect(() => {
     if (spec === null) return;
     latest.current = spec;
@@ -160,7 +160,8 @@ export function Playground() {
       <p className="lead">{t.lead}</p>
       <div className="actions">
         {!loaded && !failed && <span className="loading">{t.loading}</span>}
-        {/* Outside the button: a live region inside one is not announced reliably. */}
+        {/* Outside the button because a live region inside a button is not
+            announced reliably. */}
         <span className="copy-status" role="status">
           {copyStatus}
         </span>
@@ -193,8 +194,8 @@ export function Playground() {
           <h2 id={apiId} className="bar">
             {t.api}
           </h2>
-          {/* Always present, so that a message put into it is announced; polite,
-              since a document is invalid most of the time while it is edited. */}
+          {/* Always present so messages put into it are announced, and polite
+              because a document is invalid most of the time during editing. */}
           <div className="problem" role="status">
             {error && <pre className="error">{error}</pre>}
           </div>

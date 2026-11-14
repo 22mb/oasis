@@ -14,7 +14,7 @@ npm install --save-dev oasis-gen
 
 ## Write a document
 
-Save this OpenAPI document as `openapi.yaml`. It describes one operation, which
+Save this OpenAPI document as `openapi.yaml`. It describes one operation that
 returns a pet, or an error when the pet does not exist.
 
 ```yaml
@@ -101,8 +101,8 @@ switch (res.status) {
 
 You select an operation by its HTTP method and path template, exactly as they
 are written in the document. Checking `status` narrows `data` to the response
-that the document declares for that status. The `default` branch handles the
-statuses that the document does not declare, so `data` is `unknown` there.
+that the document declares for that status. The `default` branch handles any
+status not declared in the document, so `data` is `unknown` there.
 [Strict types](./strict-types) explains why.
 
 ## Next steps

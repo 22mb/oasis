@@ -37,7 +37,7 @@ pub fn generate(source: &str, lang: Lang) -> Result<String, Error> {
     )
 }
 
-/// Parses and emits, placing an error in the document it is about.
+/// Parses and emits, locating any error in its document.
 fn convert(docs: &Documents, lang: Lang) -> Result<String, Error> {
     let api = parse(docs).map_err(|e| docs.locate(e))?;
     emit(&api, lang).map_err(|e| docs.locate(e))
@@ -58,13 +58,13 @@ pub fn load(source: &str) -> Result<serde_json::Value, Error> {
     if !source.trim_start().starts_with('{') {
         return yaml().map_err(yaml_error);
     }
-    // JSON is YAML, and so is a flow-style YAML document that is not JSON. When
-    // neither reads it, the JSON error is the one that describes the input.
+    // Input starting with `{` may be JSON or non-JSON flow-style YAML. When
+    // both parsers fail, the JSON error better describes the input.
     serde_json::from_str(source).or_else(|e| yaml().map_err(|_| json_error(e)))
 }
 
-/// YAML 1.2 booleans only (`yes`/`no`/`on`/`off`/`y`/`n` stay strings), and
-/// node/event budgets that scale with the input so large documents load.
+/// Uses YAML 1.2 booleans only (`yes`/`no`/`on`/`off`/`y`/`n` stay strings),
+/// and scales node and event budgets with the input so large documents load.
 /// Alias expansion keeps its default limits.
 pub(crate) fn yaml_options(source: &str) -> serde_saphyr::Options {
     let defaults = serde_saphyr::Budget::default();
@@ -170,7 +170,7 @@ impl Error {
     }
 
     /// Records that the error is about document value `v`, unless a more
-    /// specific value was recorded where the error was made.
+    /// specific value was recorded where the error originated.
     pub(crate) fn about(self, v: &serde_json::Value) -> Error {
         self.about_origin(ir::Origin::of(v))
     }

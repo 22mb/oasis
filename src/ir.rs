@@ -98,7 +98,7 @@ pub struct Operation {
 
 /// Where in the documents a node was read from, so that an emitter's errors
 /// can point at it. Opaque, and meaningful only with the documents the [`Api`]
-/// was parsed from. It is not part of what the node says: all origins are
+/// was parsed from. It is not part of the node's value: all origins compare
 /// equal, and `Origin::default()`, for a node built by hand, points nowhere.
 #[derive(Clone, Copy, Default)]
 pub struct Origin(usize);
@@ -283,14 +283,14 @@ impl Status {
 }
 
 impl Operation {
-    /// The statuses each response covers, ascending: a code itself, a range
-    /// such as `4XX` minus the codes declared in it, in document order. The
-    /// last entry is every status from 200 to 599 that none of those covers,
-    /// with the `default` response if there is one; a response can still have
-    /// those statuses when no `default` is declared. 304 is left out, as 1xx
-    /// are: a server sends it only in answer to a conditional request, and
-    /// fetch returns it only when the caller made that request itself, so only
-    /// a key or range (`3XX`) that includes it covers it.
+    /// The statuses each response covers, in ascending order: a single code, or
+    /// a range such as `4XX` minus any codes declared in it, in document order.
+    /// The last entry covers every remaining status from 200 to 599, paired
+    /// with the `default` response if declared (`None` otherwise, as a response
+    /// can still have those statuses). Like 1xx statuses, 304 is excluded from
+    /// this fallback because a server sends it only for a conditional request
+    /// and fetch returns it only when the caller made that request itself, so
+    /// it is covered only when an explicit code or `3XX` range includes it.
     pub fn coverage(&self) -> Vec<(Option<&Response>, Vec<u16>)> {
         let mut covered = [false; 600];
         for r in &self.responses {
@@ -730,8 +730,8 @@ impl<'a> Schemas<'a> {
         }
     }
 
-    /// The value of a property without strings, schema `p`, that discriminator
-    /// mapping key `key` stands for.
+    /// For a property schema `p` that does not allow strings, the value that
+    /// discriminator mapping key `key` stands for.
     pub fn mapped_value(&self, p: &Schema, key: &str) -> Option<Value> {
         let value = serde_json::from_str::<Value>(key).ok()?;
         let allowed = match self.resolve(p) {
@@ -787,7 +787,7 @@ mod tests {
     #[test]
     fn coverage_splits_statuses_by_key() {
         use Status::*;
-        // A range loses the codes declared in it; the rest is undeclared.
+        // Explicitly declared codes are excluded from a range; the rest are undeclared.
         assert_eq!(
             coverage(&[Code(200), Code(404), Range(4)]),
             vec![
@@ -803,7 +803,7 @@ mod tests {
                 ),
             ]
         );
-        // `default` takes what is left, successes included; with `2XX`, none are.
+        // `default` takes what is left, including 2xx statuses unless `2XX` covers them.
         assert_eq!(
             coverage(&[Range(2), Default]),
             vec![

@@ -1,5 +1,5 @@
-# The generator as a WebAssembly module for the playground on the documentation
-# site; `npm run wasm` in site/ builds it.
+# Packages the generator as a WebAssembly module for the playground on the
+# documentation site. It is built by `npm run wasm` in site/.
 [package]
 name = "oasis-playground"
 version = "0.0.0"

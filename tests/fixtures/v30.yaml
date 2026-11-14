@@ -1,6 +1,7 @@
-# An OpenAPI 3.0 document: `nullable` instead of a `"null"` type, `format: binary`
-# and `byte` for raw and base64-encoded data, and 3.0-style keywords (`example`,
-# boolean `exclusiveMinimum`) that do not affect the generated types.
+# An OpenAPI 3.0 document with `nullable` instead of a `"null"` type,
+# `format: binary` and `byte` for raw and base64-encoded data, and 3.0-style
+# keywords (`example`, boolean `exclusiveMinimum`) that do not affect the
+# generated types.
 openapi: 3.0.3
 info:
   title: Legacy
@@ -109,7 +110,7 @@ components:
         owner:
           allOf: [{ $ref: "#/components/schemas/Owner" }]
           nullable: true
-        # 3.0 ignores the siblings of `$ref`, but `nullable` is honored here.
+        # 3.0 ignores siblings of `$ref`, but `nullable` is honored here.
         home:
           $ref: "#/components/schemas/Owner"
           nullable: true

@@ -1,5 +1,5 @@
 # Multi-file document. `$self` differs from the file location, so relative
-# references resolve against it and are mapped back onto local files.
+# references resolve against `$self` and are mapped back to local files.
 openapi: 3.2.0
 $self: https://api.example.com/openapi/root.yaml
 info:

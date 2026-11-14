@@ -140,7 +140,7 @@ const api = createClient({ middleware: [bearer] });
 
 ## Mocking responses in tests
 
-The `fetch` option replaces the network for the whole client:
+Use the `fetch` option to replace the network for the whole client:
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -193,9 +193,9 @@ loop throws a `DecodeError`.
 
 ## Per-request clients on a server
 
-On a server, one client can serve requests from many users. Create the client
-once, and use `with` to derive a client for each incoming request, so that one
-user's token never reaches another user's request:
+On a server, one client can be shared across requests from many users. Create
+the client once and use `with` to derive a client for each incoming request, so
+that one user's token is never sent with another user's request:
 
 ```ts twoslash
 import { createClient } from "./api.ts";
