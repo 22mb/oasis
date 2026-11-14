@@ -383,7 +383,7 @@ impl<'a> Emitter<'a> {
                     }
                     SecuritySchemeKind::MutualTls => field("type", "mutualTLS"),
                     SecuritySchemeKind::OAuth2 => field("type", "oauth2"),
-                    SecuritySchemeKind::OpenIdConnect { .. } => field("type", "openIdConnect"),
+                    SecuritySchemeKind::OpenIdConnect => field("type", "openIdConnect"),
                 }
                 (s.key.clone(), Expr::inline(spec))
             })

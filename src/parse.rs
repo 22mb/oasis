@@ -1205,9 +1205,10 @@ fn security_scheme(s: &Node) -> Result<SecuritySchemeKind, Error> {
         },
         Some("mutualTLS") => SecuritySchemeKind::MutualTls,
         Some("oauth2") => SecuritySchemeKind::OAuth2,
-        Some("openIdConnect") => SecuritySchemeKind::OpenIdConnect {
-            url: required("openIdConnectUrl")?,
-        },
+        Some("openIdConnect") => {
+            required("openIdConnectUrl")?;
+            SecuritySchemeKind::OpenIdConnect
+        }
         Some(other) => {
             return Err(
                 Error::new(format!("unknown security scheme type `{other}`"))
@@ -1261,13 +1262,6 @@ fn meta(v: &Value) -> Meta {
             (None, Some(Value::Array(examples))) => examples.clone(),
             _ => Vec::new(),
         },
-        extensions: v
-            .as_object()
-            .into_iter()
-            .flatten()
-            .filter(|(k, _)| k.starts_with("x-"))
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect(),
     }
 }
 
