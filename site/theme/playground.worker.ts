@@ -1,8 +1,9 @@
 // Generates and highlights off the main thread: highlighting the generated
 // file takes a few hundred milliseconds, which would block typing.
 import type { HighlighterCore } from "shiki/core";
+
 // Built by `npm run wasm` from playground/ at the repository root.
-import wasmUrl from "./oasis.wasm?url";
+const wasmUrl = new URL("./oasis.wasm", import.meta.url);
 
 export type Request = { id: number; text: string };
 export type Reply =
@@ -35,20 +36,16 @@ function generate(module: WebAssembly.Module, text: string): { ok: boolean; text
   return { ok, text: new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, ptr, len)) };
 }
 
-// The site's code block themes, with the JavaScript regex engine instead of
+// Colors come from the `--shiki-*` variables of the site's code blocks, so the
+// output follows the color scheme. The JavaScript regex engine stands in for
 // Oniguruma's WebAssembly.
 async function createHighlighter(): Promise<HighlighterCore> {
-  const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([
-    import("shiki/core"),
-    import("shiki/engine/javascript"),
-  ]);
+  const [{ createHighlighterCore, createCssVariablesTheme }, { createJavaScriptRegexEngine }] =
+    await Promise.all([import("shiki/core"), import("shiki/engine/javascript")]);
   return createHighlighterCore({
     engine: createJavaScriptRegexEngine(),
     langs: [import("shiki/langs/typescript.mjs")],
-    themes: [
-      import("shiki/themes/github-light-high-contrast.mjs"),
-      import("shiki/themes/github-dark-high-contrast.mjs"),
-    ],
+    themes: [createCssVariablesTheme({ name: "css-variables", variablePrefix: "--shiki-" })],
   });
 }
 
@@ -63,11 +60,9 @@ scope.addEventListener("message", async ({ data: { id, text } }) => {
     const [module, highlighter] = await loading;
     const result = generate(module, text);
     if (!result.ok) return scope.postMessage({ type: "result", id, ok: false, text: result.text });
-    // VitePress colors `.vp-code` spans from these variables, by the color scheme.
     const html = highlighter.codeToHtml(result.text, {
       lang: "typescript",
-      themes: { light: "github-light-high-contrast", dark: "github-dark-high-contrast" },
-      defaultColor: false,
+      theme: "css-variables",
       // The pane that scrolls the code is the tab stop.
       tabindex: false,
     });

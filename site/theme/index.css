@@ -1,0 +1,270 @@
+/*
+ * Colors from the logo (mint, deep teal-navy, sun), tuned for WCAG AA:
+ * text and button labels reach 4.5:1 against their backgrounds, and the large
+ * hero wordmark reaches 3:1 along its whole gradient.
+ */
+:root {
+  /* Browsers from before 2024 do not parse a gradient with an interpolation
+     color space, and the hero wordmark is transparent text over one. */
+  --in-oklch: ;
+
+  /* Narrower side columns than the default, which leave the text of a page
+     about 530px at a 1280px window. */
+  --rp-sidebar-width: 280px;
+  --rp-outline-width: 232px;
+
+  --oasis-mint: oklch(0.92 0.04 180);
+  --oasis-navy: oklch(0.22 0.03 220);
+  --oasis-sun: oklch(0.79 0.14 70);
+
+  /* Links and buttons: 6.2:1 on white, with white button labels. */
+  --rp-c-brand: oklch(0.48 0.09 185);
+  --rp-c-brand-light: oklch(0.55 0.09 185);
+  --rp-c-brand-lighter: oklch(0.9 0.05 185);
+  --rp-c-brand-dark: oklch(0.48 0.09 185);
+  --rp-c-brand-darker: oklch(0.42 0.09 185);
+  --rp-c-brand-tint: color-mix(in oklch, var(--rp-c-brand) 14%, transparent);
+  --oasis-button-text: white;
+
+  --rp-home-hero-title-bg: linear-gradient(
+    120deg var(--in-oklch),
+    oklch(0.48 0.09 185) 20%,
+    oklch(0.6 0.13 60) 90%
+  );
+  --rp-home-background-bg: var(--rp-c-bg);
+  --oasis-hero-glow: linear-gradient(-45deg var(--in-oklch), var(--oasis-mint) 45%, var(--oasis-sun) 55%);
+
+  /*
+   * Code colors after GitHub's high-contrast themes: the default ones leave
+   * some tokens, such as comments, below 4.5:1.
+   */
+  --shiki-token-constant: #023b95;
+  --shiki-token-string: #032563;
+  --shiki-token-comment: #66707b;
+  --shiki-token-keyword: #a0111f;
+  --shiki-token-parameter: #702c00;
+  --shiki-token-function: #622cbc;
+  --shiki-token-string-expression: #024c1a;
+  --shiki-token-punctuation: #0e1116;
+  --shiki-token-link: #032563;
+}
+
+@supports (background: linear-gradient(in oklch, white, black)) {
+  :root {
+    --in-oklch: in oklch;
+  }
+}
+
+html.dark {
+  --rp-c-bg: var(--oasis-navy);
+  --rp-c-bg-alt: oklch(0.19 0.03 220);
+  --rp-c-bg-soft: oklch(0.26 0.035 215);
+  --rp-c-bg-mute: oklch(0.3 0.035 215);
+  --rp-c-divider: oklch(0.4 0.035 215);
+  --rp-c-divider-light: oklch(0.33 0.035 215);
+  --rp-code-block-bg: var(--rp-c-bg-alt);
+  --rp-code-title-bg: var(--rp-c-bg-alt);
+
+  /* Links: 11:1 on the navy background. Buttons: navy labels on mint, 9.5:1. */
+  --rp-c-brand: oklch(0.8 0.1 180);
+  --rp-c-brand-light: oklch(0.85 0.1 180);
+  --rp-c-brand-lighter: oklch(0.9 0.08 180);
+  --rp-c-brand-dark: oklch(0.8 0.1 180);
+  --rp-c-brand-darker: oklch(0.72 0.1 180);
+  --rp-c-brand-tint: color-mix(in oklch, var(--rp-c-brand-light) 16%, transparent);
+  --oasis-button-text: var(--oasis-navy);
+
+  --rp-home-hero-title-bg: linear-gradient(
+    120deg var(--in-oklch),
+    var(--oasis-mint) 15%,
+    var(--oasis-sun) 90%
+  );
+  --oasis-hero-glow: linear-gradient(
+    -45deg var(--in-oklch),
+    oklch(0.6 0.1 185) 45%,
+    oklch(0.65 0.13 65) 55%
+  );
+
+  --shiki-token-constant: #91cbff;
+  --shiki-token-string: #addcff;
+  --shiki-token-comment: #bdc4cc;
+  --shiki-token-keyword: #ff9492;
+  --shiki-token-parameter: #ffb757;
+  --shiki-token-function: #dbb7ff;
+  --shiki-token-string-expression: #addcff;
+  --shiki-token-punctuation: #f0f3f6;
+  --shiki-token-link: #addcff;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The theme removes the outline of buttons and of code blocks, which scroll. */
+:is(button, pre[tabindex]):focus-visible {
+  outline: 2px solid var(--rp-c-brand);
+  outline-offset: 2px;
+}
+
+/* Links in running text differ from it by more than their color. */
+.rp-doc a:not(.rp-header-anchor) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The shortcut in the search button, and the labels above the links to the
+   previous and next page, are below 4.5:1 by default. */
+.rp-search-button__hotkey,
+.rp-prev-next-page__item__desc {
+  color: var(--rp-c-text-2);
+}
+
+/* The wordmark is set in a monospace face, as in the social preview image. */
+.rp-home-hero__title-brand,
+.rp-nav__title {
+  font-family: var(--rp-font-family-mono);
+  letter-spacing: -0.02em;
+}
+
+.rp-home-hero__subtitle {
+  text-wrap: balance;
+}
+
+/* A plain brand color instead of the default two-color gradient. */
+.rp-button--brand {
+  border-color: transparent;
+  color: var(--oasis-button-text);
+  background: var(--rp-c-brand);
+}
+
+.rp-button--brand:hover {
+  background: var(--rp-c-brand-darker);
+}
+
+/* The logo sits on a blurred patch of its own colors. */
+.rp-home-hero__image {
+  position: relative;
+}
+
+.rp-home-hero__image::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  z-index: -1;
+  border-radius: 50%;
+  background-image: var(--oasis-hero-glow);
+  filter: blur(56px);
+}
+
+.rp-home-feature__icon {
+  background-color: var(--rp-c-brand-tint);
+}
+
+/* The example under the features of the home page. */
+.home-example {
+  max-inline-size: 800px;
+  margin-inline: auto;
+  padding: 16px 24px 64px;
+}
+
+.rp-doc {
+  & :is(h1, h2, h3) {
+    text-wrap: balance;
+  }
+
+  & p {
+    text-wrap: pretty;
+  }
+
+  /* Tables scroll sideways, so keep identifiers such as `application/x-ndjson`
+     on one line there; in running text they may wrap, so the page reflows. */
+  & table code {
+    white-space: nowrap;
+  }
+}
+
+/* The result of a `^?` query, on a line of its own under the code line
+   (twoslash-queries.ts). */
+.twoslash .twoslash-query-line {
+  margin-block: 2px 6px;
+  padding-inline: 1.25rem;
+
+  /* A result of several lines is a code block of its own: only the frame of
+     the result around it. */
+  & :is(pre, code) {
+    padding: 0;
+    background: transparent;
+  }
+
+  & .line {
+    padding: 0;
+  }
+}
+
+/* Hand-drawn SVG diagrams: strokes and text follow the theme through currentColor. */
+.rp-doc figure.diagram {
+  margin-block: 24px;
+  color: var(--rp-c-text-1);
+
+  /* On narrow screens, scroll the drawing instead of shrinking its text. Only
+     the drawing scrolls: the caption stays outside the scroll container. */
+  & .drawing {
+    overflow-x: auto;
+  }
+
+  & .drawing:focus-visible {
+    outline: 2px solid var(--rp-c-brand);
+    outline-offset: 2px;
+  }
+
+  & svg {
+    display: block;
+    min-inline-size: 560px;
+  }
+
+  & :is(.box, line) {
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  & .box {
+    fill: var(--rp-c-bg-soft);
+  }
+
+  & .mono {
+    font-family: var(--rp-font-family-mono);
+  }
+
+  & .muted {
+    fill: var(--rp-c-text-2);
+  }
+
+  & .accent {
+    fill: var(--rp-c-brand);
+  }
+
+  & .accent-stroke {
+    stroke: var(--rp-c-brand);
+  }
+
+  /* Text takes the system color there, but shapes keep theirs, which may be
+     those of the other color scheme. */
+  @media (forced-colors: active) {
+    --rp-c-bg-soft: Canvas;
+    --rp-c-text-1: CanvasText;
+    --rp-c-text-2: CanvasText;
+    --rp-c-brand: Highlight;
+  }
+
+  & figcaption {
+    margin-block-start: 8px;
+    font-size: 14px;
+    color: var(--rp-c-text-2);
+    text-wrap: pretty;
+  }
+}
