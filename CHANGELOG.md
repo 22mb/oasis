@@ -7,9 +7,20 @@ change the generated code or the CLI in incompatible ways.
 
 ## [0.10.1](https://github.com/22mb/oasis/compare/v0.10.0...v0.10.1) - 2026-11-14
 
+### Changed
+
+- The message for an `additionalOperations` method that must be a fixed field
+  now ends "use the `post` field instead", and the client's `TypeError` for a
+  path that is not a template from the document ends "starting with a single
+  `/`" ([#144](https://github.com/22mb/oasis/pull/144)).
+
 ### Fixed
 
-- Reject what FormData cannot send only in request bodies ([#139](https://github.com/22mb/oasis/pull/139))
+- A required part header or a `multipart` part in the `encoding` of a
+  `multipart/form-data` response or parameter stopped generation. Only a
+  request body is sent as `FormData`, which cannot carry either, so they are
+  now rejected in request bodies only
+  ([#139](https://github.com/22mb/oasis/pull/139)).
 
 ## [0.10.0](https://github.com/22mb/oasis/compare/v0.9.0...v0.10.0) - 2026-11-12
 
