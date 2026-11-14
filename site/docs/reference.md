@@ -88,7 +88,6 @@ type Middleware = (
 | --- | --- | --- |
 | `method` | `string` | The HTTP method, as used in the call |
 | `path` | `string` | The path template, such as `/pets/{petId}` |
-| `operationId` | `string`, optional | The `operationId`, when the document has one |
 | `security` | `SecurityRequirement[]` | The security requirements that apply, in document order |
 
 ### `Credential`

@@ -1264,7 +1264,6 @@ export type OperationInfo = {
   method: string;
   /** Path template, e.g. `/pets/{petId}`. */
   path: string;
-  operationId?: string;
   /** Alternatives, in document order; empty when no security applies. */
   security: SecurityRequirement[];
 };
@@ -1353,7 +1352,6 @@ type Spec = {
   security: SecurityRequirement[];
   securitySchemes: { [K in SecuritySchemeName]: SecuritySchemeSpec };
   operations: Record<string, {
-    operationId?: string;
     /** The operation's first server, or its path's if none; overridden by `baseUrl`. */
     server?: string;
     /** Parameters with a non-default serialization, keyed by `location:name`. */
@@ -1444,7 +1442,6 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
       operation: {
         method,
         path,
-        ...(info.operationId ? { operationId: info.operationId } : {}),
         security: info.security ?? spec.security,
       },
     };
@@ -1911,7 +1908,7 @@ const spec: Spec = {
   security: [],
   securitySchemes: {},
   operations: {
-    "GET /items/{coords}": { operationId: "getItem", styles: { "path:coords": { explode: true }, "header:X-Meta": { explode: true }, "cookie:list": { style: "cookie", explode: false }, "cookie:raw": { style: "cookie" }, "query:path": { reserved: true }, "query:filter": { style: "json" } } },
+    "GET /items/{coords}": { styles: { "path:coords": { explode: true }, "header:X-Meta": { explode: true }, "cookie:list": { style: "cookie", explode: false }, "cookie:raw": { style: "cookie" }, "query:path": { reserved: true }, "query:filter": { style: "json" } } },
     "POST /upload": { server: "https://upload.example.com", contentType: "application/json; charset=utf-8" },
     "GET /shapes": { server: "https://shapes.example.com/v2" },
     "POST /notes": { contentType: "application/json" },

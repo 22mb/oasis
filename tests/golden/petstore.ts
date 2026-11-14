@@ -441,7 +441,6 @@ export type OperationInfo = {
   method: string;
   /** Path template, e.g. `/pets/{petId}`. */
   path: string;
-  operationId?: string;
   /** Alternatives, in document order; empty when no security applies. */
   security: SecurityRequirement[];
 };
@@ -530,7 +529,6 @@ type Spec = {
   security: SecurityRequirement[];
   securitySchemes: { [K in SecuritySchemeName]: SecuritySchemeSpec };
   operations: Record<string, {
-    operationId?: string;
     /** The operation's first server, or its path's if none; overridden by `baseUrl`. */
     server?: string;
     /** Parameters with a non-default serialization, keyed by `location:name`. */
@@ -621,7 +619,6 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
       operation: {
         method,
         path,
-        ...(info.operationId ? { operationId: info.operationId } : {}),
         security: info.security ?? spec.security,
       },
     };
@@ -1088,15 +1085,11 @@ const spec: Spec = {
   security: [],
   securitySchemes: {},
   operations: {
-    "GET /pets": { operationId: "listPets", styles: { "query:ids": { explode: false }, "query:filter": { style: "deepObject" } } },
-    "POST /pets": { operationId: "createPet", contentType: "application/json" },
-    "HEAD /pets": { operationId: "countPets" },
-    "QUERY /pets": { operationId: "searchPets", contentType: "application/json" },
-    "GET /pets/{petId}": { operationId: "getPet" },
-    "DELETE /pets/{petId}": { operationId: "deletePet" },
-    "LINK /pets/{petId}": { operationId: "linkPet" },
+    "GET /pets": { styles: { "query:ids": { explode: false }, "query:filter": { style: "deepObject" } } },
+    "POST /pets": { contentType: "application/json" },
+    "QUERY /pets": { contentType: "application/json" },
     "PUT /pets/{petId}/photo": { contentType: "image/png" },
-    "POST /pets/{petId}/photo": { operationId: "uploadPhotoForm", contentType: "multipart/form-data" },
-    "GET /search": { operationId: "search", querystring: "application/x-www-form-urlencoded" },
+    "POST /pets/{petId}/photo": { contentType: "multipart/form-data" },
+    "GET /search": { querystring: "application/x-www-form-urlencoded" },
   },
 };
