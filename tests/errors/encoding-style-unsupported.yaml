@@ -6,5 +6,5 @@ paths:
       requestBody:
         content:
           application/x-www-form-urlencoded:
-            encoding: {tags: {style: pipeDelimited}}
+            encoding: {tags: {style: matrix}}
       responses: {'204': {description: ok}}

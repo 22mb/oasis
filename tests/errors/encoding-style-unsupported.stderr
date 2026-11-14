@@ -1,1 +1,1 @@
-error: encoding-style-unsupported.yaml:9:30: paths./a: POST: requestBody: application/x-www-form-urlencoded: encoding.tags: style `pipeDelimited` for form fields is not supported
+error: encoding-style-unsupported.yaml:9:30: paths./a: POST: requestBody: application/x-www-form-urlencoded: encoding.tags: style `matrix` for form fields is not supported

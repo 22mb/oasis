@@ -210,6 +210,37 @@ paths:
           description: Items without a schema.
           content:
             application/jsonl: {}
+  # The styles other than the default of each location.
+  /styles/{label}/{labels}/{matrix}/{matrices}:
+    get:
+      parameters:
+        - { name: label, in: path, required: true, style: label, schema: { type: array, items: { type: string } } }
+        - name: labels
+          in: path
+          required: true
+          style: label
+          explode: true
+          schema: { type: object, properties: { x: { type: integer }, y: { type: integer } } }
+        - { name: matrix, in: path, required: true, style: matrix, schema: { type: array, items: { type: string } } }
+        - name: matrices
+          in: path
+          required: true
+          style: matrix
+          explode: true
+          schema: { type: object, properties: { x: { type: integer }, y: { type: string } } }
+        - { name: spaced, in: query, style: spaceDelimited, schema: { type: array, items: { type: string } } }
+        - name: piped
+          in: query
+          style: pipeDelimited
+          schema: { type: object, additionalProperties: { type: integer } }
+        - name: each
+          in: query
+          style: pipeDelimited
+          explode: true
+          schema: { type: array, items: { type: string } }
+      responses:
+        "204":
+          description: Done.
   /forms/{id}:
     put:
       parameters:
@@ -295,8 +326,10 @@ paths:
                 filter: { type: object, properties: { kind: { type: string }, size: { type: integer } } }
                 path: { type: string }
                 id: { type: string }
+                labels: { type: array, items: { type: string } }
             encoding:
               filter: { explode: true }
+              labels: { style: pipeDelimited }
               path: { allowReserved: true }
               id: { contentType: application/json }
       responses:

@@ -235,6 +235,14 @@ pub enum Style {
     Form,
     /// `simple`: path and header (default for both).
     Simple,
+    /// `label`: path, with a `.` prefix.
+    Label,
+    /// `matrix`: path, as `;name=value`.
+    Matrix,
+    /// `spaceDelimited`: query, with items separated by `%20`.
+    SpaceDelimited,
+    /// `pipeDelimited`: query, with items separated by `%7C`.
+    PipeDelimited,
     /// `deepObject`: query.
     DeepObject,
     /// `cookie`: cookie, without percent-encoding.

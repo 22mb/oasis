@@ -740,6 +740,8 @@ impl<'a> Parser<'a> {
             {
                 let style = match e.str("style") {
                     None | Some("form") => Style::Form,
+                    Some("spaceDelimited") => Style::SpaceDelimited,
+                    Some("pipeDelimited") => Style::PipeDelimited,
                     Some("deepObject") => Style::DeepObject,
                     Some(s) => {
                         return Err(Error::new(format!(
@@ -1115,8 +1117,12 @@ fn nullable(s: Schema) -> Schema {
 fn param_style(p: &Node, location: Location) -> Result<Style, Error> {
     let style = match (location, p.str("style")) {
         (Location::Query, None | Some("form")) => Style::Form,
+        (Location::Query, Some("spaceDelimited")) => Style::SpaceDelimited,
+        (Location::Query, Some("pipeDelimited")) => Style::PipeDelimited,
         (Location::Query, Some("deepObject")) => Style::DeepObject,
         (Location::Path | Location::Header, None | Some("simple")) => Style::Simple,
+        (Location::Path, Some("label")) => Style::Label,
+        (Location::Path, Some("matrix")) => Style::Matrix,
         (Location::Cookie, None | Some("form")) => Style::Form,
         (Location::Cookie, Some("cookie")) => Style::Cookie,
         (_, Some(s)) => {

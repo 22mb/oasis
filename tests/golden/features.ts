@@ -181,6 +181,34 @@ export interface paths {
       statuses: Statuses_200_202_default;
     };
   };
+  "/styles/{label}/{labels}/{matrix}/{matrices}": {
+    GET: {
+      request: {
+        path: {
+          label: string[];
+          labels: {
+            x?: number;
+            y?: number;
+          };
+          matrix: string[];
+          matrices: {
+            x?: number;
+            y?: string;
+          };
+        };
+        query?: {
+          spaced?: string[];
+          piped?: { [key: string]: number };
+          each?: string[];
+        };
+      };
+      responses: {
+        /** Done. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+  };
   "/forms/{id}": {
     PUT: {
       request: {
@@ -267,6 +295,7 @@ export interface paths {
           };
           path?: string;
           id?: string;
+          labels?: string[];
         };
       };
       responses: {
@@ -1085,7 +1114,11 @@ export type Client<P> = {
  * `form` with `explode: true` for query and cookie, `simple` without explode for path and header.
  * `json` is a query parameter whose content is `application/json`, sent as its JSON text.
  */
-type ParamStyle = { style?: "deepObject" | "cookie" | "json"; explode?: boolean; reserved?: true };
+type ParamStyle = {
+  style?: "label" | "matrix" | "spaceDelimited" | "pipeDelimited" | "deepObject" | "cookie" | "json";
+  explode?: boolean;
+  reserved?: true;
+};
 
 /**
  * How a form-body property is serialized when specified in the document: either
@@ -1157,8 +1190,7 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
     const base = options.baseUrl ?? info.server ?? spec.baseUrl;
     let url = base.replace(/\/+$/, "") + path.split("/").map((segment) => {
       if (!segment.includes("{")) return segment;
-      const value = segment.replace(/\{([^}]+)\}/g, (_, name: string) =>
-        simple(pathParams?.[name], style("path", name).explode ?? false, encodeURIComponent));
+      const value = segment.replace(/\{([^}]+)\}/g, (_, name: string) => pathValue(name, pathParams?.[name], style("path", name)));
       // URL parsing would drop or climb out of these, sending the request elsewhere.
       if (/^(?:\.|%2e){0,2}$/i.test(value)) {
         throw new TypeError(`${op}: path segment "${segment}" must not be empty, "." or ".."`);
@@ -1262,18 +1294,39 @@ function encodeReserved(s: string): string {
   );
 }
 
-/** `simple` style: `a,b` for arrays; `k,v` or, exploded, `k=v` for objects. */
-function simple(value: unknown, explode: boolean, enc: Encode): string {
-  if (Array.isArray(value)) return value.map((v) => enc(String(v))).join(",");
+/**
+ * `simple` style: `a,b` for arrays; `k,v` or, exploded, `k=v` for objects.
+ * Other styles separate items with their own `separator`.
+ */
+function simple(value: unknown, explode: boolean, enc: Encode, separator = ","): string {
+  if (Array.isArray(value)) return value.map((v) => enc(String(v))).join(separator);
   if (value !== null && typeof value === "object") {
     return present(value)
-      .map(([k, v]) => `${enc(k)}${explode ? "=" : ","}${enc(String(v))}`)
-      .join(",");
+      .map(([k, v]) => `${enc(k)}${explode ? "=" : separator}${enc(String(v))}`)
+      .join(separator);
   }
   return value === undefined ? "" : enc(String(value));
 }
 
-/** `form`, `deepObject`, `cookie` and `json` style pairs, for query and cookie parameters and form fields. */
+/** A path parameter in `simple`, `label` (`.a.b`) or `matrix` (`;name=a,b`) style. */
+function pathValue(name: string, value: unknown, s: ParamStyle): string {
+  const enc = encodeURIComponent;
+  const explode = s.explode ?? false;
+  if (s.style === "label") return `.${simple(value, explode, enc, explode ? "." : ",")}`;
+  if (s.style !== "matrix") return simple(value, explode, enc);
+  // An empty value is sent as the name alone.
+  const pair = (k: string, v: string) => `;${enc(k)}${v && "="}${v}`;
+  if (explode && Array.isArray(value)) return value.map((v) => pair(name, enc(String(v)))).join("");
+  if (explode && value !== null && typeof value === "object") {
+    return present(value).map(([k, v]) => pair(k, enc(String(v)))).join("");
+  }
+  return pair(name, simple(value, false, enc));
+}
+
+/**
+ * `form`, `spaceDelimited`, `pipeDelimited`, `deepObject`, `cookie` and `json`
+ * style pairs, for query and cookie parameters and form fields.
+ */
 function pairs(name: string, value: unknown, s: ParamStyle): string[] {
   // `cookie` style sends values as-is.
   const enc = s.reserved ? encodeReserved : s.style === "cookie" ? String : encodeURIComponent;
@@ -1284,7 +1337,8 @@ function pairs(name: string, value: unknown, s: ParamStyle): string[] {
       (Array.isArray(v) ? v : [v]).map((item) => `${encodeURIComponent(`${name}[${k}]`)}=${enc(String(item))}`)
     );
   }
-  if (!(s.explode ?? true)) return [`${enc(name)}=${simple(value, false, enc)}`];
+  const separator = s.style === "spaceDelimited" ? "%20" : s.style === "pipeDelimited" ? "%7C" : ",";
+  if (separator !== "," || !(s.explode ?? true)) return [`${enc(name)}=${simple(value, false, enc, separator)}`];
   return Array.isArray(value)
     ? value.map((v) => `${enc(name)}=${enc(String(v))}`)
     : present(value).map(([k, v]) => `${enc(k)}=${enc(String(v))}`);
@@ -1657,10 +1711,11 @@ const spec: Spec = {
     "GET /lookup": { querystring: "application/json" },
     "POST /lookup": { querystring: "text/plain" },
     "GET /params/{list}/{pair}": { server: "https://operation.example.com", styles: { "query:flat": { explode: false }, "query:deep": { style: "deepObject" } } },
+    "GET /styles/{label}/{labels}/{matrix}/{matrices}": { styles: { "path:label": { style: "label" }, "path:labels": { style: "label", explode: true }, "path:matrix": { style: "matrix" }, "path:matrices": { style: "matrix", explode: true }, "query:spaced": { style: "spaceDelimited" }, "query:piped": { style: "pipeDelimited" } } },
     "PUT /forms/{id}": { contentType: "application/json" },
     "POST /avatars": { contentType: "multipart/form-data", encoding: { "multipart/form-data": { checksum: { contentType: "application/octet-stream" } } } },
     "POST /imports": { contentType: "multipart/form-data" },
-    "POST /uploads": { encoding: { "multipart/form-data": { photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
+    "POST /uploads": { encoding: { "multipart/form-data": { photo: { contentType: "image/png" }, filter: { style: { style: "deepObject" } }, note: { contentType: "application/json" }, checksum: { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { filter: { style: {} }, labels: { style: { style: "pipeDelimited" } }, path: { style: { reserved: true } }, id: { contentType: "application/json" } } } },
     "PUT /avatar": { contentType: "application/json" },
     "POST /attachments": { contentType: "multipart/form-data" },
     "GET /blobs": { querystring: "application/x-www-form-urlencoded" },

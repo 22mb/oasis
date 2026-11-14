@@ -1383,13 +1383,26 @@ fn param_style(p: &Param) -> Option<Expr> {
 /// default of its style.
 fn style_literal(style: Style, explode: bool, allow_reserved: bool) -> Option<Expr> {
     let mut fields = Vec::new();
-    match style {
-        Style::DeepObject => fields.push(("style".into(), Expr::string("deepObject"))),
-        Style::Cookie => fields.push(("style".into(), Expr::string("cookie"))),
-        Style::Form | Style::Simple => {}
+    let name = match style {
+        Style::Label => Some("label"),
+        Style::Matrix => Some("matrix"),
+        // Exploded, the delimiter is unused and the value is sent as `form`.
+        Style::SpaceDelimited if !explode => Some("spaceDelimited"),
+        Style::PipeDelimited if !explode => Some("pipeDelimited"),
+        Style::DeepObject => Some("deepObject"),
+        Style::Cookie => Some("cookie"),
+        Style::Form | Style::Simple | Style::SpaceDelimited | Style::PipeDelimited => None,
+    };
+    if let Some(name) = name {
+        fields.push(("style".into(), Expr::string(name)));
     }
-    let default_explode = style != Style::Simple;
-    if explode != default_explode && style != Style::DeepObject {
+    // The delimited styles and `deepObject` have one form each at run time.
+    let default_explode = match style {
+        Style::Form | Style::Cookie => Some(true),
+        Style::Simple | Style::Label | Style::Matrix => Some(false),
+        Style::SpaceDelimited | Style::PipeDelimited | Style::DeepObject => None,
+    };
+    if default_explode.is_some_and(|default| explode != default) {
         fields.push(("explode".into(), Expr::Literal(explode.into())));
     }
     if allow_reserved {
