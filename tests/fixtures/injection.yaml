@@ -1,6 +1,6 @@
 # Document text that tries to escape from comments and string literals in the
-# generated file. A payload that runs records its number in
-# `globalThis.__oasis_pwned`; tests/ts/injection.test.ts checks that none did.
+# generated file. If a payload runs, it records its number in
+# `globalThis.__oasis_pwned`; tests/ts/injection.test.ts checks that none ran.
 openapi: 3.2.0
 info:
   title: &text "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"

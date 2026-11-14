@@ -2,7 +2,7 @@
 
 Bug reports, documentation fixes and pull requests are welcome. For a larger
 change, such as a new option or a change to the generated code's API, open an
-issue first so the design can be agreed on before the work.
+issue first to agree on the design before doing the work.
 
 ## Reporting a bug
 
@@ -37,13 +37,13 @@ Review the diff and commit it with the change. In the same way,
 `tests/errors` holds an invalid document for each error the generator
 reports, next to the exact text it prints (`<case>.stderr`).
 
-Add a case to an existing fixture, usually `features.yaml`. Each golden file
-repeats the whole runtime, so a new fixture is only for what applies to a
-whole document: its `openapi` version, `securitySchemes`, several files, or
-injection. Give the schemas and paths that one change adds a common prefix naming
-their subject (`MultipartAllOf…`, `/multipart-allof`), so that no name needs to
-be looked for and they stay together in the fixture, the golden file and the
-type checks.
+Add new cases to an existing fixture, usually `features.yaml`. Each golden file
+repeats the whole runtime, so only create a new fixture for something that
+applies to a whole document: its `openapi` version, `securitySchemes`, multiple
+files, or injection. Give the schemas and paths for a single change a common
+prefix naming their subject (`MultipartAllOf…`, `/multipart-allof`). That avoids
+searching for names and keeps them together in the fixture, the golden file and
+the type checks.
 
 ## Design
 
@@ -86,13 +86,13 @@ The generator stops at the first error and prints it on one line:
 error: openapi.yaml:6:34: paths./a: GET: parameter `x`: invalid `in` `body`: expected `path`, `query`, `querystring`, `header` or `cookie`
 ```
 
-- `file:line:column` is the value the error is about, in the file that
-  contains it. The entry document is named as given, a file read through a
-  `$ref` by its path from the current directory, and standard input
-  `<input>`. Syntax errors take the position from the YAML or JSON parser.
-  Other errors name the value with `Error::about`. An emitter names the IR
-  node with `Error::about_origin`, or the schema with `Error::about_schema`.
-  `Documents::locate` finds the position.
+- `file:line:column` points to the value the error is about, in the file that
+  contains it. The entry document is shown as given, a file read through a
+  `$ref` uses its path from the current directory, and standard input is
+  `<input>`. Syntax errors get their position from the YAML or JSON parser.
+  Other errors identify the value with `Error::about`, and emitters identify
+  the IR node with `Error::about_origin` or the schema with
+  `Error::about_schema`. `Documents::locate` then finds the position.
 - The location in the document comes next, as reached from the entry
   document: keys joined with `.`, then the method, `` parameter `name` ``,
   `response 200` and so on. A schema reached through a `$ref` outside
@@ -116,17 +116,17 @@ error: openapi.yaml:6:34: paths./a: GET: parameter `x`: invalid `in` `body`: exp
 
 1. Run the **Prepare release** workflow from the Actions tab. It picks the
    next version from the pull requests merged since the last release (until
-   1.0.0, a breaking change bumps the minor version and anything else the
-   patch version), sets it in `Cargo.toml` and `Cargo.lock`, adds its section
-   to `CHANGELOG.md` from their titles, and pushes the branch
-   `release/<version>`.
+   1.0.0, a breaking change bumps the minor version and anything else bumps the
+   patch version). It then sets the version in `Cargo.toml` and `Cargo.lock`,
+   adds a `CHANGELOG.md` section from the pull request titles, and pushes the
+   `release/<version>` branch.
 2. Open the pull request from the link in the run's summary. Its title is
    `release: <version>`, and CI checks that `Cargo.toml` and `CHANGELOG.md`
    match it. Edit the changelog on the branch if an entry needs more than its
    title, such as how to migrate from a breaking change.
-3. Merge it. The release workflow tags the commit `v<version>`, builds every
-   platform, and publishes the npm packages and the GitHub release. If it
-   fails, re-run its failed jobs; the steps already done are skipped.
+3. Merge it. The release workflow tags the commit `v<version>`, builds for
+   every platform, and publishes the npm packages and the GitHub release. If it
+   fails, re-run the failed jobs; completed steps are skipped.
 
 By contributing, you agree that your contribution is licensed under the
 project's dual MIT and Apache-2.0 license.

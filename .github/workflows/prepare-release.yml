@@ -1,11 +1,11 @@
 name: Prepare release
 
-# Run by hand to start a release. It picks the next version from the commits
-# since the last tag (cliff.toml), sets it in Cargo.toml and Cargo.lock,
-# prepends its section to CHANGELOG.md and pushes the branch `release/<version>`.
-# Open the pull request from the link in the run's summary: a pull request
-# opened with the workflow's token would not run CI. Merging it releases
-# (release.yml).
+# Run this workflow manually to start a release. It picks the next version from
+# the commits since the last tag (cliff.toml), sets that version in Cargo.toml
+# and Cargo.lock, prepends the new section to CHANGELOG.md, and pushes the
+# branch `release/<version>`. Open the pull request from the link in the run's
+# summary, because a pull request opened with the workflow's token would not
+# run CI. Merging the pull request triggers the release (release.yml).
 on:
   workflow_dispatch:
 
@@ -25,15 +25,16 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # every tag and commit, for git-cliff
-          # The credentials stay for `git push` below.
+          # Keep credentials for `git push` below.
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24
           package-manager-cache: false
       - run: rustup toolchain install # the one in rust-toolchain.toml
       - name: Set the version and draft the changelog
-        # `npx` resolves git-cliff's own dependencies anew on each run, with no
-        # lockfile and no .npmrc here: the same limits as in the npm projects.
+        # `npx` resolves git-cliff's own dependencies fresh on each run, with
+        # no lockfile or .npmrc here, so apply the same limits as in the npm
+        # projects.
         env:
           NPM_CONFIG_MIN_RELEASE_AGE: 7
           NPM_CONFIG_IGNORE_SCRIPTS: true
@@ -43,7 +44,7 @@ jobs:
           version=$(npx -y git-cliff@2.14.2 --bumped-version)
           version=${version#v}
           if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
-            echo "::error title=Nothing to release::v$version is already tagged; no feat, fix or perf commit since." >&2
+            echo "::error title=Nothing to release::v$version is already tagged; there have been no feat, fix, or perf commits since." >&2
             exit 1
           fi
           if git ls-remote --exit-code --heads origin "release/$version" > /dev/null; then

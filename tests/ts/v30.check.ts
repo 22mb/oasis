@@ -1,9 +1,10 @@
-// Type-level tests for tests/fixtures/v30.yaml (OpenAPI 3.0): compiled by `tsc`, never run.
+// Type-level tests for tests/fixtures/v30.yaml (OpenAPI 3.0).
+// Compiled by `tsc` and never run.
 import type { paths, schemas } from "../golden/v30.ts";
 import type { Equal, Expect } from "./equal.ts";
 
-// `nullable: true` adds `null`: to a type, to an enum, to a `$ref` (bare or in
-// `allOf`), to an inline object, and to an array and its items. `nullable: false`
+// `nullable: true` adds `null` to a type, an enum, a `$ref` (bare or in
+// `allOf`), an inline object, and an array and its items. `nullable: false`
 // adds nothing.
 export type Exact = [
   Expect<Equal<schemas["Kind"], "cat" | "dog" | null>>,
@@ -24,8 +25,8 @@ export type Exact = [
   }>>,
 ];
 
-// `format: binary` is raw binary, a `Blob` in a multipart body and in a `text/*` response;
-// `format: byte` is base64 text.
+// `format: binary` is raw binary, represented as a `Blob` in a multipart body
+// and in a `text/*` response. `format: byte` is base64 text.
 export type Binary = [
   Expect<Equal<
     paths["/pets/{petId}/photo"]["POST"]["request"]["body"],

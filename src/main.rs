@@ -16,9 +16,9 @@ Options:
 ";
 
 fn main() -> ExitCode {
-    // Reading and converting a document recurse once per level of nesting. Windows
-    // gives the main thread 1 MiB, which a debug build uses up before the depth limits
-    // report the document, so the work runs on a thread with a larger stack.
+    // Reading and converting a document both recurse once per nesting level.
+    // Windows gives the main thread a 1 MiB stack, which a debug build uses up
+    // before hitting the depth limits, so run on a thread with a larger stack.
     let worker = std::thread::Builder::new()
         .stack_size(64 << 20)
         .spawn(run)
@@ -73,7 +73,7 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             std::fs::write(&path, code).map_err(|e| format!("cannot write {path}: {e}"))?
         }
         None => match std::io::stdout().write_all(code.as_bytes()) {
-            // The reader stopped early, as `head` does: not an error to report.
+            // If a reader like `head` stops early, do not report an error.
             Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {}
             result => result.map_err(|e| format!("cannot write to standard output: {e}"))?,
         },

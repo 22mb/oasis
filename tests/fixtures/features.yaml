@@ -224,9 +224,9 @@ paths:
       responses:
         "204":
           description: Saved.
-  # Parts are also typed in a body composed with `allOf` or `oneOf`, through
-  # the schemas it references, and encoded binary strings among them are sent
-  # as `application/octet-stream`.
+  # In a body composed with `allOf` or `oneOf`, parts are also typed through
+  # referenced schemas, and encoded binary strings among them are sent as
+  # `application/octet-stream`.
   /avatars:
     post:
       requestBody:
@@ -315,7 +315,8 @@ paths:
         "204":
           description: Saved, or cleared without a body.
   /avatar:
-    # A range other than `*/*` takes a media type in it: none is implied.
+    # A range other than `*/*` requires a media type from that range.
+    # None is implied.
     put:
       requestBody:
         required: true
@@ -370,7 +371,7 @@ paths:
         "204":
           description: Stored.
   /report:
-    # A `text/*` schema without a `type` is binary: the operation reads every
+    # A `text/*` schema without a `type` is binary. The operation reads every
     # response of that media type as a `Blob`. Without a schema, it is text.
     get:
       responses:
@@ -388,8 +389,8 @@ paths:
             text/csv:
               schema: { type: string }
   /exports:
-    # A binary range: every media type in it is read as a `Blob`, in the
-    # responses it is declared for only.
+    # Every media type in a binary range is read as a `Blob`, but only
+    # in the responses that declare the range.
     get:
       responses:
         "200":
@@ -467,8 +468,9 @@ components:
     Flag:
       type: string
       enum: [N, Y, yes, off, A]
-    # `propertyNames` that lists the names closes the object to them, through a
-    # `$ref` too; `additionalProperties` types them, and declared ones keep theirs.
+    # When `propertyNames` lists allowed names (including via `$ref`), the
+    # object is restricted to those keys. `additionalProperties` sets their
+    # type, and declared properties keep their own types.
     PropertyNamesEnum:
       type: object
       propertyNames: { enum: [a, b] }
@@ -562,8 +564,8 @@ components:
         mapping:
           car: "#/components/schemas/Car"
         defaultMapping: OtherVehicle
-    # readOnly and writeOnly reach a property from the schema it references and
-    # from another allOf member, which often lists it only in `required`.
+    # readOnly and writeOnly carry over from a referenced schema and across
+    # allOf members, even when a member lists the property only in `required`.
     Serial: { type: integer, readOnly: true }
     Entity:
       type: object
@@ -575,8 +577,9 @@ components:
       allOf:
         - $ref: "#/components/schemas/Entity"
         - required: [serial, secret, label]
-    # A `$ref` member requires what another member flags: the reference leaves
-    # it out where the flag hides it, so that the type can be satisfied.
+    # When a `$ref` target requires a property that another member flags as
+    # readOnly or writeOnly, the reference omits that property where the flag
+    # hides it, so the type can be satisfied.
     Signup:
       allOf:
         - $ref: "#/components/schemas/Credentials"
@@ -635,7 +638,7 @@ components:
       required: [serial]
       properties:
         serial: { $ref: "#/components/schemas/Serial" }
-    # Named like a runtime export, so exported as `Client_2`.
+    # Has the same name as a runtime export, so it is exported as `Client_2`.
     Client: { type: string }
     Photo: { contentMediaType: image/png }
     Form:
@@ -749,8 +752,8 @@ components:
       patternProperties:
         "^[a-z]+$": { type: integer }
       additionalProperties: { type: string }
-    # `type: object` next to composition only says the value is an object: the other
-    # members decide the properties.
+    # `type: object` next to composition only says the value is an object. The
+    # other members decide the properties.
     Parcel:
       type: object
       required: [id]

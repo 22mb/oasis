@@ -4,8 +4,8 @@ A middleware wraps the request. It can change the request and call `next`
 zero or more times, and it returns the response.
 
 Inside a middleware, `next` works like `fetch`: it takes a `Request` and
-returns a `Promise<Response>`. Whether the request then passes through other
-middleware before it reaches the network is hidden from the caller.
+returns a `Promise<Response>`. The middleware does not know whether the request
+passes through other middleware before it reaches the network.
 
 ```ts twoslash
 import { createClient, type Middleware } from "./api.ts";
@@ -96,8 +96,8 @@ const api = createClient({ middleware: [timing, retry] });
 
 ## The operation
 
-The third argument is `{ operation }`, which describes the operation from the
-document:
+The third argument to a middleware is `{ operation }`, which describes the
+operation defined in the document:
 
 | Field | Content |
 | --- | --- |

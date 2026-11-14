@@ -31,7 +31,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
         ? json(201, { id: 2, ...JSON.parse(last.body.toString()) })
         : json(201, { id: 3 });
     case "QUERY /v1/pets": return json(200, [tama]);
-    // A type whose empty body would decode as "", so that only the method leaves `data` undefined.
+    // Use a type whose empty body would decode as "", so only the method
+    // leaves `data` undefined.
     case "HEAD /v1/pets": return res.writeHead(200, { "content-type": "text/plain", "x-total": "1" }).end();
     case "GET /v1/pets/1": return json(200, tama);
     case "GET /v1/pets/2": return json(404, { title: "Not Found" }, "application/problem+json");
@@ -187,9 +188,10 @@ test("streams server-sent events", async () => {
   assert.ok(res.status === 200);
   const events = [];
   for await (const e of res.data) events.push(e);
-  // `retry` and `id` persist: the second event has no `id` line of its own, and the
-  // `id: 8` block dispatches nothing but applies to the event after it. An empty
-  // `event:` resets the type to the default, the same as no `event` line.
+  // `retry` and `id` persist. The second event has no `id` line of its own,
+  // and the `id: 8` block dispatches nothing but applies to the next event.
+  // An empty `event:` resets the type to the default, just like having no
+  // `event` line.
   assert.deepEqual(events, [
     { retry: 10, event: "greet", id: "7", data: "hello\nworld" },
     { retry: 10, id: "7", data: '{"n":1}' },
@@ -199,7 +201,7 @@ test("streams server-sent events", async () => {
 });
 
 test("stops reading when the consumer breaks early", async () => {
-  // A body that never ends on its own: only `cancel()` stops the download.
+  // This body never ends on its own, so only `cancel()` stops the download.
   let cancelled = 0;
   const endless = () =>
     new ReadableStream<Uint8Array>({

@@ -18,15 +18,14 @@ type PetKind = Pet["kind"];
 ```
 
 - A name is the schema's key with every run of `.` and `-` replaced by one
-  `_`, and with leading and trailing `_` removed: `Pet.Owner` becomes
+  `_`, and with leading and trailing `_` removed. `Pet.Owner` becomes
   `Pet_Owner`, and `_links` becomes `links`. A key that starts with a digit
-  gets a leading `_`, and one with no letter or digit becomes `_`.
+  gets a leading `_`, and one with no letters or digits becomes `_`.
 - A name that is already taken by the client's own exports (`Client`,
-  `Middleware`, ...) or by an earlier schema gets a numeric suffix: a schema
+  `Middleware`, ...) or by an earlier schema gets a numeric suffix, so a schema
   named `Client` becomes `Client_2`.
 - A schema with a [request variant](./strict-types#requests-and-responses-have-separate-types)
-  also exports the request variant, named with a `Request` suffix, such as
-  `AccountRequest`.
+  also exports that variant with a `Request` suffix, such as `AccountRequest`.
 
 ## How schemas map to TypeScript
 
@@ -40,12 +39,12 @@ type PetKind = Pet["kind"];
 | `type: array` | `T[]`; with `minItems: n`, a tuple whose first n items are required (`[T, ...T[]]` for 1); with `prefixItems`, a tuple |
 | `type: object` with `properties` | An object type; properties not in `required` are optional |
 | `additionalProperties` | An index signature (`unknown` when the object also has `properties`) |
-| `propertyNames` with `enum` or `const` | An optional property for each listed name, of the type of `additionalProperties`, and no index signature. Ignored with `patternProperties` |
-| `patternProperties` | An index signature over every key, since TypeScript cannot restrict keys to a pattern: the patterns' types and that of `additionalProperties` (`unknown` when the object also has `properties`, or has no `additionalProperties`) |
-| `oneOf`, `anyOf` | A union; with a `discriminator`, each member is tagged with its value, in the type of the discriminating property (`"true"` in `mapping` is `true` for a boolean) |
+| `propertyNames` with `enum` or `const` | An optional property for each listed name, with the type of `additionalProperties` and no index signature. Ignored when `patternProperties` is present |
+| `patternProperties` | An index signature over every key, because TypeScript cannot restrict keys to a pattern. Its value type comes from the patterns and `additionalProperties` (`unknown` when the object also has `properties` or has no `additionalProperties`) |
+| `oneOf`, `anyOf` | A union; with a `discriminator`, each member is tagged with its discriminator value, matching the type of the discriminating property (`"true"` in `mapping` becomes `true` for a boolean) |
 | `allOf` | An intersection |
 | `$ref` to a component | That schema's type |
-| A required property that allows any value: listed only in `required`, or with no schema such as `{}` | `{} \| null` (any value except `undefined`) |
+| A required property that allows any value (listed only in `required`, or with an unconstrained schema such as `{}`) | `{} \| null` (any value except `undefined`) |
 | No schema, or `{}` (also `type: string, format: binary` in OpenAPI 3.0) | `unknown`; `Blob` as a part of a multipart body or as a `text/*` response |
 
 `title`, `description`, `default`, and `deprecated` become JSDoc comments, so

@@ -1,14 +1,14 @@
-//! Exports for the playground page. Text crosses the boundary through one
-//! buffer in linear memory: the page writes the document's UTF-8 to the
-//! memory `input` returns, then `generate` replaces the buffer with the
-//! generated code, or with the error message when it returns false, and
-//! `output` and `output_len` locate it.
+//! Exports for the playground page. Text crosses the boundary through a
+//! single buffer in linear memory. The page writes the document's UTF-8
+//! to the memory returned by `input`. Then `generate` replaces the
+//! buffer with the generated code (or the error message if it returns
+//! false), and `output` and `output_len` locate the result.
 
 use std::sync::Mutex;
 
 static BUFFER: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 
-/// Resizes the buffer to `len` bytes and returns where it starts.
+/// Resizes the buffer to `len` bytes and returns a pointer to it.
 #[unsafe(no_mangle)]
 pub extern "C" fn input(len: usize) -> *mut u8 {
     let mut buffer = BUFFER.lock().unwrap();

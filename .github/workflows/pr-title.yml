@@ -1,7 +1,8 @@
 name: PR title
 
-# The title becomes the squashed commit on main, and git-cliff drafts the
-# changelog from those (cliff.toml), so it must follow Conventional Commits.
+# Pull request titles must follow Conventional Commits. Each title becomes
+# the squashed commit on main, and git-cliff drafts the changelog from
+# those commits (cliff.toml).
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
@@ -31,7 +32,8 @@ jobs:
             exit 1
           fi
       # A release pull request must set the version in Cargo.toml and add its
-      # section to CHANGELOG.md, which the release workflow reads only after it is merged.
+      # section to CHANGELOG.md, which the release workflow reads only after
+      # the pull request is merged.
       - if: "startsWith(github.event.pull_request.title, 'release: ')"
         uses: actions/checkout@v7.0.1
         with:

@@ -66,9 +66,9 @@ if (res.status === 201) {
 
 ## `ok` is `response.ok` {#ok-is-response-ok}
 
-`ok` is the `ok` property of the `Response`: `true` for any 2xx status. Because
-a 2xx status can also be covered by `default` or by no key, checking `ok` does
-not narrow `data` to the declared success type:
+`ok` is the `ok` property of the `Response`. It is `true` for any 2xx status.
+Because a 2xx status can also be covered by `default` or by no key, checking
+`ok` does not narrow `data` to the declared success type:
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -95,7 +95,7 @@ see the [recipe](./recipes#throwing-on-unexpected-statuses).
 The specification says that `readOnly` properties should not be sent in
 requests, and that `writeOnly` properties should not be sent in responses. A
 schema with such properties therefore gets two types: one for responses, and a
-request variant, named with a `Request` suffix:
+request variant named with a `Request` suffix.
 
 ```yaml
 Account:
@@ -119,10 +119,11 @@ type InRequests = AccountRequest;
 
 - In the request variant, `readOnly` properties have the type `never`, so you
   cannot set them. In the response type, `writeOnly` properties have the type
-  `never`. In the other type, these properties stay required or optional as
-  the schema declares.
+  `never`. In the type where they are allowed, these properties stay required
+  or optional as the schema declares.
 - A property is also `readOnly` or `writeOnly` when its `$ref` target is, or
-  when another `allOf` member marks a property of the same name as such.
+  when another `allOf` member marks a property of the same name as `readOnly`
+  or `writeOnly`.
 - Request bodies use the request variant automatically. A schema that refers
   to a schema with a request variant also gets a request variant.
 
@@ -132,4 +133,4 @@ A `format` does not change the type. A `date-time` stays a `string`, and an
 `int64` is a `number`, which is what `JSON.parse` produces. Integers above
 2<sup>53</sup> therefore lose precision. Convert values yourself where you need
 another type. The exceptions are `format: binary` and `byte` in OpenAPI 3.0,
-which describe binary data there; see [Versions](./openapi-support#versions).
+where they describe binary data; see [Versions](./openapi-support#versions).

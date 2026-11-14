@@ -1,1 +1,1 @@
-error: operation-fixed-method.yaml:6:12: paths./a: additionalOperations must not define `GET`: it is sent as `GET`, use the `get` field
+error: operation-fixed-method.yaml:6:12: paths./a: additionalOperations must not define `GET`: it is sent as `GET`; use the `get` field instead

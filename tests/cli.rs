@@ -1,4 +1,5 @@
-//! Runs the `oasis-gen` binary: argument parsing, stdin input and file output.
+//! Runs the `oasis-gen` binary to test argument parsing, stdin input and file
+//! output.
 
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
@@ -123,7 +124,7 @@ fn reports_unreadable_standard_input() {
     );
 }
 
-/// A reader that stops early, like `head`, is not an error.
+/// It is not an error if a reader like `head` stops early.
 #[cfg(unix)]
 #[test]
 fn stops_quietly_when_the_reader_does() {

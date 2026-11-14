@@ -1,7 +1,8 @@
-//! Compares what the CLI prints for each invalid document with its expected
-//! output. A case is a document in `tests/errors`, or a directory there whose
-//! entry document is `openapi.yaml`; the expected standard error is in
-//! `<case>.stderr` next to it. Run with `UPDATE_GOLDEN=1` to rewrite them.
+//! Compares what the CLI prints for each invalid document with the expected
+//! output. Each case in `tests/errors` is either a document or a directory
+//! whose entry document is `openapi.yaml`. The expected standard error is in
+//! `<case>.stderr` next to it. Run with `UPDATE_GOLDEN=1` to rewrite the
+//! `.stderr` files.
 
 use std::path::Path;
 use std::process::Command;

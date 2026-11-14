@@ -4,12 +4,12 @@
  * hero wordmark reaches 3:1 along its whole gradient.
  */
 :root {
-  /* Browsers from before 2024 do not parse a gradient with an interpolation
-     color space, and the hero wordmark is transparent text over one. */
+  /* Browsers before 2024 do not parse gradients with an interpolation color
+     space, and the hero wordmark is transparent text over a gradient. */
   --in-oklch: ;
 
-  /* Narrower side columns than the default, which leave the text of a page
-     about 530px at a 1280px window. */
+  /* Narrower side columns than the defaults, which leave page text about
+     530px wide in a 1280px window. */
   --rp-sidebar-width: 280px;
   --rp-outline-width: 232px;
 
@@ -35,7 +35,7 @@
   --oasis-hero-glow: linear-gradient(-45deg var(--in-oklch), var(--oasis-mint) 45%, var(--oasis-sun) 55%);
 
   /*
-   * Code colors after GitHub's high-contrast themes: the default ones leave
+   * Code colors based on GitHub's high-contrast themes. The defaults leave
    * some tokens, such as comments, below 4.5:1.
    */
   --shiki-token-constant: #023b95;
@@ -105,13 +105,13 @@ html.dark {
   white-space: nowrap;
 }
 
-/* The theme removes the outline of buttons and of code blocks, which scroll. */
+/* The theme removes outlines from buttons and scrollable code blocks. */
 :is(button, pre[tabindex]):focus-visible {
   outline: 2px solid var(--rp-c-brand);
   outline-offset: 2px;
 }
 
-/* Links in running text differ from it by more than their color. */
+/* Links in running text differ from surrounding text by more than color. */
 .rp-doc a:not(.rp-header-anchor) {
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -165,7 +165,7 @@ html.dark {
   background-color: var(--rp-c-brand-tint);
 }
 
-/* The example under the features of the home page. */
+/* The example below the features on the home page. */
 .home-example {
   max-inline-size: 800px;
   margin-inline: auto;
@@ -194,8 +194,8 @@ html.dark {
   margin-block: 2px 6px;
   padding-inline: 1.25rem;
 
-  /* A result of several lines is a code block of its own: only the frame of
-     the result around it. */
+  /* A multi-line result is its own code block, so keep only the result's
+     frame around it. */
   & :is(pre, code) {
     padding: 0;
     background: transparent;
@@ -212,7 +212,7 @@ html.dark {
   color: var(--rp-c-text-1);
 
   /* On narrow screens, scroll the drawing instead of shrinking its text. Only
-     the drawing scrolls: the caption stays outside the scroll container. */
+     the drawing scrolls. The caption stays outside the scroll container. */
   & .drawing {
     overflow-x: auto;
   }
@@ -252,8 +252,8 @@ html.dark {
     stroke: var(--rp-c-brand);
   }
 
-  /* Text takes the system color there, but shapes keep theirs, which may be
-     those of the other color scheme. */
+  /* In forced-colors mode, text takes the system color, but shapes keep their
+     own colors, which may be from the other color scheme. */
   @media (forced-colors: active) {
     --rp-c-bg-soft: Canvas;
     --rp-c-text-1: CanvasText;

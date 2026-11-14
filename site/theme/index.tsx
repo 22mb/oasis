@@ -1,9 +1,9 @@
 import { HomeLayout as BasicHomeLayout, getCustomMDXComponent } from "@rspress/core/theme-original";
-// Not a page of its own: the name starts with `_`.
+// Not a page of its own, because the name starts with `_`.
 import Example from "../docs/_example.md";
 import "./index.css";
 
-/** The home page, with a first example under its features. */
+/** The home page, with an initial example below the features. */
 function HomeLayout() {
   return (
     <BasicHomeLayout

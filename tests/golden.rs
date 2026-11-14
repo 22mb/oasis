@@ -27,7 +27,7 @@ fn typescript_golden() {
         let actual = oasis_gen::generate_file(&spec, oasis_gen::Lang::TypeScript)
             .unwrap_or_else(|e| panic!("{}: {e}", spec.display()));
         let golden = root.join("golden").join(name).with_extension("ts");
-        // As in the repository, for the messages below.
+        // Use the repository-relative path in messages.
         let shown = golden.strip_prefix(env!("CARGO_MANIFEST_DIR")).unwrap();
         if update {
             std::fs::write(&golden, &actual).unwrap();

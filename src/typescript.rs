@@ -64,9 +64,10 @@ fn check_part(e: &Encoding) -> Result<(), Error> {
     Ok(())
 }
 
-/// The client has a property for each method next to `with`, and must not be
-/// thenable, so neither name is a method. Fixed methods are uppercase in the
-/// IR, so any other spelling comes from `additionalOperations`.
+/// The client defines a property for each method alongside `with` and must
+/// not be thenable, so neither name can be a method. Fixed methods are
+/// uppercase in the IR, so any other spelling comes from
+/// `additionalOperations`.
 fn check_method(method: &str) -> Result<(), Error> {
     if matches!(method, "with" | "then") {
         return Err(Error::new(format!(
@@ -76,7 +77,7 @@ fn check_method(method: &str) -> Result<(), Error> {
     let (lower, upper) = (method.to_ascii_lowercase(), method.to_ascii_uppercase());
     if method != upper && NORMALIZED_METHODS.contains(&lower.as_str()) {
         return Err(Error::new(format!(
-            "additionalOperations must not define `{method}`: it is sent as `{upper}`, use the `{lower}` field"
+            "additionalOperations must not define `{method}`: it is sent as `{upper}`; use the `{lower}` field instead"
         )));
     }
     Ok(())
@@ -170,8 +171,8 @@ impl<'a> Emitter<'a> {
             Item::Blank,
         ];
 
-        // The type of each operation and its runtime data, in one pass so that
-        // they rest on the same facts.
+        // Build each operation's type and runtime data in one pass so both are
+        // based on the same data.
         let mut statuses = BTreeMap::new();
         let mut methods: Vec<&str> = Vec::new();
         let mut data = Vec::new();
@@ -451,8 +452,8 @@ impl<'a> Emitter<'a> {
         if !encodings.is_empty() {
             info.push(("encoding".into(), Expr::inline(encodings)));
         }
-        // Every response key once any has one, so that the runtime finds the
-        // key that covers a status as the type does.
+        // If any response has binary text, include every response key so the
+        // runtime finds the key covering a status the same way the types do.
         if binary.iter().any(|b| !b.is_empty()) {
             let keys = op.responses.iter().zip(binary).map(|(r, types)| {
                 let types = types.iter().map(|mt| Expr::string(mt)).collect();
@@ -575,8 +576,8 @@ impl<'a> Emitter<'a> {
                 let body_field = Member::new("body", !body.required, self.request_body(c));
                 variants.push(vec![ct, body_field]);
             }
-            // An optional body can be left out without naming a media type, also
-            // when no media type is implied.
+            // An optional body can be left out without naming a media type,
+            // even when no media type is implied.
             let implied =
                 default.is_some() || body.content.iter().any(|c| essence(&c.media_type) == "*/*");
             if !body.required && !implied && !variants.is_empty() {
@@ -616,12 +617,13 @@ impl<'a> Emitter<'a> {
                     self.form_data(s, &mut Vec::new())
                 }
                 _ if essence(&c.media_type) == "multipart/form-data" => Type::name("FormData"),
-                // `FormData` is always sent as `multipart/form-data`. A `Blob` whose
-                // `type` names the media type and its boundary becomes `Content-Type`.
+                // `FormData` is always sent as `multipart/form-data`. With a
+                // `Blob`, its `type` (media type and boundary) becomes
+                // `Content-Type`.
                 _ => Type::name("Blob"),
             },
             MediaKind::Text => Type::name("string"),
-            // Sent as it is. Fetch encodes these two in formats of their own.
+            // Sent as-is. Fetch encodes these two in their own formats.
             _ => Type::Generic(
                 "Exclude",
                 vec![
@@ -686,9 +688,10 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// A property of a `multipart/form-data` body: a `Blob` where its schema has
-    /// no `type`, which is how binary data is described, and an array of them
-    /// for an array, whose items are sent as parts of the same name.
+    /// Types a property of a `multipart/form-data` body. A schema with no
+    /// `type` (how binary data is described) becomes `Blob`, and an array of
+    /// such items becomes an array of `Blob`s, sent as parts with the same
+    /// name.
     fn part(&self, s: &Schema) -> Type {
         match self.schemas.resolve(s) {
             Schema::Any => Type::name("Blob"),
@@ -707,9 +710,9 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// The runtime `Encoding` of each property of a form body that needs one:
-    /// those the document gives an Encoding Object, and the `multipart` parts
-    /// of encoded binary strings, which are not text.
+    /// Builds the runtime `Encoding` map for form-body properties that need
+    /// one: properties given an Encoding Object in the document, and
+    /// `multipart` parts for encoded binary strings, which are not text.
     fn encoding_literal(&self, c: &Content) -> Option<Expr> {
         let multipart = essence(&c.media_type) == "multipart/form-data";
         let mut fields: Vec<(String, Expr)> = c
@@ -797,10 +800,10 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// The `text/*` media types of response `r` whose schema says the body is
+    /// The `text/*` media types of response `r` whose schema marks the body as
     /// binary (no `type`, or `format: binary` in 3.0), as essences. The runtime
-    /// reads a text response of one of them as a `Blob`, by the response key
-    /// that covers its status and its actual `Content-Type`.
+    /// uses the response key covering the status and the actual `Content-Type`
+    /// to read matching text responses as a `Blob`.
     fn binary_text(&self, r: &Response) -> Vec<String> {
         let mut found = Vec::new();
         for c in &r.content {
@@ -831,7 +834,7 @@ impl<'a> Emitter<'a> {
             MediaKind::Json => self.schema_or_unknown(c.schema.as_ref(), View::Response),
             MediaKind::Text if covers(binary, &essence(&c.media_type)) => Type::name("Blob"),
             // `text/*` also covers event streams and `+json` types, which the
-            // runtime decodes otherwise: the actual Content-Type decides.
+            // runtime decodes differently. The actual Content-Type decides.
             MediaKind::Text if c.media_type.contains('*') => Type::name("unknown"),
             MediaKind::Text | MediaKind::FormUrlEncoded => Type::name("string"),
             // A range such as `*/*` is decoded by the actual Content-Type.
@@ -932,18 +935,19 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// `t`, the type of member `s` of an `allOf`, without the properties in
-    /// `hidden` that it shows in `view` where `s` is a `$ref` or a nested
-    /// `allOf`, which may reference them. Another member
-    /// flags them `readOnly` or `writeOnly`, so they are `?: never` in this
-    /// view, but the shared target cannot be flagged and may require them: `number & never`
-    /// would make every value fail. A union target keeps its type, since
-    /// `Omit` would merge its members, and so does one with an index
-    /// signature, which `Omit` would keep alone.
+    /// Wraps `t` (the type of `allOf` member `s`) in `Omit` to strip any
+    /// properties in `hidden` that `s` exposes in `view`, when `s` is a `$ref`
+    /// or a nested `allOf` that may contain `$ref`s. Another member marks those
+    /// properties `readOnly` or `writeOnly` (`?: never` in this view), while a
+    /// referenced schema is shared and may still require them. Without `Omit`,
+    /// `number & never` would reject every value. `t` is left unchanged if `s`
+    /// contains a union, since `Omit` would merge its members, or an object
+    /// with an index signature, since `Omit` would drop all named properties
+    /// and leave only the index signature.
     ///
-    /// Where `s` is a parent expanded in place of a reference (see
-    /// [`Emitter::eager`]), `child` names the schema being defined: the unions
-    /// that list it are left out of `t`, so they do not count.
+    /// When `s` is a parent expanded in place of a reference (see
+    /// [`Emitter::eager`]), `child` names the schema being defined. Unions that
+    /// list `child` are left out of `t`, so they are ignored here too.
     fn omit(
         &self,
         t: Type,
@@ -970,9 +974,9 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// The names of the properties `s` declares and shows in `view`, through
-    /// `$ref` and `allOf`; none where `s` is or contains a union, other than
-    /// one that lists `child`, or an object with an index signature.
+    /// Returns the property names `s` declares and shows in `view` through
+    /// `$ref` and `allOf`, or `None` if `s` is or contains an object with an
+    /// index signature or a union other than one that lists `child`.
     fn declared<'s>(
         &'s self,
         s: &'s Schema,
@@ -1006,9 +1010,10 @@ impl<'a> Emitter<'a> {
         Some(names)
     }
 
-    /// The type of a member of an intersection. There, `type: object` without
-    /// other keywords only says the value is an object: as an index signature
-    /// it would accept every property name the other members leave out.
+    /// The type of an intersection member. In an intersection, `type: object`
+    /// without other keywords only says the value is an object. As an index
+    /// signature, it would accept any property name the other members leave
+    /// out.
     fn composed(&self, s: &Schema, view: View) -> Type {
         match s {
             _ if is_bare_object(s) => Type::name("object"),
@@ -1034,8 +1039,8 @@ impl<'a> Emitter<'a> {
         let unknown = || Some(Type::name("unknown"));
         let index = match (properties.is_empty(), additional) {
             // TypeScript cannot restrict keys to a pattern, so the index
-            // covers every key, with the types of the patterns and of
-            // `additionalProperties` that are not closed.
+            // signature covers all keys with the union of the pattern
+            // types and, unless disallowed, `additionalProperties`.
             (true, Some(s)) if !pattern_properties.is_empty() => {
                 let mut types: Vec<Type> = pattern_properties.iter().map(|(_, p)| ty(p)).collect();
                 if *s != Schema::Never {
@@ -1092,8 +1097,9 @@ impl<'a> Emitter<'a> {
             .schemas
             .property(v, &d.property_name)
             .filter(|p| !self.schemas.is_text(p));
-        // The default variant takes every value the mapping does not list, and
-        // values without the property; its own schema says whether it is required.
+        // The default variant matches unmapped property values as well as
+        // objects without the property; the variant's schema decides whether
+        // the property is required.
         let (optional, values) = if d.default_mapping.as_deref() == Some(k.as_str()) {
             if typed.is_some() {
                 return t;
@@ -1118,17 +1124,18 @@ impl<'a> Emitter<'a> {
         Type::Intersection(vec![t, Type::inline(vec![tag])])
     }
 
-    /// The type of a named schema, for its alias.
+    /// Builds the type for a named schema's alias.
     ///
-    /// TypeScript resolves the top of an alias eagerly: a cycle through `$ref`,
-    /// `allOf`, `oneOf` and `anyOf` alone is an error (TS2456), while one
-    /// through an object or array is fine. A parent that lists its subtypes in
-    /// `oneOf` while each subtype extends it with `allOf` (as springdoc emits)
-    /// is such a cycle. It is cut on the subtype's side: there, the reference
-    /// to the parent becomes the parent's own part, its type without the
-    /// listing. Where neither has a part of its own, nothing is left, an empty
-    /// intersection the caller rejects. References left in eager positions go
-    /// to `edges`, for [`check_cycles`].
+    /// TypeScript resolves the top level of a type alias eagerly, so a cycle
+    /// through `$ref`, `allOf`, `oneOf` and `anyOf` alone is an error (TS2456),
+    /// whereas a cycle through an object or array is fine. A parent that lists
+    /// its subtypes in `oneOf` while each subtype extends it with `allOf` (as
+    /// springdoc emits) forms such a cycle. The cycle is broken on the
+    /// subtype's side by replacing the reference to the parent with the
+    /// parent's own part (its type without the subtype list). If neither has a
+    /// part of its own, the result is an empty intersection, which the caller
+    /// rejects. Remaining references in eager positions are recorded in `edges`
+    /// for [`check_cycles`].
     fn define(&self, s: &'a NamedSchema, view: View, edges: &mut Vec<(&'a str, &'a str)>) -> Type {
         let mut d = Defining {
             key: &s.key,
@@ -1141,10 +1148,11 @@ impl<'a> Emitter<'a> {
         Type::Intersection(parts)
     }
 
-    /// The intersection members of `s` at the top of the alias of `d.key`.
-    /// `member` says `s` is an `allOf` member (or the whole alias), where a
-    /// reference to a parent listing `d.key` is replaced by the parent's own
-    /// part. While one is being rendered, the listing itself is dropped.
+    /// Collects the top-level intersection members of `s` for the alias of
+    /// `d.key`. `member` is true when `s` is the whole alias or an `allOf`
+    /// member; there, a reference to a parent that lists `d.key` is replaced
+    /// with the parent's own part, and while expanding that parent, any
+    /// union that lists `d.key` is dropped.
     fn eager(&self, s: &'a Schema, d: &mut Defining<'a>, member: bool) -> Vec<Type> {
         let view = d.view;
         match s {
@@ -1188,9 +1196,9 @@ impl<'a> Emitter<'a> {
                             kind: UnionKind::Types,
                             ..
                         } => types.push(self.composed(p, view)),
-                        // A parent expanded in place leaves out its unions
-                        // that list this schema, so they do not keep `omit`
-                        // from leaving out what is hidden.
+                        // Expanding a parent in place drops unions that
+                        // list this schema, so they should not stop `omit`
+                        // from stripping hidden properties.
                         _ => {
                             let ts = self.eager(p, d, true);
                             if ts.is_empty() {
@@ -1319,7 +1327,7 @@ fn array(item: Type, min: u64) -> Type {
     )
 }
 
-/// Whether media type `mt`, an essence, is in `types`, itself or within a
+/// Whether `types` covers media-type essence `mt`, either directly or via a
 /// range such as `text/*`. The runtime's `decodeBody` matches the same way.
 fn covers(types: &[String], mt: &str) -> bool {
     types.iter().any(|t| {
@@ -1390,11 +1398,12 @@ fn style_literal(style: Style, explode: bool, allow_reserved: bool) -> Option<Ex
     (!fields.is_empty()).then(|| Expr::inline(fields))
 }
 
-/// The name and type of the alias for an operation's `statuses`: each response
-/// key with the statuses it covers, as `[successes, failures]`, followed by
-/// those of 204, 205 and 304 that a range or `default` covers. These are
-/// computed here rather than by conditional types in the runtime, which would
-/// cost every call site; they depend only on the keys, which name the alias.
+/// Builds the name and type of the `statuses` alias for an operation: each
+/// response key mapped to the statuses it covers as `[successes, failures]`,
+/// followed by any of 204, 205 and 304 covered by a range or `default`.
+/// Computing these here avoids evaluating conditional types in the runtime at
+/// every call site. Since they depend only on the response keys, the alias is
+/// named after those keys.
 fn status_alias(op: &Operation) -> (String, Type) {
     let mut entries: Vec<(String, Vec<u16>)> = op
         .coverage()
@@ -1406,8 +1415,9 @@ fn status_alias(op: &Operation) -> (String, Type) {
     let mut name = String::from("Statuses");
     let mut members = Vec::new();
     for (key, codes) in entries {
-        // These never carry a body. Under their own key the response type says
-        // so; a range or `default` keeps them apart, as a third element.
+        // 204, 205 and 304 never carry a body. Under their own status key the
+        // response type already reflects that; under a range or `default`,
+        // they are separated into a third tuple element.
         let own = key.bytes().all(|b| b.is_ascii_digit());
         let (empty, codes): (Vec<u16>, Vec<u16>) = codes
             .into_iter()
@@ -1448,8 +1458,8 @@ fn statuses(codes: &[u16]) -> Type {
     Type::Union(parts)
 }
 
-/// The aliases for a whole hundred and a whole ten of statuses that the
-/// `statuses` aliases use, and only those: an unused one fails `noUnusedLocals`.
+/// Emits the 100-status and 10-status range aliases used by `statuses`, and
+/// only those, because unused aliases fail `noUnusedLocals`.
 fn status_runs(statuses: &BTreeMap<String, Type>) -> Vec<Item> {
     let used = |name: &str| statuses.values().any(|t| t.refers_to(name));
     let hundreds: Vec<u16> = (1..6).filter(|h| used(&format!("Status{h}xx"))).collect();
@@ -1514,7 +1524,8 @@ fn export_name(key: &str) -> String {
     }
 }
 
-/// `base`, or `base_2`, `base_3`, ... when it is taken; the result is taken.
+/// Returns `base` (or `base_2`, `base_3`, ... if already in `taken`) and
+/// records the chosen name in `taken`.
 fn unique(base: String, taken: &mut HashSet<String>) -> String {
     let mut name = base.clone();
     for n in 2.. {
@@ -1574,8 +1585,8 @@ mod tests {
         for (method, message) in [
             ("with", "reserves that name"),
             ("then", "reserves that name"),
-            ("post", "it is sent as `POST`, use the `post` field"),
-            ("Get", "it is sent as `GET`, use the `get` field"),
+            ("post", "it is sent as `POST`; use the `post` field instead"),
+            ("Get", "it is sent as `GET`; use the `get` field instead"),
         ] {
             let err = generate(method).unwrap_err().to_string();
             assert!(err.contains(message), "{method}: {err}");

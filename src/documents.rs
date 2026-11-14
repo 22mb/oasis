@@ -3,9 +3,9 @@
 //! Base URIs follow OpenAPI 3.2 and JSON Schema 2020-12: a document's `$self`
 //! (resolved against its retrieval URI) and a schema's `$id` override the
 //! retrieval URI. Documents are identified by `$self` and by retrieval URI;
-//! schema resources by `$id`. Only local files are loaded: a URI under the
-//! directory of some document's `$self` is mapped to the same relative
-//! location under that document's file (`$id` directories are not mapped).
+//! schema resources by `$id`. Only local files are loaded. A URI under a
+//! document's `$self` directory is mapped to the same path relative to that
+//! document's file (`$id` directories are not mapped).
 //!
 //! All loaded documents are scanned for `$ref`, `$id` and `$anchor` up front.
 //! The scan does not know which objects are schemas, so a `$id` inside an
@@ -20,7 +20,7 @@ use std::rc::Rc;
 use url::Url;
 
 pub struct Documents {
-    /// The document generation starts from.
+    /// The document that generation starts from.
     entry: Document,
     /// Documents loaded through references, in the order they were found.
     referenced: Vec<Document>,
@@ -40,7 +40,7 @@ struct Document {
     value: Value,
     /// Schema resources (`$id`) inside the document: pointer and base URI.
     ids: Vec<(String, Rc<Url>)>,
-    /// The name that errors give the document, and its text, to find positions in.
+    /// Name shown in errors, and source text for finding error positions.
     name: Option<String>,
     source: Option<String>,
 }
@@ -91,16 +91,17 @@ impl Documents {
         Ok(Documents::new(value, file_url(&canonical)?)?.named(&name, &source))
     }
 
-    /// Names the entry document in errors, and keeps its text to find their positions.
+    /// Sets the name used for the entry document in errors and keeps its text
+    /// for finding error positions.
     pub(crate) fn named(mut self, name: &str, source: &str) -> Documents {
         self.entry.name = Some(name.to_string());
         self.entry.source = Some(source.to_string());
         self
     }
 
-    /// Places `e` in the document it is about: its file name, and the line and
-    /// column of the value it was made for. An error about no particular value
-    /// is in the entry document.
+    /// Attaches a location to `e`: the file name, and the line and column of
+    /// the value that caused it. Errors not tied to a particular value are
+    /// placed in the entry document.
     pub(crate) fn locate(&self, e: Error) -> Error {
         if e.is_placed() {
             return e;
@@ -154,8 +155,8 @@ impl Documents {
                 i += 1;
             }
             // A later document's `$self` can map a URI that failed earlier, and
-            // OAS 3.2 §4.1.2.1 forbids giving up before every document is parsed:
-            // retry the failures whenever another `$self` has been loaded.
+            // OAS 3.2 §4.1.2.1 forbids giving up before every document is
+            // parsed, so retry failed URIs whenever a new `$self` is loaded.
             let mapping = docs.all().filter(|(_, d)| *d.base != d.retrieval).count();
             if mapping == mapped {
                 return Ok(docs);
@@ -242,8 +243,9 @@ impl Documents {
             .chain(referenced.map(|(i, d)| (DocId::Referenced(i), d)))
     }
 
-    /// Loads the document identified by `target`, recording a failure instead of
-    /// returning it: a `$ref`-like string inside an example must not break loading.
+    /// Loads the document identified by `target`, recording failures instead of
+    /// returning them because a `$ref`-like string in an example must not break
+    /// loading.
     fn fetch(&mut self, target: &Url) {
         let key = target.to_string();
         match self.load(target) {
@@ -281,16 +283,17 @@ impl Documents {
         if let Some(r) = self.resources.get(url.as_str()) {
             return Ok(r.clone()); // already loaded under another URI
         }
-        // Canonical, like the current directory it is shown relative to.
+        // Keep it canonical to match the current directory it is relative to.
         let source = std::fs::read_to_string(&canonical).map_err(|e| unreadable(&canonical, e))?;
         let name = display_path(&canonical);
         let value = crate::load(&source).map_err(|e| e.in_file(&name).to_string())?;
         Ok(self.add(value, url, Some((name, source))))
     }
 
-    /// The local file for a URI: `file:` URIs as-is; others (and `file:` URIs
-    /// from a relative `$self`) through the closest document whose `$self`
-    /// directory contains them.
+    /// Maps a URI to a local `file:` URL. URIs inside a document's `$self`
+    /// directory (including `file:` URIs from a relative `$self`) are mapped
+    /// through the closest matching document; other `file:` URIs are used
+    /// as-is.
     fn to_file(&self, target: &Url) -> Option<Url> {
         let mut best: Option<(usize, &Document)> = None;
         for (_, doc) in self.all() {
@@ -492,7 +495,7 @@ fn current_dir() -> std::io::Result<PathBuf> {
     std::env::current_dir()?.canonicalize()
 }
 
-/// `path` relative to the current directory when it is inside it, as a user
+/// Returns `path` relative to the current directory when inside it, as a user
 /// would type it.
 fn display_path(path: &Path) -> String {
     current_dir()
@@ -527,7 +530,8 @@ fn find(v: &Value, address: usize) -> Option<String> {
 fn position(source: &str, pointer: &str) -> Option<(usize, usize)> {
     let source = source.strip_prefix('\u{feff}').unwrap_or(source);
     let mut options = crate::yaml_options(source);
-    // As deep as serde_json reads: an error can be about a value deeper than YAML allows.
+    // Allow the same depth as serde_json, since an error can be at a value
+    // deeper than YAML allows.
     options
         .budget
         .get_or_insert_with(Default::default)
@@ -611,8 +615,8 @@ fn file_path(url: &Url) -> Option<PathBuf> {
 }
 
 // WebAssembly in a browser, where the documentation site's playground runs the
-// generator, has no file system: a document read from text is at `file:///-`,
-// and reading any other file fails.
+// generator, has no file system. A document read from text is placed at
+// `file:///-`, and reading any other file fails.
 
 #[cfg(not(any(unix, windows)))]
 fn current_dir() -> std::io::Result<PathBuf> {

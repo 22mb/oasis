@@ -56,12 +56,12 @@ updates:
       # (twoslashes/twoslash#93).
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
-      # The playground highlights with Shiki itself, and its output must look
-      # like the code blocks that Rspress renders with the Shiki it bundles (4.x).
+      # The playground highlights code with Shiki directly, and its output must
+      # look like the code blocks Rspress renders with its bundled Shiki (4.x).
       - dependency-name: shiki
         update-types: ["version-update:semver-major"]
-      # Rspress depends on React 19 itself; a second major next to it would
-      # give the theme's components a React of their own.
+      # Rspress itself depends on React 19, so a second major version next
+      # to it would give the theme's components their own copy of React.
       - dependency-name: react
         update-types: ["version-update:semver-major"]
       - dependency-name: react-dom
@@ -69,7 +69,7 @@ updates:
       - dependency-name: "@types/react"
         update-types: ["version-update:semver-major"]
     groups:
-      # Packages that only work at the same version as each other.
+      # Packages that only work when their versions match.
       react:
         patterns: ["react", "react-dom", "@types/react"]
       rspress:

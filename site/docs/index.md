@@ -19,7 +19,7 @@ hero:
 features:
   - icon: /icons/strict.svg
     title: Strict types
-    details: <code>status</code> narrows <code>data</code> to the declared response. Statuses that the document does not declare stay in the type. Request and response types respect <code>readOnly</code> and <code>writeOnly</code>.
+    details: Checking <code>status</code> narrows <code>data</code> to the declared response, while statuses not declared in the document remain in the type. Request and response types respect <code>readOnly</code> and <code>writeOnly</code>.
   - icon: /icons/file.svg
     title: Zero runtime dependencies
     details: The output is a single TypeScript file that runs anywhere fetch is available. There is no runtime package to install and nothing to configure.

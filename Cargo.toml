@@ -20,7 +20,7 @@ unsafe_code = "forbid"
 
 [profile.release]
 # An integer overflow stops the program, as in a debug build, instead of
-# wrapping around and going on with a wrong number.
+# wrapping around and continuing with a wrong number.
 overflow-checks = true
 lto = true
 codegen-units = 1
