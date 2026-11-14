@@ -40,6 +40,18 @@ pub struct NamedSchema {
     pub hoisted: bool,
     pub meta: Meta,
     pub schema: Schema,
+    pub origin: Origin,
+}
+
+impl NamedSchema {
+    /// Where the schema is in the documents, as errors show it.
+    pub(crate) fn location(&self) -> String {
+        if self.hoisted {
+            self.key.clone()
+        } else {
+            format!("components.schemas.{}", self.key)
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

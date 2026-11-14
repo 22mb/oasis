@@ -110,13 +110,10 @@ impl Documents {
         if e.is_placed() {
             return e;
         }
-        let found = match (e.value_address(), e.schema_key()) {
-            (Some(address), _) => self
-                .all()
-                .find_map(|(id, d)| find(&d.value, address).map(|pointer| (id, pointer))),
-            (None, Some(key)) => self.schema_target(key),
-            (None, None) => None,
-        };
+        let found = e.value_address().and_then(|address| {
+            self.all()
+                .find_map(|(id, d)| find(&d.value, address).map(|pointer| (id, pointer)))
+        });
         let doc = found.as_ref().map_or(&self.entry, |(id, _)| self.doc(*id));
         let Some((name, source)) = &doc.file else {
             return e;
@@ -379,23 +376,6 @@ impl Documents {
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| doc.base.clone());
         Ok((loc, value, base))
-    }
-
-    /// Document and pointer of the schema with key `key` in [`crate::ir::Api::schemas`]:
-    /// a component name, or a name made by [`Documents::display`].
-    fn schema_target(&self, key: &str) -> Option<(DocId, String)> {
-        let Some((file, pointer)) = key.split_once('#') else {
-            let name = key.replace('~', "~0").replace('/', "~1");
-            return Some((DocId::Entry, format!("/components/schemas/{name}")));
-        };
-        let (doc, _) = self.all().find(|&(doc, _)| {
-            let start = self.display(&Target {
-                doc,
-                pointer: String::new(),
-            });
-            start.strip_suffix('#') == Some(file)
-        })?;
-        Some((doc, pointer.to_string()))
     }
 
     /// A stable, machine-independent name for a location: `#/pointer` in the

@@ -326,10 +326,11 @@ impl<'a> Emitter<'a> {
                 name: self.reference(key, View::Response),
                 ty: match self.define(s, View::Response, &mut edges) {
                     Type::Intersection(ts) if ts.is_empty() => {
-                        return Err(Error::new(format!(
-                            "{key}: the schema has no type of its own: it only extends schemas that list it in oneOf or anyOf; give it or a schema it extends a `type` or `properties`"
-                        ))
-                        .about_schema(key));
+                        return Err(Error::new(
+                            "the schema has no type of its own: it only extends schemas that list it in oneOf or anyOf; give it or a schema it extends a `type` or `properties`",
+                        )
+                        .about_origin(s.origin)
+                        .context(s.location()));
                     }
                     ty => ty,
                 },
@@ -1352,11 +1353,13 @@ fn check_cycles(api: &Api, edges: &[(&str, &str)]) -> Result<(), Error> {
                     let from = path.iter().position(|(n, _)| *n == to).unwrap();
                     let cycle: Vec<&str> =
                         path[from..].iter().map(|(n, _)| *n).chain([to]).collect();
+                    let schema = api.schemas.iter().find(|s| s.key == to).unwrap();
                     return Err(Error::new(format!(
-                        "{}: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone",
+                        "a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone: {}",
                         cycle.join(" -> ")
                     ))
-                    .about_schema(to));
+                    .about_origin(schema.origin)
+                    .context(schema.location()));
                 }
                 Some(_) => {}
             }
@@ -1771,14 +1774,14 @@ mod tests {
         let err = generate(json!({"A": r("B"), "B": r("A")})).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "A -> B -> A: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone"
+            "components.schemas.A: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone: A -> B -> A"
         );
         let err = generate(json!({
             "A": {"anyOf": [r("B"), {"type": "string"}]},
             "B": {"anyOf": [r("A"), {"type": "number"}]},
         }))
         .unwrap_err();
-        assert!(err.to_string().starts_with("A -> B -> A:"), "{err}");
+        assert!(err.to_string().ends_with(": A -> B -> A"), "{err}");
         // Through an array, the cycle is fine.
         let json = json!({"oneOf": [{"type": "string"}, {"type": "array", "items": r("Json")}]});
         assert!(
@@ -1807,7 +1810,7 @@ mod tests {
             },
         })))
         .unwrap_err();
-        assert!(err.to_string().starts_with("A -> B -> A:"), "{err}");
+        assert!(err.to_string().ends_with(": A -> B -> A"), "{err}");
         // A multipart body.
         let doc = json!({
             "openapi": "3.2.0",
@@ -1819,7 +1822,7 @@ mod tests {
         });
         let err = emit(&crate::parse(&crate::Documents::from_value(doc).unwrap()).unwrap());
         let err = err.unwrap_err().to_string();
-        assert!(err.starts_with("A -> B -> A:"), "{err}");
+        assert!(err.ends_with(": A -> B -> A"), "{err}");
     }
 
     #[test]

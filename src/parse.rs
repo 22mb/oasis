@@ -121,10 +121,11 @@ fn check_discriminators(api: &Api) -> Result<(), Error> {
                 });
                 if let (Some((value, _)), Ok(())) = (bad, &result) {
                     result = Err(Error::new(format!(
-                        "{}: discriminator mapping key `{value}` is not a value of property `{}`",
-                        s.key, d.property_name
+                        "discriminator mapping key `{value}` is not a value of property `{}`",
+                        d.property_name
                     ))
-                    .about_schema(&s.key));
+                    .about_origin(s.origin)
+                    .context(s.location()));
                 }
             }
         });
@@ -292,6 +293,7 @@ impl<'a> Parser<'a> {
                     hoisted: false,
                     meta: meta(s.v),
                     schema,
+                    origin: Origin::of(s.v),
                 });
             }
         }
@@ -336,6 +338,7 @@ impl<'a> Parser<'a> {
                 hoisted: true,
                 meta: meta(node.v),
                 schema,
+                origin: Origin::of(node.v),
             });
         }
         Ok(Api {

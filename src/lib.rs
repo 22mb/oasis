@@ -139,8 +139,6 @@ struct Details {
     /// Address of the document value the error is about, until
     /// [`Documents::locate`] turns it into a file and position.
     value: Option<usize>,
-    /// Key in [`ir::Api::schemas`] of the schema an emitter error is about.
-    schema: Option<String>,
     /// Location in the document, outermost first.
     context: Vec<String>,
 }
@@ -153,16 +151,9 @@ impl Error {
                 file: None,
                 position: None,
                 value: None,
-                schema: None,
                 context: Vec::new(),
             }),
         }
-    }
-
-    /// Records that an emitter error is about the schema with key `key`.
-    pub(crate) fn about_schema(mut self, key: &str) -> Error {
-        self.details.schema = Some(key.to_string());
-        self
     }
 
     /// Records that the error is about document value `v`, unless a more
@@ -198,11 +189,6 @@ impl Error {
     /// Address of the document value the error is about, if recorded.
     pub(crate) fn value_address(&self) -> Option<usize> {
         self.details.value
-    }
-
-    /// Key of the schema an emitter error is about, if recorded.
-    pub(crate) fn schema_key(&self) -> Option<&str> {
-        self.details.schema.as_deref()
     }
 
     pub(crate) fn context(mut self, location: impl Into<String>) -> Error {
