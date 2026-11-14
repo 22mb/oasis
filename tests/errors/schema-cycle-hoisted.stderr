@@ -1,1 +1,1 @@
-error: schema-cycle-hoisted.yaml:5:6: #/x/a -> #/x/b -> #/x/a: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone
+error: schema-cycle-hoisted.yaml:5:6: #/x/a: a schema cannot reference itself through $ref, allOf, oneOf or anyOf alone: #/x/a -> #/x/b -> #/x/a
