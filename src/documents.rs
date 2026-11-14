@@ -756,15 +756,4 @@ mod tests {
         assert!(err.contains(&format!("(mapped from `{pet}`;")), "{err}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
-
-    #[test]
-    fn reports_remote_references() {
-        let docs =
-            Documents::from_value(json!({"x": {"$ref": "https://elsewhere.example/a.yaml"}}))
-                .unwrap();
-        let err = docs
-            .resolve(&docs.root_base(), "https://elsewhere.example/a.yaml")
-            .unwrap_err();
-        assert!(err.to_string().contains("only local files"), "{err}");
-    }
 }

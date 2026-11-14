@@ -1,0 +1,1 @@
+error: security-scheme-oidc-without-url.yaml:4:38: components.securitySchemes.oidc: security scheme requires `openIdConnectUrl`

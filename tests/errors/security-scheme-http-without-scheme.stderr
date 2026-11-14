@@ -1,0 +1,1 @@
+error: security-scheme-http-without-scheme.yaml:4:39: components.securitySchemes.token: security scheme requires `scheme`
