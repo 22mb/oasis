@@ -64,7 +64,7 @@ if (res.status === 201) {
 }
 ```
 
-## `ok` is `response.ok`
+## `ok` is `response.ok` {#ok-is-response-ok}
 
 `ok` is the `ok` property of the `Response`: `true` for any 2xx status. Because
 a 2xx status can also be covered by `default` or by no key, checking `ok` does

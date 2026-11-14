@@ -47,8 +47,19 @@ updates:
       # (twoslashes/twoslash#93).
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
-      # Shiki's major version must match the one VitePress 2 bundles (4.x).
-      - dependency-name: "@shikijs/*"
-        update-types: ["version-update:semver-major"]
+      # The playground highlights with Shiki itself, and its output must look
+      # like the code blocks that Rspress renders with the Shiki it bundles (4.x).
       - dependency-name: shiki
         update-types: ["version-update:semver-major"]
+      # Rspress depends on React 19 itself; a second major next to it would
+      # give the theme's components a React of their own.
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Packages that only work at the same version as each other.
+      react:
+        patterns: ["react", "@types/react"]
+      rspress:
+        patterns: ["@rspress/*"]
