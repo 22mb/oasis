@@ -2,7 +2,7 @@
 name = "oasis-gen"
 version = "0.10.0"
 edition = "2024"
-description = "Minimal API client generator for OpenAPI 3.2"
+description = "Strictly typed API client generator for OpenAPI, with zero runtime dependencies"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/22mb/oasis"
 keywords = ["openapi", "codegen", "typescript", "client"]
