@@ -1,0 +1,7 @@
+# The Rust that builds the releases, runs CI and is used for development, so
+# that all three use the same compiler and the same lints. rustup installs it
+# on the first `cargo` command. Dependabot proposes new versions.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

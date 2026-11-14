@@ -44,7 +44,7 @@ Windows (arm64, x64). npm installs only the binary for your platform. Archives
 are also attached to each GitHub release. To build from source instead, run:
 
 ```sh
-cargo install --git https://github.com/22mb/oasis
+cargo install --locked --git https://github.com/22mb/oasis
 ```
 
 ## API

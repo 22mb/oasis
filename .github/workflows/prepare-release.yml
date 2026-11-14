@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - run: rustup toolchain install stable --profile minimal
+      - run: rustup toolchain install # the one in rust-toolchain.toml
       - name: Set the version and draft the changelog
         # `npx` resolves git-cliff's own dependencies anew on each run, with no
         # lockfile and no .npmrc here: the same limits as in the npm projects.

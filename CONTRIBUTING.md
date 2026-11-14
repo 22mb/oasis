@@ -17,8 +17,9 @@ not in a public issue.
 
 ## Development
 
-You need a stable Rust toolchain and Node.js 24 or later. The documentation
-site also needs the `wasm32-unknown-unknown` target for its playground
+You need [rustup](https://rustup.rs), which installs the Rust version named in
+`rust-toolchain.toml`, and Node.js 24 or later. The documentation site also
+needs the `wasm32-unknown-unknown` target for its playground
 (`rustup target add wasm32-unknown-unknown`).
 
 ```sh
