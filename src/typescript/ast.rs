@@ -412,12 +412,24 @@ impl Item {
     }
 }
 
-pub fn print(items: &[Item]) -> String {
-    let mut out = String::new();
-    for item in items {
-        item.write(&mut out);
+/// Writes items as they are pushed, so a file's items are never all held at once.
+#[derive(Default)]
+pub struct Printer(String);
+
+impl Printer {
+    pub fn push(&mut self, item: Item) {
+        item.write(&mut self.0);
     }
-    out
+
+    pub fn finish(self) -> String {
+        self.0
+    }
+}
+
+impl Extend<Item> for Printer {
+    fn extend<I: IntoIterator<Item = Item>>(&mut self, items: I) {
+        items.into_iter().for_each(|item| self.push(item));
+    }
 }
 
 /// Writes `lines` as a doc comment at level `indent`, if non-empty.
