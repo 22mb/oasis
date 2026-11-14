@@ -1,38 +1,20 @@
 <script setup lang="ts">
-import { useData } from "vitepress";
-import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
 import exampleSpec from "../../../tests/fixtures/petstore.yaml?raw";
 import type { Reply, Request } from "./playground.worker.ts";
 
-const labels = {
-  en: {
-    title: "Playground",
-    lead: "Edit an OpenAPI 3.0, 3.1 or 3.2 document in JSON or YAML to see the TypeScript client that oasis-gen generates from it. The generator runs in your browser, so nothing you enter is sent anywhere. The page URL holds the document, so you can share it as a link. References to other files are not supported.",
-    spec: "OpenAPI document",
-    api: "api.ts (generated)",
-    copy: "Copy link",
-    copied: "Copied",
-    copyFailed: "Could not copy",
-    reset: "Reset",
-    loading: "Loading…",
-    loadFailed: "The playground could not be loaded.",
-  },
-  ja: {
-    title: "プレイグラウンド",
-    lead: "JSON または YAML の OpenAPI 3.0・3.1・3.2 ドキュメントを編集すると、oasis-gen が生成する TypeScript クライアントを確認できます。生成ツールはブラウザー内で動作するため、入力した内容が外部に送信されることはありません。ページの URL にはドキュメントの内容が含まれており、そのままリンクとして共有できます。外部ファイルへの参照には対応していません。",
-    spec: "OpenAPI ドキュメント",
-    api: "api.ts（生成結果）",
-    copy: "リンクをコピー",
-    copied: "コピーしました",
-    copyFailed: "コピーできませんでした",
-    reset: "リセット",
-    loading: "読み込み中…",
-    loadFailed: "プレイグラウンドを読み込めませんでした。",
-  },
+const t = {
+  title: "Playground",
+  lead: "Edit an OpenAPI 3.0, 3.1 or 3.2 document in JSON or YAML to see the TypeScript client that oasis-gen generates from it. The generator runs in your browser, so nothing you enter is sent anywhere. The page URL holds the document, so you can share it as a link. References to other files are not supported.",
+  spec: "OpenAPI document",
+  api: "api.ts (generated)",
+  copy: "Copy link",
+  copied: "Copied",
+  copyFailed: "Could not copy",
+  reset: "Reset",
+  loading: "Loading…",
+  loadFailed: "The playground could not be loaded.",
 };
-
-const { lang } = useData();
-const t = computed(() => (lang.value === "ja" ? labels.ja : labels.en));
 
 const specId = useId();
 const apiId = useId();
@@ -124,7 +106,7 @@ onMounted(async () => {
     });
   } catch (e) {
     failed.value = true;
-    error.value = `${t.value.loadFailed}\n${e}`;
+    error.value = `${t.loadFailed}\n${e}`;
   }
 });
 
@@ -146,9 +128,9 @@ async function copyLink() {
     clearTimeout(hashTimer);
     await updateHash();
     await navigator.clipboard.writeText(location.href);
-    copyStatus.value = t.value.copied;
+    copyStatus.value = t.copied;
   } catch {
-    copyStatus.value = t.value.copyFailed;
+    copyStatus.value = t.copyFailed;
   }
   clearTimeout(copyTimer);
   copyTimer = setTimeout(() => (copyStatus.value = ""), 2000);

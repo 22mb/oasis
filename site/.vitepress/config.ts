@@ -12,6 +12,8 @@ const golden = (name: string) =>
 
 export default defineConfig({
   title: "oasis-gen",
+  lang: "en",
+  description: "A strictly typed API client generator for OpenAPI, with zero runtime dependencies",
   // `head` paths are not prefixed with `base`, unlike `themeConfig.logo`.
   head: [
     ["link", { rel: "icon", type: "image/svg+xml", href: "/oasis/logo.svg" }],
@@ -61,141 +63,38 @@ export default defineConfig({
   },
   themeConfig: {
     logo: { src: "/logo.svg", width: 24, height: 24 },
-    search: {
-      provider: "local",
-      options: {
-        miniSearch: {
-          options: {
-            // The default tokenizer splits on spaces and punctuation, which leaves
-            // a Japanese sentence as one token. This function is serialized to the
-            // client by its source, so it must not refer to anything outside it.
-            // Segments also keep `api.GET` or `oasis_gen` whole, so split those as well.
-            tokenize(text: string) {
-              const segmenter = new Intl.Segmenter("ja", { granularity: "word" });
-              return [...segmenter.segment(text)]
-                .filter((s) => s.isWordLike)
-                .flatMap((s) => s.segment.split(/[\p{P}\p{S}]+/u))
-                .filter(Boolean);
-            },
-          },
-        },
-        locales: {
-          ja: {
-            translations: {
-              button: { buttonText: "検索", buttonAriaLabel: "検索" },
-              modal: {
-                displayDetails: "詳細を表示",
-                resetButtonTitle: "検索語を消去する",
-                backButtonTitle: "検索を閉じる",
-                noResultsText: "一致する結果はありません：",
-                footer: {
-                  selectText: "選択",
-                  selectKeyAriaLabel: "Enter キー",
-                  navigateText: "移動",
-                  navigateUpKeyAriaLabel: "上矢印キー",
-                  navigateDownKeyAriaLabel: "下矢印キー",
-                  closeText: "閉じる",
-                  closeKeyAriaLabel: "Esc キー",
-                },
-              },
-            },
-          },
-        },
+    search: { provider: "local" },
+    nav: [
+      { text: "Guide", link: "/getting-started" },
+      { text: "Reference", link: "/reference" },
+      { text: "Playground", link: "/playground" },
+    ],
+    sidebar: [
+      {
+        text: "Introduction",
+        items: [
+          { text: "Getting started", link: "/getting-started" },
+          { text: "Strict types", link: "/strict-types" },
+        ],
       },
-    },
+      {
+        text: "Guide",
+        items: [
+          { text: "Calling operations", link: "/client" },
+          { text: "Middleware", link: "/middleware" },
+          { text: "Authentication", link: "/authentication" },
+          { text: "Recipes", link: "/recipes" },
+        ],
+      },
+      {
+        text: "Reference",
+        items: [
+          { text: "CLI and API", link: "/reference" },
+          { text: "Schemas", link: "/schemas" },
+          { text: "OpenAPI support", link: "/openapi-support" },
+        ],
+      },
+    ],
     socialLinks: [{ icon: "github", link: repository }],
-  },
-  locales: {
-    root: {
-      label: "English",
-      lang: "en",
-      description: "A strictly typed API client generator for OpenAPI, with zero runtime dependencies",
-      themeConfig: {
-        nav: [
-          { text: "Guide", link: "/getting-started" },
-          { text: "Reference", link: "/reference" },
-          { text: "Playground", link: "/playground" },
-        ],
-        sidebar: [
-          {
-            text: "Introduction",
-            items: [
-              { text: "Getting started", link: "/getting-started" },
-              { text: "Strict types", link: "/strict-types" },
-            ],
-          },
-          {
-            text: "Guide",
-            items: [
-              { text: "Calling operations", link: "/client" },
-              { text: "Middleware", link: "/middleware" },
-              { text: "Authentication", link: "/authentication" },
-              { text: "Recipes", link: "/recipes" },
-            ],
-          },
-          {
-            text: "Reference",
-            items: [
-              { text: "CLI and API", link: "/reference" },
-              { text: "Schemas", link: "/schemas" },
-              { text: "OpenAPI support", link: "/openapi-support" },
-            ],
-          },
-        ],
-      },
-    },
-    ja: {
-      label: "日本語",
-      lang: "ja",
-      description: "厳密な型と依存関係ゼロの OpenAPI クライアント生成ツール",
-      themeConfig: {
-        nav: [
-          { text: "ガイド", link: "/ja/getting-started" },
-          { text: "リファレンス", link: "/ja/reference" },
-          { text: "プレイグラウンド", link: "/ja/playground" },
-        ],
-        sidebar: [
-          {
-            text: "はじめに",
-            items: [
-              { text: "クイックスタート", link: "/ja/getting-started" },
-              { text: "厳密な型", link: "/ja/strict-types" },
-            ],
-          },
-          {
-            text: "ガイド",
-            items: [
-              { text: "操作の呼び出し", link: "/ja/client" },
-              { text: "ミドルウェア", link: "/ja/middleware" },
-              { text: "認証", link: "/ja/authentication" },
-              { text: "レシピ", link: "/ja/recipes" },
-            ],
-          },
-          {
-            text: "リファレンス",
-            items: [
-              { text: "CLI と API", link: "/ja/reference" },
-              { text: "スキーマ", link: "/ja/schemas" },
-              { text: "OpenAPI の対応状況", link: "/ja/openapi-support" },
-            ],
-          },
-        ],
-        outline: { label: "目次" },
-        docFooter: { prev: "前のページ", next: "次のページ" },
-        darkModeSwitchLabel: "外観",
-        lightModeSwitchTitle: "ライトモードに切り替える",
-        darkModeSwitchTitle: "ダークモードに切り替える",
-        sidebarMenuLabel: "メニュー",
-        returnToTopLabel: "ページの先頭へ",
-        langMenuLabel: "言語を切り替える",
-        skipToContentLabel: "本文へ移動",
-        notFound: {
-          title: "ページが見つかりません",
-          quote: "URL が正しいかご確認ください。",
-          linkLabel: "ホームへ移動",
-          linkText: "ホームへ戻る",
-        },
-      },
-    },
   },
 });
