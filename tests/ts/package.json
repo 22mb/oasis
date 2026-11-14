@@ -1,6 +1,9 @@
 {
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node node_modules/typescript/bin/tsc && vitest run --project node && node --test e2e.test.ts",
     "test:bun": "bun test",

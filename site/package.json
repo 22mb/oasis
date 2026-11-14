@@ -1,6 +1,9 @@
 {
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "wasm": "cargo build --profile wasm --locked --target wasm32-unknown-unknown -p oasis-playground && cp ../target/wasm32-unknown-unknown/wasm/oasis_playground.wasm theme/oasis.wasm",
     "dev": "npm run wasm && rspress dev",
@@ -15,6 +18,7 @@
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "react": "19.3.1",
+    "react-dom": "19.3.1",
     "shiki": "4.6.0",
     "typescript": "6.0.3"
   }
