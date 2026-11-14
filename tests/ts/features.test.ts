@@ -1,26 +1,13 @@
 import { expect, test } from "vitest";
 import { DecodeError, createClient, type ClientOptions } from "../golden/features.ts";
 import { cookieHeaders } from "./env.ts";
-
-type Sent = { url: string; headers: Headers; body: string };
-
-const noContent = () => new Response(null, { status: 204 });
+import { json, noContent, server, type Sent } from "./fetch.ts";
 
 /** A client whose fetch records the request and answers with `response`. */
 function recording(response: () => Response = noContent, options: ClientOptions = {}) {
-  const sent: Sent[] = [];
-  const api = createClient({
-    ...options,
-    fetch: async (request: Request) => {
-      sent.push({ url: request.url, headers: request.headers, body: await request.text() });
-      return response();
-    },
-  });
-  return { api, sent };
+  const { fetch, sent } = server(response);
+  return { api: createClient({ ...options, fetch }), sent };
 }
-
-const json = (value: unknown) => () =>
-  new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } });
 
 test("serializes exploded, reserved, JSON and cookie parameters", async () => {
   const { api, sent } = recording(json({ x: 1 }));
