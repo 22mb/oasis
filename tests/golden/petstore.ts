@@ -88,6 +88,7 @@ export interface paths {
     GET: {
       request: {
         path: {
+          /** @format int64 */
           petId: number;
         };
       };
@@ -106,6 +107,7 @@ export interface paths {
     DELETE: {
       request: {
         path: {
+          /** @format int64 */
           petId: number;
         };
       };
@@ -119,6 +121,7 @@ export interface paths {
     LINK: {
       request: {
         path: {
+          /** @format int64 */
           petId: number;
         };
         header: {
@@ -328,6 +331,7 @@ type $NewPet = {
   tag?: string | null;
 };
 type $Pet = $NewPet & {
+  /** @format int64 */
   id: number;
   owner?: $Owner;
 };

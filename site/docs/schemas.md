@@ -47,8 +47,10 @@ type PetKind = Pet["kind"];
 | A required property that allows any value (listed only in `required`, or with an unconstrained schema such as `{}`) | `{} \| null` (any value except `undefined`) |
 | No schema, or `{}` (also `type: string, format: binary` in OpenAPI 3.0) | `unknown`; `Blob` as a part of a multipart body or as a `text/*` response |
 
-`title`, `description`, `default`, and `deprecated` become JSDoc comments, so
-they appear in editor hovers. Formats are not converted; see
+`title`, `description`, `format`, `default`, `example`, `examples`, and
+`deprecated` become JSDoc comments, so they appear in editor hovers. A
+parameter also shows the `format`, `default`, and examples of its schema.
+Formats are not converted; see
 [Strict types](./strict-types#formats-are-not-converted).
 
 ## Subtypes

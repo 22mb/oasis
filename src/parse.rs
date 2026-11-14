@@ -661,11 +661,21 @@ impl<'a> Parser<'a> {
             }
         };
 
+        // A parameter is documented by its own fields, then by its schema's.
+        let mut meta = meta(p.v);
+        if let Some(schema) = p.get("schema").map(|s| self::meta(s.v)) {
+            meta.default = schema.default;
+            meta.format = schema.format;
+            // The parameter's own `example` overrides the schema's.
+            if meta.examples.is_empty() {
+                meta.examples = schema.examples;
+            }
+        }
         Ok(Some(Param {
             name: name.to_string(),
             location,
             required,
-            meta: meta(p.v),
+            meta,
             value,
         }))
     }
@@ -1242,6 +1252,12 @@ fn meta(v: &Value) -> Meta {
         read_only: flag("readOnly"),
         write_only: flag("writeOnly"),
         default: v.get("default").cloned(),
+        format: text("format"),
+        examples: match (v.get("example"), v.get("examples")) {
+            (Some(example), _) => vec![example.clone()],
+            (None, Some(Value::Array(examples))) => examples.clone(),
+            _ => Vec::new(),
+        },
         extensions: v
             .as_object()
             .into_iter()
