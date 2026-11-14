@@ -532,6 +532,15 @@ components:
     PropertyNamesConst:
       type: object
       propertyNames: { const: only }
+    # Optional properties named like members of `Object.prototype`.
+    Inherited:
+      type: object
+      required: [valueOf]
+      properties:
+        constructor: { const: 1.5 }
+        toString: { type: string, readOnly: true }
+        valueOf: { type: integer }
+        hasOwnProperty: {}
     Level:
       type: [integer, "null"]
       format: int32

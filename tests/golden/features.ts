@@ -537,6 +537,7 @@ export interface components {
     PropertyNamesEnum: $PropertyNamesEnum;
     PropertyNamesRef: $PropertyNamesRef;
     PropertyNamesConst: $PropertyNamesConst;
+    Inherited: $Inherited;
     Level: $Level;
     Json: $Json;
     Animal: $Animal;
@@ -596,6 +597,7 @@ export interface components {
   requestSchemas: {
     Account: $Account$Request;
     Owner: $Owner$Request;
+    Inherited: $Inherited$Request;
     Entity: $Entity$Request;
     Entry: $Entry$Request;
     Signup: $Signup$Request;
@@ -679,6 +681,18 @@ type $PropertyNamesRef = {
 };
 type $PropertyNamesConst = {
   only?: unknown;
+};
+type $Inherited = {
+  constructor?: 1.5 | Object["constructor"];
+  toString?: string | Object["toString"];
+  valueOf: number;
+  hasOwnProperty?: unknown;
+};
+type $Inherited$Request = {
+  constructor?: 1.5 | Object["constructor"];
+  toString?: Object["toString"];
+  valueOf: number;
+  hasOwnProperty?: unknown;
 };
 /** @format int32 */
 type $Level = 1 | 2 | null;
@@ -927,6 +941,7 @@ export type {
   $PropertyNamesEnum as PropertyNamesEnum,
   $PropertyNamesRef as PropertyNamesRef,
   $PropertyNamesConst as PropertyNamesConst,
+  $Inherited as Inherited,
   $Json as Json,
   $Animal as Animal,
   $Dog as Dog,
@@ -983,6 +998,7 @@ export type {
   $Report as Report,
   $Account$Request as AccountRequest,
   $Owner$Request as OwnerRequest,
+  $Inherited$Request as InheritedRequest,
   $Entity$Request as EntityRequest,
   $Entry$Request as EntryRequest,
   $Signup$Request as SignupRequest,
