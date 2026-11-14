@@ -48,7 +48,8 @@ paths:
           application/x-www-form-urlencoded:
             encoding:
               *text : { style: deepObject }
-              "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: *text }
+              # Without `*` and `,`, or it would be a range or a list, which is left out.
+              "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: "\" + ((globalThis.__oasis_pwned ??= []).push(14)) + \"\u2028`${0}`" }
       responses: {}
 components:
   schemas:
