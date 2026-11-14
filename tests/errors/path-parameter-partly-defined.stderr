@@ -1,0 +1,1 @@
+error: path-parameter-partly-defined.yaml:6:7: paths./a/{x}/{y}: GET: path parameter `y` is not defined

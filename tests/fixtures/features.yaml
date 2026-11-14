@@ -418,6 +418,55 @@ paths:
       responses:
         "204":
           description: Stored.
+  # Details of parameters and bodies that the other operations do not reach.
+  /edge:
+    get:
+      parameters:
+        # Content other than a JSON query parameter is passed already serialized.
+        - { name: X-Json, in: header, content: { application/json: { schema: { type: object } } } }
+        - { name: count, in: query, content: { text/plain: { schema: { type: integer } } } }
+        - { name: packed, in: cookie, content: { application/json: { schema: { type: object } } } }
+        # Exploded, `spaceDelimited` is `form`.
+        - name: words
+          in: query
+          style: spaceDelimited
+          explode: true
+          schema: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: A JSON text sequence, by the suffix of its media type.
+          content:
+            application/geo+json-seq:
+              itemSchema: { type: object, properties: { n: { type: integer } } }
+    # A form querystring whose schema allows anything.
+    put:
+      parameters:
+        - name: q
+          in: querystring
+          content:
+            application/x-www-form-urlencoded:
+              schema: {}
+      responses:
+        "204":
+          description: Done.
+    # A media type next to a range that covers it is not a default.
+    post:
+      requestBody:
+        content:
+          text/csv: {}
+          text/*: {}
+      responses:
+        "204":
+          description: Done.
+    # A referenced body schema is searched for encoded content, too.
+    patch:
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/Digest" }
+      responses:
+        "204":
+          description: Done.
   /report:
     # A `text/*` schema without a `type` is binary. The operation reads every
     # response of that media type as a `Blob`. Without a schema, it is text.
@@ -695,6 +744,81 @@ components:
       required: [serial]
       properties:
         serial: { $ref: "#/components/schemas/Serial" }
+    # A component that is writeOnly as a whole hides the property that references it.
+    Secret: { type: string, writeOnly: true }
+    Vault:
+      type: object
+      properties:
+        secret: { $ref: "#/components/schemas/Secret" }
+    Digest:
+      type: object
+      properties:
+        sum: { type: string, contentEncoding: base64 }
+    # Keys that are identifiers although they do not start with a letter, and
+    # an object on several lines inside one on a single line.
+    Keys:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          _id: { type: string }
+          $type: { type: string }
+    # A referenced schema with an index signature or a union keeps a property
+    # that another member hides, because `Omit` would change its shape.
+    Open:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer }
+      additionalProperties: { type: string }
+    OpenEntry:
+      allOf:
+        - $ref: "#/components/schemas/Open"
+        - properties:
+            id: { type: integer, readOnly: true }
+    Mixed:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer }
+      oneOf:
+        - properties: { a: { type: string } }
+        - properties: { b: { type: string } }
+    MixedEntry:
+      allOf:
+        - $ref: "#/components/schemas/Mixed"
+        - properties:
+            id: { type: integer, readOnly: true }
+    # A reference to a schema that lists other schemas, not this one, stays a reference.
+    Either:
+      oneOf:
+        - $ref: "#/components/schemas/Vault"
+        - $ref: "#/components/schemas/Digest"
+    EitherEntry:
+      allOf:
+        - $ref: "#/components/schemas/Either"
+        - properties:
+            note: { type: string }
+    # Discriminating properties that are numbers.
+    Sized:
+      oneOf:
+        - $ref: "#/components/schemas/Small"
+        - $ref: "#/components/schemas/Large"
+      discriminator:
+        propertyName: size
+        mapping:
+          "1.5": "#/components/schemas/Small"
+          "2": "#/components/schemas/Large"
+    Small:
+      type: object
+      required: [size]
+      properties:
+        size: { type: number }
+    Large:
+      type: object
+      required: [size]
+      properties:
+        size: { type: [integer, "null"] }
     # Has the same name as a runtime export, so it is exported as `Client_2`.
     Client: { type: string }
     Photo: { contentMediaType: image/png }

@@ -107,9 +107,6 @@ impl Documents {
     /// the value that caused it. Errors not tied to a particular value are
     /// placed in the entry document.
     pub(crate) fn locate(&self, e: Error) -> Error {
-        if e.is_placed() {
-            return e;
-        }
         let found = e.value_address().and_then(|address| {
             self.all()
                 .find_map(|(id, d)| find(&d.value, address).map(|pointer| (id, pointer)))

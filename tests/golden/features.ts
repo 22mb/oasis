@@ -417,6 +417,69 @@ export interface paths {
       statuses: Statuses_204_default;
     };
   };
+  "/edge": {
+    GET: {
+      request: {
+        query?: {
+          count?: string;
+          words?: string[];
+        };
+        header?: {
+          "X-Json"?: string;
+        };
+        cookie?: {
+          packed?: string;
+        };
+      };
+      responses: {
+        /** A JSON text sequence, by the suffix of its media type. */
+        "200": AsyncIterable<{
+          n?: number;
+        }>;
+      };
+      statuses: Statuses_200_default;
+    };
+    PUT: {
+      request: {
+        querystring?: Record<string, unknown>;
+      };
+      responses: {
+        /** Done. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+    POST: {
+      request: {
+        contentType: "text/csv";
+        body?: string;
+      } | {
+        contentType: `text/${string}`;
+        body?: string;
+      } | {
+        contentType?: never;
+        body?: never;
+      };
+      responses: {
+        /** Done. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+    PATCH: {
+      request: {
+        contentType?: "multipart/form-data";
+        body?: {
+          sum?: string;
+        };
+      };
+      responses: {
+        /** Done. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+  };
   "/report": {
     GET: {
       request: {};
@@ -470,6 +533,10 @@ type Statuses_200_4XX_default = {
   "200": [200, never];
   "4XX": [never, Status4xx];
   default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status5xx, 204 | 205];
+};
+type Statuses_200_default = {
+  "200": [200, never];
+  default: [201 | 202 | 203 | 206 | 207 | 208 | 209 | Status21x | Status22x | Status23x | Status24x | Status25x | Status26x | Status27x | Status28x | Status29x, 300 | 301 | 302 | 303 | 305 | 306 | 307 | 308 | 309 | Status31x | Status32x | Status33x | Status34x | Status35x | Status36x | Status37x | Status38x | Status39x | Status4xx | Status5xx, 204 | 205];
 };
 type Statuses_201_default = {
   "201": [201, never];
@@ -561,6 +628,19 @@ export interface components {
     Member: $Member;
     Upload: $Upload;
     Holder: $Holder;
+    Secret: $Secret;
+    Vault: $Vault;
+    Digest: $Digest;
+    Keys: $Keys;
+    Open: $Open;
+    OpenEntry: $OpenEntry;
+    Mixed: $Mixed;
+    MixedEntry: $MixedEntry;
+    Either: $Either;
+    EitherEntry: $EitherEntry;
+    Sized: $Sized;
+    Small: $Small;
+    Large: $Large;
     Client: $Client;
     Photo: $Photo;
     Form: $Form;
@@ -607,6 +687,11 @@ export interface components {
     Profile: $Profile$Request;
     Member: $Member$Request;
     Holder: $Holder$Request;
+    Vault: $Vault$Request;
+    OpenEntry: $OpenEntry$Request;
+    MixedEntry: $MixedEntry$Request;
+    Either: $Either$Request;
+    EitherEntry: $EitherEntry$Request;
     Stamped: $Stamped$Request;
     Nested: $Nested$Request;
     Deep: $Deep$Request;
@@ -806,6 +891,58 @@ type $Holder = {
 type $Holder$Request = {
   serial?: never;
 };
+type $Secret = string;
+type $Vault = {
+  secret?: never;
+};
+type $Vault$Request = {
+  secret?: $Secret;
+};
+type $Digest = {
+  sum?: string;
+};
+type $Keys = { [key: string]: {
+    _id?: string;
+    $type?: string;
+  } };
+type $Open = {
+  id: number;
+  [key: string]: unknown;
+};
+type $OpenEntry = $Open & {
+  id?: number;
+};
+type $OpenEntry$Request = $Open & {
+  id?: never;
+};
+type $Mixed = {
+  id: number;
+} & ({
+  a?: string;
+} | {
+  b?: string;
+});
+type $MixedEntry = $Mixed & {
+  id?: number;
+};
+type $MixedEntry$Request = $Mixed & {
+  id?: never;
+};
+type $Either = $Vault | $Digest;
+type $Either$Request = $Vault$Request | $Digest;
+type $EitherEntry = $Either & {
+  note?: string;
+};
+type $EitherEntry$Request = $Either$Request & {
+  note?: string;
+};
+type $Sized = $Small & { size: 1.5 } | $Large & { size: 2 };
+type $Small = {
+  size: number;
+};
+type $Large = {
+  size: number | null;
+};
 type $Client = string;
 type $Photo = unknown;
 type $Form = {
@@ -964,6 +1101,19 @@ export type {
   $Member as Member,
   $Upload as Upload,
   $Holder as Holder,
+  $Secret as Secret,
+  $Vault as Vault,
+  $Digest as Digest,
+  $Keys as Keys,
+  $Open as Open,
+  $OpenEntry as OpenEntry,
+  $Mixed as Mixed,
+  $MixedEntry as MixedEntry,
+  $Either as Either,
+  $EitherEntry as EitherEntry,
+  $Sized as Sized,
+  $Small as Small,
+  $Large as Large,
   $Client as Client_2,
   $Photo as Photo,
   $Form as Form,
@@ -1008,6 +1158,11 @@ export type {
   $Profile$Request as ProfileRequest,
   $Member$Request as MemberRequest,
   $Holder$Request as HolderRequest,
+  $Vault$Request as VaultRequest,
+  $OpenEntry$Request as OpenEntryRequest,
+  $MixedEntry$Request as MixedEntryRequest,
+  $Either$Request as EitherRequest,
+  $EitherEntry$Request as EitherEntryRequest,
   $Stamped$Request as StampedRequest,
   $Nested$Request as NestedRequest,
   $Deep$Request as DeepRequest,
@@ -1758,6 +1913,9 @@ const spec: Spec = {
     "POST /attachments": { contentType: "multipart/form-data" },
     "GET /blobs": { querystring: "application/x-www-form-urlencoded" },
     "PUT /blobs": { querystring: "application/x-www-form-urlencoded" },
+    "GET /edge": { styles: { "cookie:packed": { style: "cookie" } } },
+    "PUT /edge": { querystring: "application/x-www-form-urlencoded" },
+    "PATCH /edge": { contentType: "multipart/form-data", encoding: { "multipart/form-data": { sum: { contentType: "application/octet-stream" } } } },
     "GET /report": { binary: { "200": ["text/csv"], "4XX": [] } },
     "GET /exports": { binary: { "200": ["text/*"], "4XX": [], default: [] } },
   },

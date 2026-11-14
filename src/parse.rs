@@ -1815,6 +1815,51 @@ mod tests {
     }
 
     #[test]
+    fn registers_a_scheme_named_by_its_uri_once() {
+        // The only component, named by its URI, is that component.
+        let api = parse_value(json!({
+            "openapi": "3.2.0",
+            "security": [{"#/components/securitySchemes/only": []}],
+            "paths": {},
+            "components": {"securitySchemes": {"only": {"type": "http", "scheme": "bearer"}}}
+        }))
+        .unwrap();
+        assert_eq!(api.security[0].schemes[0].0, "only");
+        assert_eq!(api.security_schemes.len(), 1);
+
+        // A scheme outside the components, named by two spellings of its URI.
+        let api = parse_value(json!({
+            "openapi": "3.2.0",
+            "paths": {"/a": {
+                "get": {"security": [{"#/x-schemes/s": []}], "responses": {}},
+                "put": {"security": [{"#/x%2Dschemes/s": []}], "responses": {}}
+            }},
+            "x-schemes": {"s": {"type": "http", "scheme": "bearer"}}
+        }))
+        .unwrap();
+        assert_eq!(api.security_schemes.len(), 1);
+    }
+
+    #[test]
+    fn limits_nesting_through_every_keyword() {
+        let wraps: [fn(Value) -> Value; 5] = [
+            |s| json!({"allOf": [s]}),
+            |s| json!({"oneOf": [s]}),
+            |s| json!({"type": "array", "prefixItems": [s]}),
+            |s| json!({"type": "object", "properties": {"p": s}}),
+            |s| json!({"type": "object", "patternProperties": {"^p": s}}),
+        ];
+        for wrap in wraps {
+            let mut s = json!({"type": "string"});
+            for _ in 0..MAX_DEPTH + 2 {
+                s = wrap(s);
+            }
+            let e = api(json!({}), json!({ "S": s })).unwrap_err().to_string();
+            assert!(e.contains("schema nesting too deep"), "{e}");
+        }
+    }
+
+    #[test]
     fn rejects_malformed_security() {
         let schemes = json!({"bearer": {"type": "http", "scheme": "bearer"}});
         for security in [
