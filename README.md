@@ -4,8 +4,7 @@
   <p>A <b>strictly typed</b> API client generator for OpenAPI, with <b>zero runtime dependencies</b>.</p>
   <p>
     <a href="https://22mb.github.io/oasis/"><b>Documentation</b></a> ·
-    <a href="https://22mb.github.io/oasis/playground"><b>Playground</b></a> ·
-    <a href="https://22mb.github.io/oasis/ja/">日本語</a>
+    <a href="https://22mb.github.io/oasis/playground"><b>Playground</b></a>
   </p>
 </div>
 

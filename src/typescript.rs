@@ -9,8 +9,44 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 const RUNTIME: &str = include_str!("typescript/runtime.ts");
 
+/// Methods that `fetch` normalizes to uppercase, so an `additionalOperations`
+/// entry like `post` would be sent as `POST`.
+const NORMALIZED_METHODS: [&str; 6] = ["delete", "get", "head", "options", "post", "put"];
+
 pub fn emit(api: &Api) -> Result<String, Error> {
+    check(api)?;
     Emitter::new(api).emit()
+}
+
+/// Rejects what the document allows but the client cannot do.
+fn check(api: &Api) -> Result<(), Error> {
+    for item in &api.paths {
+        for op in &item.operations {
+            check_method(&op.method).map_err(|e| {
+                e.about_origin(op.origin)
+                    .context(format!("paths.{}", item.path))
+            })?;
+        }
+    }
+    Ok(())
+}
+
+/// The client has a property for each method next to `with`, and must not be
+/// thenable, so neither name is a method. Fixed methods are uppercase in the
+/// IR, so any other spelling comes from `additionalOperations`.
+fn check_method(method: &str) -> Result<(), Error> {
+    if matches!(method, "with" | "then") {
+        return Err(Error::new(format!(
+            "additionalOperations must not define `{method}`: the generated client reserves that name"
+        )));
+    }
+    let (lower, upper) = (method.to_ascii_lowercase(), method.to_ascii_uppercase());
+    if method != upper && NORMALIZED_METHODS.contains(&lower.as_str()) {
+        return Err(Error::new(format!(
+            "additionalOperations must not define `{method}`: it is sent as `{upper}`, use the `{lower}` field"
+        )));
+    }
+    Ok(())
 }
 
 /// Which side of the wire a type describes. `readOnly` properties are absent
@@ -1487,6 +1523,27 @@ mod tests {
     fn generate(schemas: Value) -> Result<String, Error> {
         let doc = json!({"openapi": "3.2.0", "paths": {}, "components": {"schemas": schemas}});
         emit(&crate::parse(&crate::Documents::from_value(doc)?)?)
+    }
+
+    #[test]
+    fn rejects_methods_the_client_cannot_send() {
+        let generate = |method: &str| {
+            let paths = json!({"/s": {"additionalOperations": {method: {"responses": {}}}}});
+            let doc = json!({"openapi": "3.2.0", "paths": paths});
+            emit(&crate::parse(&crate::Documents::from_value(doc)?)?)
+        };
+        for (method, message) in [
+            ("with", "reserves that name"),
+            ("then", "reserves that name"),
+            ("post", "it is sent as `POST`, use the `post` field"),
+            ("Get", "it is sent as `GET`, use the `get` field"),
+        ] {
+            let err = generate(method).unwrap_err().to_string();
+            assert!(err.contains(message), "{method}: {err}");
+        }
+        for method in ["LINK", "patch", "query"] {
+            assert!(generate(method).is_ok(), "{method}");
+        }
     }
 
     fn r(name: &str) -> Value {
