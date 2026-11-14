@@ -22,11 +22,44 @@ pub fn emit(api: &Api) -> Result<String, Error> {
 fn check(api: &Api) -> Result<(), Error> {
     for item in &api.paths {
         for op in &item.operations {
-            check_method(&op.method).map_err(|e| {
-                e.about_origin(op.origin)
-                    .context(format!("paths.{}", item.path))
+            check_operation(op).map_err(|e| e.context(format!("paths.{}", item.path)))?;
+        }
+    }
+    Ok(())
+}
+
+fn check_operation(op: &Operation) -> Result<(), Error> {
+    check_method(&op.method).map_err(|e| e.about_origin(op.origin))?;
+    for c in op.body.iter().flat_map(|b| &b.content) {
+        if essence(&c.media_type) != "multipart/form-data" {
+            continue;
+        }
+        for e in &c.encoding {
+            check_part(e).map_err(|err| {
+                err.about_origin(e.origin)
+                    .context(format!("encoding.{}", e.name))
+                    .context(c.media_type.clone())
+                    .context("requestBody")
+                    .context(op.method.clone())
             })?;
         }
+    }
+    Ok(())
+}
+
+/// A `multipart/form-data` body is sent as `FormData`, which cannot carry
+/// part headers or nested parts. Optional headers are left out.
+fn check_part(e: &Encoding) -> Result<(), Error> {
+    if let Some(h) = e.headers.iter().find(|h| h.required) {
+        return Err(Error::new(format!(
+            "required part header `{}` is not supported",
+            h.name
+        )));
+    }
+    if let Some(Serialization::ContentType(ct)) = &e.serialization
+        && ct.split(',').any(|t| essence(t).starts_with("multipart/"))
+    {
+        return Err(Error::new("nested multipart parts are not supported"));
     }
     Ok(())
 }
@@ -682,15 +715,16 @@ impl<'a> Emitter<'a> {
         let mut fields: Vec<(String, Expr)> = c
             .encoding
             .iter()
-            .filter_map(|(name, e)| {
-                let e = match e {
+            .filter_map(|e| {
+                let name = &e.name;
+                let e = match e.serialization.as_ref()? {
                     // A list or range of media types leaves the choice of a
                     // part's media type to its value.
-                    Encoding::ContentType(ct) if multipart && ct.contains([',', '*']) => {
+                    Serialization::ContentType(ct) if multipart && ct.contains([',', '*']) => {
                         return None;
                     }
-                    Encoding::ContentType(ct) => ("contentType".into(), Expr::string(ct)),
-                    Encoding::Style {
+                    Serialization::ContentType(ct) => ("contentType".into(), Expr::string(ct)),
+                    Serialization::Style {
                         style,
                         explode,
                         allow_reserved,
@@ -705,7 +739,12 @@ impl<'a> Emitter<'a> {
             })
             .collect();
         if multipart && let Some(s) = &c.schema {
-            let mut named: HashSet<&str> = c.encoding.iter().map(|(n, _)| n.as_str()).collect();
+            let mut named: HashSet<&str> = c
+                .encoding
+                .iter()
+                .filter(|e| e.serialization.is_some())
+                .map(|e| e.name.as_str())
+                .collect();
             let mut properties = Vec::new();
             self.parts(s, &mut Vec::new(), &mut properties);
             for p in properties {
@@ -1544,6 +1583,27 @@ mod tests {
         for method in ["LINK", "patch", "query"] {
             assert!(generate(method).is_ok(), "{method}");
         }
+    }
+
+    #[test]
+    fn rejects_parts_form_data_cannot_send_only_in_requests() {
+        let generate = |op: Value| {
+            let doc = json!({"openapi": "3.2.0", "paths": {"/s": {"post": op}}});
+            emit(&crate::parse(&crate::Documents::from_value(doc)?)?)
+        };
+        let content = json!({"multipart/form-data": {"encoding": {
+            "a": {"headers": {"X-Id": {"required": true, "schema": {}}}},
+            "b": {"contentType": "multipart/mixed"},
+        }}});
+        let err = generate(json!({"requestBody": {"content": content}, "responses": {}}));
+        assert!(
+            err.unwrap_err()
+                .to_string()
+                .contains("required part header `X-Id`"),
+            "request"
+        );
+        let ok = generate(json!({"responses": {"200": {"description": "", "content": content}}}));
+        assert!(ok.is_ok(), "response");
     }
 
     fn r(name: &str) -> Value {

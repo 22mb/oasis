@@ -1,0 +1,15 @@
+---
+pageType: custom
+title: Playground
+---
+
+import { Head } from "@rspress/core/runtime";
+import { Playground } from "../theme/Playground.tsx";
+
+{/* A custom page does not get its title from the front matter. */}
+<Head>
+  <title>Playground - oasis-gen</title>
+  <meta property="og:title" content="Playground - oasis-gen" />
+</Head>
+
+<Playground />

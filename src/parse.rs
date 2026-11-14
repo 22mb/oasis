@@ -710,11 +710,8 @@ impl<'a> Parser<'a> {
         Ok(out)
     }
 
-    /// The `encoding` of a form media type. A `multipart/form-data` body is
-    /// sent as `FormData`, which cannot carry part headers or nested parts, so
-    /// a required header or a `multipart` part is rejected; other headers can
-    /// be left out.
-    fn encoding(&self, media_type: &str, m: &Node<'a>) -> Result<Vec<(String, Encoding)>, Error> {
+    /// The `encoding` of a form media type.
+    fn encoding(&self, media_type: &str, m: &Node<'a>) -> Result<Vec<Encoding>, Error> {
         let multipart = essence(media_type) == "multipart/form-data";
         let Some(map) = m.get("encoding") else {
             return Ok(Vec::new());
@@ -724,25 +721,19 @@ impl<'a> Parser<'a> {
         }
         let mut out = Vec::new();
         for (name, e) in map.entries() {
-            let fail = |message: String| {
-                Error::new(message)
-                    .about(e.v)
-                    .context(format!("encoding.{name}"))
-            };
+            let mut headers = Vec::new();
             if multipart {
                 for (header, h) in e.entries_of("headers") {
                     let h = self.deref(h)?;
-                    if h.bool("required") == Some(true)
-                        && !header.eq_ignore_ascii_case("content-type")
-                    {
-                        return Err(fail(format!(
-                            "required part header `{header}` is not supported"
-                        ))
-                        .about(h.v));
+                    if !header.eq_ignore_ascii_case("content-type") {
+                        headers.push(PartHeader {
+                            name: header.clone(),
+                            required: h.bool("required") == Some(true),
+                        });
                     }
                 }
             }
-            let encoding = if ["style", "explode", "allowReserved"]
+            let serialization = if ["style", "explode", "allowReserved"]
                 .iter()
                 .any(|k| e.v.get(*k).is_some())
             {
@@ -750,25 +741,28 @@ impl<'a> Parser<'a> {
                     None | Some("form") => Style::Form,
                     Some("deepObject") => Style::DeepObject,
                     Some(s) => {
-                        return Err(fail(format!(
+                        return Err(Error::new(format!(
                             "style `{s}` for form fields is not supported"
-                        )));
+                        ))
+                        .about(e.v)
+                        .context(format!("encoding.{name}")));
                     }
                 };
-                Encoding::Style {
+                Some(Serialization::Style {
                     style,
                     explode: e.bool("explode").unwrap_or(style == Style::Form),
                     allow_reserved: e.bool("allowReserved").unwrap_or(false),
-                }
-            } else if let Some(ct) = e.str("contentType") {
-                if multipart && ct.split(',').any(|t| essence(t).starts_with("multipart/")) {
-                    return Err(fail("nested multipart parts are not supported".into()));
-                }
-                Encoding::ContentType(ct.to_string())
+                })
             } else {
-                continue;
+                e.str("contentType")
+                    .map(|ct| Serialization::ContentType(ct.to_string()))
             };
-            out.push((name.clone(), encoding));
+            out.push(Encoding {
+                name: name.clone(),
+                serialization,
+                headers,
+                origin: Origin::of(e.v),
+            });
         }
         Ok(out)
     }
@@ -1421,7 +1415,7 @@ mod tests {
     }
 
     /// The encoding of the only media type of a `POST /s` body.
-    fn encoding(media_type: &str, encoding: Value) -> Result<Vec<(String, Encoding)>, Error> {
+    fn encoding(media_type: &str, encoding: Value) -> Result<Vec<Encoding>, Error> {
         let paths = json!({"/s": {"post": {"requestBody": {"content": {
             media_type: {"schema": {"type": "object"}, "encoding": encoding}
         }}, "responses": {}}}});
@@ -1447,18 +1441,33 @@ mod tests {
             }),
         )
         .unwrap();
-        let style = |style, explode, allow_reserved| Encoding::Style {
-            style,
-            explode,
-            allow_reserved,
+        let entry = |name: &str, serialization, headers| Encoding {
+            name: name.into(),
+            serialization,
+            headers,
+            origin: Origin::default(),
+        };
+        let style = |style, explode, allow_reserved| {
+            Some(Serialization::Style {
+                style,
+                explode,
+                allow_reserved,
+            })
+        };
+        let png = Some(Serialization::ContentType("image/png".into()));
+        let note = PartHeader {
+            name: "X-Note".into(),
+            required: false,
         };
         assert_eq!(
             e,
             vec![
-                ("a".into(), Encoding::ContentType("image/png".into())),
-                ("b".into(), style(Style::DeepObject, false, false)),
-                ("c".into(), style(Style::Form, false, false)),
-                ("d".into(), style(Style::Form, true, true)),
+                entry("a", png, vec![note]),
+                entry("b", style(Style::DeepObject, false, false), vec![]),
+                entry("c", style(Style::Form, false, false), vec![]),
+                entry("d", style(Style::Form, true, true), vec![]),
+                // The specification ignores a `Content-Type` part header.
+                entry("e", None, vec![]),
             ]
         );
         // Encoding by name only applies to form media types.
@@ -1467,9 +1476,10 @@ mod tests {
             json!({"a": {"contentType": "multipart/mixed"}}),
         );
         assert_eq!(e.unwrap(), vec![]);
-        // Part headers only apply to multipart, so a required one is no obstacle.
+        // Part headers only apply to multipart.
         let required = json!({"a": {"headers": {"X-Id": {"required": true, "schema": {}}}}});
-        assert!(encoding("application/x-www-form-urlencoded", required).is_ok());
+        let e = encoding("application/x-www-form-urlencoded", required).unwrap();
+        assert_eq!(e, vec![entry("a", None, vec![])]);
     }
 
     #[test]
