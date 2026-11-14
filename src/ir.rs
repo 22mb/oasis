@@ -92,6 +92,38 @@ pub struct Operation {
     pub responses: Vec<Response>,
     /// `None` inherits [`Api::security`]; `Some(vec![])` requires no security.
     pub security: Option<Vec<SecurityRequirement>>,
+    /// The Operation Object.
+    pub origin: Origin,
+}
+
+/// Where in the documents a node was read from, so that an emitter's errors
+/// can point at it. Opaque, and meaningful only with the documents the [`Api`]
+/// was parsed from. It is not part of what the node says: all origins are
+/// equal, and `Origin::default()`, for a node built by hand, points nowhere.
+#[derive(Clone, Copy, Default)]
+pub struct Origin(usize);
+
+impl Origin {
+    pub(crate) fn of(v: &Value) -> Origin {
+        Origin(v as *const Value as usize)
+    }
+
+    /// The address of the document value, or `None` for the default.
+    pub(crate) fn address(self) -> Option<usize> {
+        (self.0 != 0).then_some(self.0)
+    }
+}
+
+impl PartialEq for Origin {
+    fn eq(&self, _: &Origin) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for Origin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Origin")
+    }
 }
 
 /// One alternative of a `security` list: every scheme in it applies together.
@@ -718,6 +750,7 @@ mod tests {
                     content: Vec::new(),
                 })
                 .collect(),
+            origin: Origin::default(),
             security: None,
         };
         op.coverage()
