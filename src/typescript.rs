@@ -1492,14 +1492,16 @@ fn status_runs(statuses: &BTreeMap<String, Type>) -> Vec<Item> {
 
 /// The lines of the doc comment for `meta`, with `extra` after its text.
 fn doc(meta: &Meta, extra: &[String]) -> Vec<String> {
-    let mut lines: Vec<String> = Vec::new();
-    for text in [&meta.title, &meta.summary, &meta.description]
+    let texts = [&meta.title, &meta.summary, &meta.description];
+    let mut paragraphs: Vec<Vec<String>> = texts
         .into_iter()
         .flatten()
-    {
-        lines.extend(text.trim_end().lines().map(str::to_string));
-    }
-    lines.extend(extra.iter().cloned());
+        .map(|text| text.trim_end().lines().map(str::to_string).collect())
+        .collect();
+    paragraphs.push(extra.to_vec());
+    paragraphs.retain(|p| !p.is_empty());
+    // A blank line between paragraphs, or editors show them as one.
+    let mut lines = paragraphs.join(&String::new());
     if let Some(d) = &meta.default {
         lines.push(format!("@default {d}"));
     }
