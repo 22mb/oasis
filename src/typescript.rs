@@ -5,130 +5,12 @@ mod ast;
 use crate::Error;
 use crate::ir::*;
 use ast::{Expr, Item, Member, Type, quote};
-use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 const RUNTIME: &str = include_str!("typescript/runtime.ts");
 
 pub fn emit(api: &Api) -> Result<String, Error> {
-    let mut api = api.clone();
-    inherit_access(&mut api);
-    Emitter::new(&api).emit()
-}
-
-/// Copies `readOnly` and `writeOnly` onto every property they apply to, so that
-/// the emitter can read them off the property: one whose schema is a `$ref` to
-/// a flagged schema, and one that an `allOf` member names (often only in
-/// `required`) while another member flags it.
-fn inherit_access(api: &mut Api) {
-    let owned = api.schemas.clone();
-    let schemas: HashMap<&str, &NamedSchema> = owned.iter().map(|s| (s.key.as_str(), s)).collect();
-    let mut fix = |s: &mut Schema| match s {
-        Schema::Object { properties, .. } => {
-            for p in properties {
-                let (r, w) = access(&p.schema, &schemas);
-                p.meta.read_only |= r;
-                p.meta.write_only |= w;
-            }
-        }
-        Schema::Intersection(parts) => {
-            let flagged = flagged_in(parts, &schemas);
-            for p in parts {
-                mark(p, &flagged);
-            }
-        }
-        _ => {}
-    };
-    for s in &mut api.schemas {
-        walk_mut(&mut s.schema, &mut fix);
-    }
-    for op in api.paths.iter_mut().flat_map(|p| &mut p.operations) {
-        let mut contents: Vec<&mut Content> = Vec::new();
-        for p in &mut op.params {
-            match &mut p.value {
-                ParamValue::Schema { schema, .. } => walk_mut(schema, &mut fix),
-                ParamValue::Content(c) => contents.push(c),
-            }
-        }
-        contents.extend(op.querystring.as_mut().map(|q| &mut q.content));
-        contents.extend(op.body.iter_mut().flat_map(|b| &mut b.content));
-        contents.extend(op.responses.iter_mut().flat_map(|r| &mut r.content));
-        for c in contents {
-            for s in c.schema.iter_mut().chain(&mut c.item_schema) {
-                walk_mut(s, &mut fix);
-            }
-        }
-    }
-}
-
-/// Whether a value of `s` is `readOnly` and `writeOnly` through `$ref` and
-/// `allOf` alone.
-fn access(s: &Schema, schemas: &HashMap<&str, &NamedSchema>) -> (bool, bool) {
-    flatten(s, schemas).fold((false, false), |(r, w), s| match s {
-        Schema::Ref(k) => {
-            let meta = &schemas[k.as_str()].meta;
-            (r || meta.read_only, w || meta.write_only)
-        }
-        _ => (r, w),
-    })
-}
-
-/// The names of the `readOnly` and `writeOnly` properties of `parts`, an
-/// `allOf`, with nested `allOf` members and `$ref` targets flattened.
-fn flagged_in(
-    parts: &[Schema],
-    schemas: &HashMap<&str, &NamedSchema>,
-) -> (BTreeSet<String>, BTreeSet<String>) {
-    let mut flagged = (BTreeSet::new(), BTreeSet::new());
-    for s in parts.iter().flat_map(|p| flatten(p, schemas)) {
-        let Schema::Object { properties, .. } = s else {
-            continue;
-        };
-        for p in properties {
-            let (r, w) = access(&p.schema, schemas);
-            if p.meta.read_only || r {
-                flagged.0.insert(p.name.clone());
-            }
-            if p.meta.write_only || w {
-                flagged.1.insert(p.name.clone());
-            }
-        }
-    }
-    flagged
-}
-
-/// `s` and every schema it reaches through `$ref` and `allOf` alone, in
-/// document order, following each reference once.
-fn flatten<'s>(
-    s: &'s Schema,
-    schemas: &HashMap<&str, &'s NamedSchema>,
-) -> impl Iterator<Item = &'s Schema> {
-    let mut stack = vec![s];
-    let mut seen = HashSet::new();
-    std::iter::from_fn(move || {
-        let s = stack.pop()?;
-        match s {
-            Schema::Ref(k) if seen.insert(k.as_str()) => stack.push(&schemas[k.as_str()].schema),
-            Schema::Intersection(parts) => stack.extend(parts.iter().rev()),
-            _ => {}
-        }
-        Some(s)
-    })
-}
-
-/// Flags the properties of the object members of `s` (an `allOf` member) that
-/// `flagged` names.
-fn mark(s: &mut Schema, flagged: &(BTreeSet<String>, BTreeSet<String>)) {
-    match s {
-        Schema::Object { properties, .. } => {
-            for p in properties {
-                p.meta.read_only |= flagged.0.contains(&p.name);
-                p.meta.write_only |= flagged.1.contains(&p.name);
-            }
-        }
-        Schema::Intersection(parts) => parts.iter_mut().for_each(|p| mark(p, flagged)),
-        _ => {}
-    }
+    Emitter::new(api).emit()
 }
 
 /// Which side of the wire a type describes. `readOnly` properties are absent
@@ -141,8 +23,7 @@ enum View {
 
 struct Emitter<'a> {
     api: &'a Api,
-    /// Every schema by key.
-    schemas: HashMap<&'a str, &'a NamedSchema>,
+    schemas: Schemas<'a>,
     /// The type alias of each schema; its request variant adds `$Request`.
     names: HashMap<&'a str, String>,
     /// Schemas whose request view differs from their response view.
@@ -151,7 +32,7 @@ struct Emitter<'a> {
 
 impl<'a> Emitter<'a> {
     fn new(api: &'a Api) -> Emitter<'a> {
-        let schemas = api.schemas.iter().map(|s| (s.key.as_str(), s)).collect();
+        let schemas = Schemas::new(&api.schemas);
 
         // `$` cannot come from a key, so `$Pet$Request` never collides with a
         // schema named `Pet$Request`; names that do collide are numbered.
@@ -168,7 +49,7 @@ impl<'a> Emitter<'a> {
         for s in &api.schemas {
             let mut flagged = false;
             let mut refs = Vec::new();
-            walk(&s.schema, &mut |node| match node {
+            s.schema.walk(&mut |node| match node {
                 Schema::Ref(key) => refs.push(key.as_str()),
                 Schema::Object { properties, .. } => {
                     flagged |= properties
@@ -393,7 +274,6 @@ impl<'a> Emitter<'a> {
             }
         }
         items.push(Item::Blank);
-        self.check_discriminators()?;
         check_cycles(self.api, &edges)
     }
 
@@ -532,7 +412,7 @@ impl<'a> Emitter<'a> {
             responses.push(Member::new("default", false, Type::name("unknown")));
         }
         let binary: Vec<Vec<String>> = op.responses.iter().map(|r| self.binary_text(r)).collect();
-        let content_type = op.body.as_ref().and_then(default_media_type);
+        let content_type = op.body.as_ref().and_then(Body::default_media_type);
         for (r, binary) in op.responses.iter().zip(&binary) {
             // Never carries a body on the wire, whatever the document declares.
             let bodiless = op.method == "HEAD" || matches!(r.status, Status::Code(204 | 205 | 304));
@@ -660,7 +540,7 @@ impl<'a> Emitter<'a> {
             MediaKind::Json | MediaKind::FormUrlEncoded | MediaKind::Unknown => {
                 self.schema_or_unknown(c.schema.as_ref(), View::Request)
             }
-            MediaKind::Multipart => match c.schema.as_ref().map(|s| (s, self.resolve(s))) {
+            MediaKind::Multipart => match c.schema.as_ref().map(|s| (s, self.schemas.resolve(s))) {
                 Some((s, other))
                     if *other != Schema::Any && essence(&c.media_type) == "multipart/form-data" =>
                 {
@@ -741,7 +621,7 @@ impl<'a> Emitter<'a> {
     /// no `type`, which is how binary data is described, and an array of them
     /// for an array, whose items are sent as parts of the same name.
     fn part(&self, s: &Schema) -> Type {
-        match self.resolve(s) {
+        match self.schemas.resolve(s) {
             Schema::Any => Type::name("Blob"),
             Schema::Array {
                 prefix_items,
@@ -750,22 +630,12 @@ impl<'a> Emitter<'a> {
             } if prefix_items.is_empty()
                 && items
                     .as_deref()
-                    .is_none_or(|i| *self.resolve(i) == Schema::Any) =>
+                    .is_none_or(|i| *self.schemas.resolve(i) == Schema::Any) =>
             {
                 array(Type::name("Blob"), *min_items)
             }
             _ => self.ty(s, View::Request),
         }
-    }
-
-    /// `s`, with references followed. A cycle of references, which
-    /// [`check_cycles`] rejects later on, ends at one of its references.
-    fn resolve<'s>(&'s self, mut s: &'s Schema) -> &'s Schema {
-        for _ in 0..=self.schemas.len() {
-            let Schema::Ref(k) = s else { break };
-            s = &self.schemas[k.as_str()].schema;
-        }
-        s
     }
 
     /// The runtime `Encoding` of each property of a form body that needs one:
@@ -805,14 +675,14 @@ impl<'a> Emitter<'a> {
             for p in properties {
                 let encoded = |s: &Schema| {
                     matches!(
-                        self.resolve(s),
+                        self.schemas.resolve(s),
                         Schema::String {
                             content_encoding: Some(_),
                             ..
                         }
                     )
                 };
-                let binary = match self.resolve(&p.schema) {
+                let binary = match self.schemas.resolve(&p.schema) {
                     Schema::Array { items: Some(i), .. } => encoded(i),
                     s => encoded(s),
                 };
@@ -862,7 +732,7 @@ impl<'a> Emitter<'a> {
             let binary = c.kind() == MediaKind::Text
                 && c.schema
                     .as_ref()
-                    .is_some_and(|s| *self.resolve(s) == Schema::Any);
+                    .is_some_and(|s| *self.schemas.resolve(s) == Schema::Any);
             let mt = essence(&c.media_type);
             if binary && !found.contains(&mt) {
                 found.push(mt);
@@ -980,7 +850,7 @@ impl<'a> Emitter<'a> {
     /// The properties of `parts`, an `allOf`, that are absent from `view`:
     /// `readOnly` ones from requests, `writeOnly` ones from responses.
     fn hidden_in(&self, parts: &[Schema], view: View) -> BTreeSet<String> {
-        let (read_only, write_only) = flagged_in(parts, &self.schemas);
+        let (read_only, write_only) = self.schemas.flagged_in(parts);
         match view {
             View::Request => read_only,
             View::Response => write_only,
@@ -1035,7 +905,7 @@ impl<'a> Emitter<'a> {
         child: Option<&str>,
     ) -> Option<HashSet<&'s str>> {
         let mut names = HashSet::new();
-        for s in flatten(s, &self.schemas) {
+        for s in self.schemas.flatten(s) {
             match s {
                 Schema::Object {
                     pattern_properties,
@@ -1144,8 +1014,9 @@ impl<'a> Emitter<'a> {
         // Mapping keys are always strings, but the values they stand for have
         // the property's type.
         let typed = self
+            .schemas
             .property(v, &d.property_name)
-            .filter(|p| !self.is_text(p));
+            .filter(|p| !self.schemas.is_text(p));
         // The default variant takes every value the mapping does not list, and
         // values without the property; its own schema says whether it is required.
         let (optional, values) = if d.default_mapping.as_deref() == Some(k.as_str()) {
@@ -1159,7 +1030,7 @@ impl<'a> Emitter<'a> {
                 .iter()
                 .filter(|(_, target)| target == k)
                 .filter_map(|(value, _)| match typed {
-                    Some(p) => self.mapped_value(p, value).map(Type::Literal),
+                    Some(p) => self.schemas.mapped_value(p, value).map(Type::Literal),
                     None => Some(Type::string(value)),
                 })
                 .collect();
@@ -1170,92 +1041,6 @@ impl<'a> Emitter<'a> {
         };
         let tag = Member::new(&d.property_name, optional, values);
         Type::Intersection(vec![t, Type::inline(vec![tag])])
-    }
-
-    /// The schema of property `name` of `s`, through references and `allOf`.
-    fn property(&self, s: &'a Schema, name: &str) -> Option<&'a Schema> {
-        flatten(s, &self.schemas).find_map(|s| match s {
-            Schema::Object { properties, .. } => properties
-                .iter()
-                .find(|p| p.name == name)
-                .map(|p| &p.schema),
-            _ => None,
-        })
-    }
-
-    /// Whether property schema `p` allows strings, so that a mapping key can
-    /// stand for itself.
-    fn is_text(&self, p: &Schema) -> bool {
-        match self.resolve(p) {
-            Schema::Boolean | Schema::Integer { .. } | Schema::Number { .. } | Schema::Null => {
-                false
-            }
-            Schema::Const { value, .. } => value.is_string(),
-            Schema::Enum { values, .. } => values.iter().any(Value::is_string),
-            Schema::Union {
-                kind: UnionKind::Types,
-                variants,
-                ..
-            } => variants.iter().any(|v| self.is_text(v)),
-            _ => true,
-        }
-    }
-
-    /// The value of a property without strings, schema `p`, that mapping key
-    /// `key` stands for.
-    fn mapped_value(&self, p: &Schema, key: &str) -> Option<Value> {
-        let value = serde_json::from_str::<Value>(key).ok()?;
-        let allowed = match self.resolve(p) {
-            Schema::Boolean => value.is_boolean(),
-            Schema::Integer { .. } => value.is_i64() || value.is_u64(),
-            Schema::Number { .. } => value.is_number(),
-            Schema::Const { value: c, .. } => *c == value,
-            Schema::Enum { values, .. } => values.contains(&value),
-            Schema::Union { variants, .. } => {
-                variants.iter().any(|v| self.mapped_value(v, key).is_some())
-            }
-            _ => false,
-        };
-        allowed.then_some(value)
-    }
-
-    /// Rejects a mapping key that no value of its non-string property can have,
-    /// which could never match. A key that is the name of its schema may be the
-    /// implicit one, which only applies to strings.
-    fn check_discriminators(&self) -> Result<(), Error> {
-        let mut result = Ok(());
-        for s in &self.api.schemas {
-            walk(&s.schema, &mut |node| {
-                let Schema::Union {
-                    variants,
-                    discriminator: Some(d),
-                    ..
-                } = node
-                else {
-                    return;
-                };
-                for v in variants {
-                    let Schema::Ref(k) = v else { continue };
-                    let Some(p) = self
-                        .property(v, &d.property_name)
-                        .filter(|p| !self.is_text(p))
-                    else {
-                        continue;
-                    };
-                    let bad = d.mapping.iter().find(|(value, target)| {
-                        target == k && value != target && self.mapped_value(p, value).is_none()
-                    });
-                    if let (Some((value, _)), Ok(())) = (bad, &result) {
-                        result = Err(Error::new(format!(
-                            "{}: discriminator mapping key `{value}` is not a value of property `{}`",
-                            s.key, d.property_name
-                        ))
-                        .about_schema(&s.key));
-                    }
-                }
-            });
-        }
-        result
     }
 
     /// The type of a named schema, for its alias.
@@ -1459,38 +1244,6 @@ fn array(item: Type, min: u64) -> Type {
     )
 }
 
-/// Visits a schema tree without following references.
-fn walk<'s>(s: &'s Schema, f: &mut dyn FnMut(&'s Schema)) {
-    f(s);
-    match s {
-        Schema::Array {
-            prefix_items,
-            items,
-            ..
-        } => {
-            prefix_items.iter().for_each(|c| walk(c, f));
-            if let Some(c) = items {
-                walk(c, f);
-            }
-        }
-        Schema::Object {
-            properties,
-            pattern_properties,
-            additional,
-        } => {
-            properties.iter().for_each(|p| walk(&p.schema, f));
-            pattern_properties.iter().for_each(|(_, c)| walk(c, f));
-            if let Some(c) = additional {
-                walk(c, f);
-            }
-        }
-        Schema::Union { variants, .. } | Schema::Intersection(variants) => {
-            variants.iter().for_each(|c| walk(c, f))
-        }
-        _ => {}
-    }
-}
-
 /// Whether media type `mt`, an essence, is in `types`, itself or within a
 /// range such as `text/*`. The runtime's `decodeBody` matches the same way.
 fn covers(types: &[String], mt: &str) -> bool {
@@ -1499,59 +1252,6 @@ fn covers(types: &[String], mt: &str) -> bool {
             || t.strip_suffix('*')
                 .is_some_and(|prefix| prefix.ends_with('/') && mt.starts_with(prefix))
     })
-}
-
-/// The media type a request body is sent as when the call names none: the
-/// only one declared, or else the first `application/json` one.
-fn default_media_type(body: &Body) -> Option<&str> {
-    let declared: Vec<&str> = body
-        .content
-        .iter()
-        .map(|c| c.media_type.as_str())
-        .filter(|m| !essence(m).contains('*'))
-        .collect();
-    match declared.as_slice() {
-        [only] if body.content.len() == 1 => Some(only),
-        _ => declared
-            .into_iter()
-            .find(|m| essence(m) == "application/json"),
-    }
-}
-
-/// [`walk`], with each node mutable before its children are visited.
-fn walk_mut(s: &mut Schema, f: &mut dyn FnMut(&mut Schema)) {
-    f(s);
-    match s {
-        Schema::Array {
-            prefix_items,
-            items,
-            ..
-        } => {
-            prefix_items.iter_mut().for_each(|c| walk_mut(c, f));
-            if let Some(c) = items {
-                walk_mut(c, f);
-            }
-        }
-        Schema::Object {
-            properties,
-            pattern_properties,
-            additional,
-        } => {
-            properties
-                .iter_mut()
-                .for_each(|p| walk_mut(&mut p.schema, f));
-            pattern_properties
-                .iter_mut()
-                .for_each(|(_, c)| walk_mut(c, f));
-            if let Some(c) = additional {
-                walk_mut(c, f);
-            }
-        }
-        Schema::Union { variants, .. } | Schema::Intersection(variants) => {
-            variants.iter_mut().for_each(|c| walk_mut(c, f))
-        }
-        _ => {}
-    }
 }
 
 /// A `security` list as a runtime `SecurityRequirement[]` literal.
@@ -1771,6 +1471,7 @@ fn identifier(key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
     use serde_json::json;
 
     #[test]

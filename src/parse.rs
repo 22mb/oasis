@@ -4,7 +4,7 @@ use crate::Error;
 use crate::documents::{DocId, Documents, Target};
 use crate::ir::*;
 use serde_json::Value;
-use std::collections::{HashSet, VecDeque};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::rc::Rc;
 use url::Url;
 
@@ -29,7 +29,110 @@ pub fn parse(docs: &Documents) -> Result<Api, Error> {
         return Err(Error::new("an OpenAPI document must be a mapping").about(docs.root()));
     }
     let version = version(docs.root())?;
-    Parser::new(docs, version).api()
+    let mut api = Parser::new(docs, version).api()?;
+    inherit_access(&mut api);
+    check_discriminators(&api)?;
+    Ok(api)
+}
+
+/// Copies `readOnly` and `writeOnly` onto every property they apply to, so that
+/// an emitter can read them off the property: one whose schema is a `$ref` to
+/// a flagged schema, and one that an `allOf` member names (often only in
+/// `required`) while another member flags it.
+fn inherit_access(api: &mut Api) {
+    let owned = api.schemas.clone();
+    let schemas = Schemas::new(&owned);
+    let mut fix = |s: &mut Schema| match s {
+        Schema::Object { properties, .. } => {
+            for p in properties {
+                let (r, w) = schemas.access(&p.schema);
+                p.meta.read_only |= r;
+                p.meta.write_only |= w;
+            }
+        }
+        Schema::Intersection(parts) => {
+            let flagged = schemas.flagged_in(parts);
+            for p in parts {
+                mark(p, &flagged);
+            }
+        }
+        _ => {}
+    };
+    for s in &mut api.schemas {
+        s.schema.walk_mut(&mut fix);
+    }
+    for op in api.paths.iter_mut().flat_map(|p| &mut p.operations) {
+        let mut contents: Vec<&mut Content> = Vec::new();
+        for p in &mut op.params {
+            match &mut p.value {
+                ParamValue::Schema { schema, .. } => schema.walk_mut(&mut fix),
+                ParamValue::Content(c) => contents.push(c),
+            }
+        }
+        contents.extend(op.querystring.as_mut().map(|q| &mut q.content));
+        contents.extend(op.body.iter_mut().flat_map(|b| &mut b.content));
+        contents.extend(op.responses.iter_mut().flat_map(|r| &mut r.content));
+        for c in contents {
+            for s in c.schema.iter_mut().chain(&mut c.item_schema) {
+                s.walk_mut(&mut fix);
+            }
+        }
+    }
+}
+
+/// Flags the properties of the object members of `s` (an `allOf` member) that
+/// `flagged` names.
+fn mark(s: &mut Schema, flagged: &(BTreeSet<String>, BTreeSet<String>)) {
+    match s {
+        Schema::Object { properties, .. } => {
+            for p in properties {
+                p.meta.read_only |= flagged.0.contains(&p.name);
+                p.meta.write_only |= flagged.1.contains(&p.name);
+            }
+        }
+        Schema::Intersection(parts) => parts.iter_mut().for_each(|p| mark(p, flagged)),
+        _ => {}
+    }
+}
+
+/// Rejects a mapping key that no value of its non-string property can have,
+/// which could never match. A key that is the name of its schema may be the
+/// implicit one, which only applies to strings.
+fn check_discriminators(api: &Api) -> Result<(), Error> {
+    let schemas = Schemas::new(&api.schemas);
+    let mut result = Ok(());
+    for s in &api.schemas {
+        s.schema.walk(&mut |node| {
+            let Schema::Union {
+                variants,
+                discriminator: Some(d),
+                ..
+            } = node
+            else {
+                return;
+            };
+            for v in variants {
+                let Schema::Ref(k) = v else { continue };
+                let Some(p) = schemas
+                    .property(v, &d.property_name)
+                    .filter(|p| !schemas.is_text(p))
+                else {
+                    continue;
+                };
+                let bad = d.mapping.iter().find(|(value, target)| {
+                    target == k && value != target && schemas.mapped_value(p, value).is_none()
+                });
+                if let (Some((value, _)), Ok(())) = (bad, &result) {
+                    result = Err(Error::new(format!(
+                        "{}: discriminator mapping key `{value}` is not a value of property `{}`",
+                        s.key, d.property_name
+                    ))
+                    .about_schema(&s.key));
+                }
+            }
+        });
+    }
+    result
 }
 
 /// The `openapi` version of the entry document, as far as the parser reads
