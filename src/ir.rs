@@ -333,12 +333,33 @@ pub struct Content {
     /// `encoding`: how each named property is sent, in document order. Only
     /// read for `application/x-www-form-urlencoded` and `multipart/form-data`;
     /// properties without an entry use the defaults for their value.
-    pub encoding: Vec<(String, Encoding)>,
+    pub encoding: Vec<Encoding>,
 }
 
 /// How one property of a form body is sent (Encoding Object).
 #[derive(Debug, Clone, PartialEq)]
-pub enum Encoding {
+pub struct Encoding {
+    /// The property.
+    pub name: String,
+    /// `None` when the object gives neither `contentType` nor `style`,
+    /// `explode` or `allowReserved`.
+    pub serialization: Option<Serialization>,
+    /// `headers` of a `multipart/form-data` part, without `Content-Type`,
+    /// which the specification ignores. Empty for other media types.
+    pub headers: Vec<PartHeader>,
+    /// The Encoding Object.
+    pub origin: Origin,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PartHeader {
+    pub name: String,
+    pub required: bool,
+}
+
+/// What an Encoding Object says about the property's value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Serialization {
     /// As `contentType`.
     ContentType(String),
     /// Like a query parameter, when `style`, `explode` or `allowReserved` is
