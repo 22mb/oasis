@@ -1,5 +1,4 @@
 /target
 node_modules/
-site/.vitepress/cache/
-site/.vitepress/dist/
-site/.vitepress/theme/oasis.wasm
+site/doc_build/
+site/theme/oasis.wasm

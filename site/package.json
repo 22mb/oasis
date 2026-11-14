@@ -2,16 +2,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "wasm": "cargo build --profile wasm --locked --target wasm32-unknown-unknown -p oasis-playground && cp ../target/wasm32-unknown-unknown/wasm/oasis_playground.wasm .vitepress/theme/oasis.wasm",
-    "dev": "npm run wasm && vitepress dev",
-    "build": "npm run wasm && vitepress build",
-    "preview": "vitepress preview"
+    "wasm": "cargo build --profile wasm --locked --target wasm32-unknown-unknown -p oasis-playground && cp ../target/wasm32-unknown-unknown/wasm/oasis_playground.wasm theme/oasis.wasm",
+    "dev": "npm run wasm && rspress dev",
+    "check": "tsc",
+    "build": "npm run wasm && rspress build",
+    "preview": "rspress preview"
   },
   "devDependencies": {
-    "@shikijs/vitepress-twoslash": "4.6.0",
-    "@tanstack/react-query": "5.105.3",
+    "@rspress/core": "2.1.1",
+    "@rspress/plugin-twoslash": "2.1.1",
+    "@tanstack/react-query": "5.107.1",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "react": "19.3.1",
     "shiki": "4.6.0",
-    "typescript": "6.0.3",
-    "vitepress": "2.0.0-alpha.21"
+    "typescript": "6.0.3"
   }
 }
