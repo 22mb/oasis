@@ -32,6 +32,13 @@ jobs:
           package-manager-cache: false
       - run: rustup toolchain install stable --profile minimal
       - name: Set the version and draft the changelog
+        # `npx` resolves git-cliff's own dependencies anew on each run, with no
+        # lockfile and no .npmrc here: the same limits as in the npm projects.
+        env:
+          NPM_CONFIG_MIN_RELEASE_AGE: 7
+          NPM_CONFIG_IGNORE_SCRIPTS: true
+          NPM_CONFIG_ALLOW_GIT: none
+          NPM_CONFIG_ALLOW_REMOTE: none
         run: |
           version=$(npx -y git-cliff@2.14.2 --bumped-version)
           version=${version#v}
