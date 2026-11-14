@@ -611,17 +611,17 @@ impl<'a> Emitter<'a> {
             MediaKind::Json | MediaKind::FormUrlEncoded | MediaKind::Unknown => {
                 self.schema_or_unknown(c.schema.as_ref(), View::Request)
             }
-            MediaKind::Multipart => match c.schema.as_ref().map(|s| (s, self.schemas.resolve(s))) {
-                Some((s, other))
-                    if *other != Schema::Any && essence(&c.media_type) == "multipart/form-data" =>
-                {
+            // `FormData` is always sent as `multipart/form-data`. With a
+            // `Blob`, its `type` (media type and boundary) becomes
+            // `Content-Type`.
+            MediaKind::Multipart if essence(&c.media_type) != "multipart/form-data" => {
+                Type::name("Blob")
+            }
+            MediaKind::Multipart => match &c.schema {
+                Some(s) if *self.schemas.resolve(s) != Schema::Any => {
                     self.form_data(s, &mut Vec::new())
                 }
-                _ if essence(&c.media_type) == "multipart/form-data" => Type::name("FormData"),
-                // `FormData` is always sent as `multipart/form-data`. With a
-                // `Blob`, its `type` (media type and boundary) becomes
-                // `Content-Type`.
-                _ => Type::name("Blob"),
+                _ => Type::name("FormData"),
             },
             MediaKind::Text => Type::name("string"),
             // Sent as-is. Fetch encodes these two in their own formats.
