@@ -277,16 +277,16 @@ export type Client<P> = {
 type ParamStyle = {
   style?: "label" | "matrix" | "spaceDelimited" | "pipeDelimited" | "deepObject" | "cookie" | "json";
   explode?: boolean;
-  reserved?: true;
+  allowReserved?: true;
 };
 
 /**
  * How a form-body property is serialized when specified in the document: either
- * with a media type or like a query parameter. Other properties are serialized
- * by value: objects as JSON, arrays as one field per item, a `Blob` as binary,
- * and everything else as text.
+ * with a media type or, as a {@link ParamStyle}, like a query parameter. Other
+ * properties are serialized by value: objects as JSON, arrays as one field per
+ * item, a `Blob` as binary, and everything else as text.
  */
-type Encoding = { contentType: string } | { style: ParamStyle };
+type Encoding = { contentType: string } | ParamStyle;
 
 type SecuritySchemeSpec =
   | { type: "apiKey"; in: "query" | "header" | "cookie"; name: string }
@@ -487,7 +487,7 @@ function pathValue(name: string, value: unknown, s: ParamStyle): string {
  */
 function pairs(name: string, value: unknown, s: ParamStyle): string[] {
   // `cookie` style sends values as-is.
-  const enc = s.reserved ? encodeReserved : s.style === "cookie" ? String : encodeURIComponent;
+  const enc = s.allowReserved ? encodeReserved : s.style === "cookie" ? String : encodeURIComponent;
   if (s.style === "json") return [`${enc(name)}=${enc(JSON.stringify(value))}`];
   if (typeof value !== "object" || value === null) return [`${enc(name)}=${enc(String(value))}`];
   if (s.style === "deepObject") {
@@ -506,7 +506,7 @@ function pairs(name: string, value: unknown, s: ParamStyle): string[] {
 function formEncode(value: Record<string, unknown>, encoding: Record<string, Encoding> = {}): string {
   return present(value).flatMap(([name, v]) => {
     const e = encoding[name];
-    if (e && "style" in e) return pairs(name, v, e.style);
+    if (e && !("contentType" in e)) return pairs(name, v, e);
     const contentType = e?.contentType;
     return items(v).map((item) => {
       const json = contentType ? mediaKind(contentType) === "json" : typeof item === "object";
@@ -524,9 +524,9 @@ function formData(value: Record<string, unknown>, encoding: Record<string, Encod
   const data = new FormData();
   for (const [name, v] of present(value)) {
     const e = encoding[name];
-    if (e && "style" in e) {
+    if (e && !("contentType" in e)) {
       // Like a query parameter, but without percent-encoding.
-      for (const pair of pairs(name, v, e.style)) {
+      for (const pair of pairs(name, v, e)) {
         const i = pair.indexOf("=");
         data.append(decodeURIComponent(pair.slice(0, i)), decodeURIComponent(pair.slice(i + 1)));
       }
@@ -863,6 +863,6 @@ const spec: Spec = {
   },
   operations: {
     "GET /items/*/\u2028\"'`\\": { security: [{ key: ["*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"] }] },
-    "POST /forms": { encoding: { "multipart/form-data; x=\"*/\u2028'`\\\"": { "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`": { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": { style: { style: "deepObject" } }, "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: "\" + ((globalThis.__oasis_pwned ??= []).push(14)) + \"\u2028`${0}`" } } } },
+    "POST /forms": { encoding: { "multipart/form-data; x=\"*/\u2028'`\\\"": { "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`": { contentType: "application/octet-stream" } }, "application/x-www-form-urlencoded": { "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //": { style: "deepObject" }, "\" + ((globalThis.__oasis_pwned ??= []).push(12)) + \"\u2028`${0}`": { contentType: "\" + ((globalThis.__oasis_pwned ??= []).push(14)) + \"\u2028`${0}`" } } } },
   },
 };
