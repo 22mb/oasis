@@ -167,9 +167,7 @@ pub enum SecuritySchemeKind {
     },
     MutualTls,
     OAuth2,
-    OpenIdConnect {
-        url: String,
-    },
+    OpenIdConnect,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -197,8 +195,6 @@ pub struct Meta {
     pub format: Option<String>,
     /// `example`, or the items of a schema's `examples`.
     pub examples: Vec<Value>,
-    /// `x-*` specification extensions, in document order.
-    pub extensions: Vec<(String, Value)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
