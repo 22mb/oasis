@@ -7,6 +7,7 @@
 //! yet stable: expect breaking changes in 0.x releases.
 
 use serde_json::Value;
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Api {
@@ -479,6 +480,220 @@ pub struct Property {
     pub required: bool,
     pub meta: Meta,
     pub schema: Schema,
+}
+
+impl Body {
+    /// The media type the body is sent as when the call names none: the only
+    /// one declared, or else the first `application/json` one.
+    pub fn default_media_type(&self) -> Option<&str> {
+        let declared: Vec<&str> = self
+            .content
+            .iter()
+            .map(|c| c.media_type.as_str())
+            .filter(|m| !essence(m).contains('*'))
+            .collect();
+        match declared.as_slice() {
+            [only] if self.content.len() == 1 => Some(only),
+            _ => declared
+                .into_iter()
+                .find(|m| essence(m) == "application/json"),
+        }
+    }
+}
+
+impl Schema {
+    /// Visits the schema tree without following references.
+    pub fn walk<'s>(&'s self, f: &mut dyn FnMut(&'s Schema)) {
+        f(self);
+        match self {
+            Schema::Array {
+                prefix_items,
+                items,
+                ..
+            } => {
+                prefix_items.iter().for_each(|c| c.walk(f));
+                if let Some(c) = items {
+                    c.walk(f);
+                }
+            }
+            Schema::Object {
+                properties,
+                pattern_properties,
+                additional,
+            } => {
+                properties.iter().for_each(|p| p.schema.walk(f));
+                pattern_properties.iter().for_each(|(_, c)| c.walk(f));
+                if let Some(c) = additional {
+                    c.walk(f);
+                }
+            }
+            Schema::Union { variants, .. } | Schema::Intersection(variants) => {
+                variants.iter().for_each(|c| c.walk(f))
+            }
+            _ => {}
+        }
+    }
+
+    /// [`Schema::walk`], with each node mutable before its children are visited.
+    pub fn walk_mut(&mut self, f: &mut dyn FnMut(&mut Schema)) {
+        f(self);
+        match self {
+            Schema::Array {
+                prefix_items,
+                items,
+                ..
+            } => {
+                prefix_items.iter_mut().for_each(|c| c.walk_mut(f));
+                if let Some(c) = items {
+                    c.walk_mut(f);
+                }
+            }
+            Schema::Object {
+                properties,
+                pattern_properties,
+                additional,
+            } => {
+                properties.iter_mut().for_each(|p| p.schema.walk_mut(f));
+                pattern_properties
+                    .iter_mut()
+                    .for_each(|(_, c)| c.walk_mut(f));
+                if let Some(c) = additional {
+                    c.walk_mut(f);
+                }
+            }
+            Schema::Union { variants, .. } | Schema::Intersection(variants) => {
+                variants.iter_mut().for_each(|c| c.walk_mut(f))
+            }
+            _ => {}
+        }
+    }
+}
+
+/// The named schemas of an API by key, for reading a schema through its
+/// references.
+pub struct Schemas<'a>(HashMap<&'a str, &'a NamedSchema>);
+
+impl<'a> std::ops::Deref for Schemas<'a> {
+    type Target = HashMap<&'a str, &'a NamedSchema>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> Schemas<'a> {
+    pub fn new(schemas: &'a [NamedSchema]) -> Schemas<'a> {
+        Schemas(schemas.iter().map(|s| (s.key.as_str(), s)).collect())
+    }
+
+    /// `s`, with references followed. A cycle of references ends at one of
+    /// its references.
+    pub fn resolve<'s>(&'s self, mut s: &'s Schema) -> &'s Schema {
+        for _ in 0..=self.0.len() {
+            let Schema::Ref(k) = s else { break };
+            s = &self.0[k.as_str()].schema;
+        }
+        s
+    }
+
+    /// `s` and every schema it reaches through `$ref` and `allOf` alone, in
+    /// document order, following each reference once.
+    pub fn flatten<'s>(&self, s: &'s Schema) -> impl Iterator<Item = &'s Schema>
+    where
+        'a: 's,
+    {
+        let mut stack = vec![s];
+        let mut seen = HashSet::new();
+        std::iter::from_fn(move || {
+            let s = stack.pop()?;
+            match s {
+                Schema::Ref(k) if seen.insert(k.as_str()) => stack.push(&self.0[k.as_str()].schema),
+                Schema::Intersection(parts) => stack.extend(parts.iter().rev()),
+                _ => {}
+            }
+            Some(s)
+        })
+    }
+
+    /// Whether a value of `s` is `readOnly` and `writeOnly` through `$ref` and
+    /// `allOf` alone.
+    pub fn access(&self, s: &Schema) -> (bool, bool) {
+        self.flatten(s).fold((false, false), |(r, w), s| match s {
+            Schema::Ref(k) => {
+                let meta = &self.0[k.as_str()].meta;
+                (r || meta.read_only, w || meta.write_only)
+            }
+            _ => (r, w),
+        })
+    }
+
+    /// The names of the `readOnly` and `writeOnly` properties of `parts`, an
+    /// `allOf`, with nested `allOf` members and `$ref` targets flattened.
+    pub fn flagged_in(&self, parts: &[Schema]) -> (BTreeSet<String>, BTreeSet<String>) {
+        let mut flagged = (BTreeSet::new(), BTreeSet::new());
+        for s in parts.iter().flat_map(|p| self.flatten(p)) {
+            let Schema::Object { properties, .. } = s else {
+                continue;
+            };
+            for p in properties {
+                let (r, w) = self.access(&p.schema);
+                if p.meta.read_only || r {
+                    flagged.0.insert(p.name.clone());
+                }
+                if p.meta.write_only || w {
+                    flagged.1.insert(p.name.clone());
+                }
+            }
+        }
+        flagged
+    }
+
+    /// The schema of property `name` of `s`, through references and `allOf`.
+    pub fn property(&self, s: &'a Schema, name: &str) -> Option<&'a Schema> {
+        self.flatten(s).find_map(|s| match s {
+            Schema::Object { properties, .. } => properties
+                .iter()
+                .find(|p| p.name == name)
+                .map(|p| &p.schema),
+            _ => None,
+        })
+    }
+
+    /// Whether property schema `p` allows strings, so that a discriminator
+    /// mapping key can stand for itself.
+    pub fn is_text(&self, p: &Schema) -> bool {
+        match self.resolve(p) {
+            Schema::Boolean | Schema::Integer { .. } | Schema::Number { .. } | Schema::Null => {
+                false
+            }
+            Schema::Const { value, .. } => value.is_string(),
+            Schema::Enum { values, .. } => values.iter().any(Value::is_string),
+            Schema::Union {
+                kind: UnionKind::Types,
+                variants,
+                ..
+            } => variants.iter().any(|v| self.is_text(v)),
+            _ => true,
+        }
+    }
+
+    /// The value of a property without strings, schema `p`, that discriminator
+    /// mapping key `key` stands for.
+    pub fn mapped_value(&self, p: &Schema, key: &str) -> Option<Value> {
+        let value = serde_json::from_str::<Value>(key).ok()?;
+        let allowed = match self.resolve(p) {
+            Schema::Boolean => value.is_boolean(),
+            Schema::Integer { .. } => value.is_i64() || value.is_u64(),
+            Schema::Number { .. } => value.is_number(),
+            Schema::Const { value: c, .. } => *c == value,
+            Schema::Enum { values, .. } => values.contains(&value),
+            Schema::Union { variants, .. } => {
+                variants.iter().any(|v| self.mapped_value(v, key).is_some())
+            }
+            _ => false,
+        };
+        allowed.then_some(value)
+    }
 }
 
 #[cfg(test)]
