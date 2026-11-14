@@ -764,10 +764,10 @@ type $Profile = {
   kind: string;
   id: string;
 } & $Member;
-type $Profile$Request = {
+type $Profile$Request = Omit<{
   kind: string;
   id: string;
-} & $Member$Request;
+}, "id"> & $Member$Request;
 type $Member = {
   kind: string;
   id: string;

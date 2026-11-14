@@ -915,15 +915,44 @@ impl<'a> Emitter<'a> {
                     .collect(),
             ),
             Schema::Intersection(parts) => {
-                let hidden = self.hidden_in(parts, view);
+                let by_unions = self.hidden_by_unions(parts, view);
+                let mut hidden = self.hidden_in(parts, view);
+                hidden.extend(by_unions.iter().cloned());
                 Type::Intersection(
                     parts
                         .iter()
-                        .map(|p| self.omit(self.composed(p, view), p, &hidden, view, None))
+                        .map(|p| {
+                            let t = self.composed(p, view);
+                            match p {
+                                Schema::Object { .. } => self.strip(t, p, &by_unions, view, None),
+                                _ => self.omit(t, p, &hidden, view, None),
+                            }
+                        })
                         .collect(),
                 )
             }
         }
+    }
+
+    /// The properties that every member of a `oneOf` or `anyOf` among `parts`
+    /// leaves out of `view`. A value has to match one of the members, so it
+    /// cannot have such a property, even if another part requires it: a
+    /// parent that lists its subtypes may require what each of them marks
+    /// `readOnly`.
+    fn hidden_by_unions(&self, parts: &[Schema], view: View) -> BTreeSet<String> {
+        let mut hidden = BTreeSet::new();
+        for p in parts {
+            let Schema::Union { variants, .. } = p else {
+                continue;
+            };
+            let mut sets = variants
+                .iter()
+                .map(|v| self.hidden_in(std::slice::from_ref(v), view));
+            if let Some(first) = sets.next() {
+                hidden.extend(sets.fold(first, |all, set| &all & &set));
+            }
+        }
+        hidden
     }
 
     /// The properties of `parts`, an `allOf`, that are absent from `view`:
@@ -957,7 +986,22 @@ impl<'a> Emitter<'a> {
         view: View,
         child: Option<&str>,
     ) -> Type {
-        if !matches!(s, Schema::Ref(_) | Schema::Intersection(_)) || hidden.is_empty() {
+        if !matches!(s, Schema::Ref(_) | Schema::Intersection(_)) {
+            return t;
+        }
+        self.strip(t, s, hidden, view, child)
+    }
+
+    /// [`Emitter::omit`] for any `s`, including an object written in place.
+    fn strip(
+        &self,
+        t: Type,
+        s: &Schema,
+        hidden: &BTreeSet<String>,
+        view: View,
+        child: Option<&str>,
+    ) -> Type {
+        if hidden.is_empty() {
             return t;
         }
         let Some(declared) = self.declared(s, view, child) else {
@@ -1188,12 +1232,23 @@ impl<'a> Emitter<'a> {
                 vec![Type::Union(types)]
             }
             Schema::Intersection(parts) => {
-                let hidden = self.hidden_in(parts, view);
+                // While a parent is expanded in place, its unions that list
+                // this schema are dropped, so they hide nothing.
+                let by_unions = if d.expanding.is_empty() {
+                    self.hidden_by_unions(parts, view)
+                } else {
+                    BTreeSet::new()
+                };
+                let mut hidden = self.hidden_in(parts, view);
+                hidden.extend(by_unions.iter().cloned());
                 let mut types = Vec::new();
                 for p in parts {
                     match p {
-                        Schema::Object { .. }
-                        | Schema::Union {
+                        Schema::Object { .. } => {
+                            let t = self.composed(p, view);
+                            types.push(self.strip(t, p, &by_unions, view, None));
+                        }
+                        Schema::Union {
                             kind: UnionKind::Types,
                             ..
                         } => types.push(self.composed(p, view)),
