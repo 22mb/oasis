@@ -88,6 +88,14 @@ export interface paths {
       };
       statuses: Statuses_204_default;
     };
+    HEAD: {
+      request: {};
+      responses: {
+        /** A query API key on a request that cannot have a body. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
   };
   "/both": {
     /** operationId: both */
@@ -930,7 +938,7 @@ function setCookie(headers: Headers, name: string, value: string): void {
 
 const spec: Spec = {
   baseUrl: "https://api.example.com",
-  methods: ["POST", "GET", "DELETE"],
+  methods: ["POST", "GET", "DELETE", "HEAD"],
   security: [{ bearer: [] }],
   securitySchemes: {
     bearer: { type: "http", scheme: "bearer" },
@@ -950,6 +958,7 @@ const spec: Spec = {
     "POST /webhooks": { operationId: "webhook", security: [{ apiKey: [] }] },
     "GET /reports": { operationId: "reports", styles: { "query:ids": { explode: false } }, security: [{ queryKey: [] }, { basic: [] }] },
     "POST /reports": { operationId: "createReport", security: [{ queryKey: [] }], contentType: "application/json" },
+    "HEAD /reports": { security: [{ queryKey: [] }] },
     "GET /both": { operationId: "both", security: [{ apiKey: [], session: [] }] },
     "GET /digest": { operationId: "digest", security: [{ digest: [] }] },
     "GET /oidc": { operationId: "oidc", security: [{ oidc: [] }] },

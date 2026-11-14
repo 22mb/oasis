@@ -66,6 +66,11 @@ paths:
         - basic: []
       responses:
         "204": { description: Either credential works. }
+    head:
+      security:
+        - queryKey: []
+      responses:
+        "204": { description: A query API key on a request that cannot have a body. }
     post:
       operationId: createReport
       security:
