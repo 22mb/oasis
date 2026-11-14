@@ -100,6 +100,7 @@ export interface paths {
     POST: {
       request: {
         contentType?: "application/json";
+        /** The text of the note. */
         body: string;
       };
       responses: {
@@ -160,6 +161,11 @@ export interface paths {
           obj?: { [key: string]: number };
           flat?: { [key: string]: number };
           deep?: { [key: string]: number[] };
+          /**
+           * @default "a"
+           * @example "a"
+           * @example "b"
+           */
           opt?: string | null;
         };
         header?: {
@@ -663,6 +669,7 @@ type $PropertyNamesRef = {
 type $PropertyNamesConst = {
   only?: unknown;
 };
+/** @format int32 */
 type $Level = 1 | 2 | null;
 type $Json = string | number | boolean | null | $Json[] | { [key: string]: $Json };
 type $Animal = {

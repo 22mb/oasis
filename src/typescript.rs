@@ -573,7 +573,8 @@ impl<'a> Emitter<'a> {
                     let implied = default == Some(c.media_type.as_str());
                     Member::new("contentType", implied, Type::string(&c.media_type))
                 };
-                let body_field = Member::new("body", !body.required, self.request_body(c));
+                let body_field = Member::new("body", !body.required, self.request_body(c))
+                    .doc(doc(&body.meta, &[]));
                 variants.push(vec![ct, body_field]);
             }
             // An optional body can be left out without naming a media type,
@@ -1502,9 +1503,13 @@ fn doc(meta: &Meta, extra: &[String]) -> Vec<String> {
     paragraphs.retain(|p| !p.is_empty());
     // A blank line between paragraphs, or editors show them as one.
     let mut lines = paragraphs.join(&String::new());
+    if let Some(f) = &meta.format {
+        lines.push(format!("@format {f}"));
+    }
     if let Some(d) = &meta.default {
         lines.push(format!("@default {d}"));
     }
+    lines.extend(meta.examples.iter().map(|e| format!("@example {e}")));
     if meta.deprecated {
         lines.push("@deprecated".into());
     }

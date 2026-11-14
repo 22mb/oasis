@@ -21,6 +21,7 @@ export interface paths {
     PUT: {
       request: {
         path: {
+          /** @format int64 */
           petId: number;
         };
         contentType?: "application/octet-stream";
@@ -40,8 +41,10 @@ export interface paths {
         };
         contentType?: "multipart/form-data";
         body: {
+          /** @format binary */
           file: Blob;
           extras?: Blob[];
+          /** @format byte */
           checksum?: string;
         };
       };
@@ -147,6 +150,10 @@ type $Square = {
 };
 type $Shape = $Circle & { kind: "Circle" } | $Square & { kind: "Square" } | null;
 type $Pet = {
+  /**
+   * @format int64
+   * @example 1
+   */
   id: number;
   name: string | null;
   kind: $Kind;

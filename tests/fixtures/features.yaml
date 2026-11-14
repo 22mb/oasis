@@ -124,6 +124,7 @@ paths:
   /notes:
     post:
       requestBody:
+        description: The text of the note.
         required: true
         content:
           application/json:
@@ -196,7 +197,7 @@ paths:
           in: query
           style: deepObject
           schema: { type: object, additionalProperties: { type: array, items: { type: integer } } }
-        - { name: opt, in: query, schema: { type: [string, "null"] } }
+        - { name: opt, in: query, schema: { type: [string, "null"], default: a, examples: [a, b] } }
         - { name: multi, in: cookie, schema: { type: array, items: { type: string } } }
       responses:
         "200":

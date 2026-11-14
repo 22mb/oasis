@@ -181,6 +181,10 @@ pub struct Meta {
     pub write_only: bool,
     /// Schema `default`.
     pub default: Option<Value>,
+    /// Schema `format`.
+    pub format: Option<String>,
+    /// `example`, or the items of a schema's `examples`.
+    pub examples: Vec<Value>,
     /// `x-*` specification extensions, in document order.
     pub extensions: Vec<(String, Value)>,
 }
