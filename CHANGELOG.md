@@ -25,6 +25,10 @@ change the generated code or the CLI in incompatible ways.
   `oneOf: [{required: [a]}, {required: [b]}]`, takes exactly one of the
   groups. A value with both `a` and `b` was accepted and is now a type error
   ([#159](https://github.com/22mb/oasis/pull/159)).
+- The client's runtime data stores the encoding of a form field in one
+  object instead of two. For the Stripe API, the minified client shrinks from
+  148 KB to 137 KB. Requests are sent as before
+  ([#162](https://github.com/22mb/oasis/pull/162)).
 - Errors about a component schema start with its location, as in
   `components.schemas.A: discriminator mapping key ...`, like other errors.
   The error for a schema that references itself ends with the path, as in
