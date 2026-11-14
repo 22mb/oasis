@@ -74,7 +74,8 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install --target "$TARGET" # the one in rust-toolchain.toml
+      # The toolchain in rust-toolchain.toml, and the target for it.
+      - run: rustup toolchain install && rustup target add "$TARGET"
       - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
       - uses: actions/cache@v6.1.0
         with:

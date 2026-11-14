@@ -38,7 +38,8 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - run: rustup toolchain install --target wasm32-unknown-unknown # the one in rust-toolchain.toml
+      # The toolchain in rust-toolchain.toml, and the target for it.
+      - run: rustup toolchain install && rustup target add wasm32-unknown-unknown
       - run: echo "RUSTC_VERSION=$(rustc -V | cut -d' ' -f2)" >> "$GITHUB_ENV"
       # The playground's dependencies, cached per toolchain and Cargo.lock.
       - uses: actions/cache@v6.1.0
