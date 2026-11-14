@@ -5,6 +5,16 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.10.2](https://github.com/22mb/oasis/compare/v0.10.1...v0.10.2) - 2026-11-14
+
+### Added
+
+- The `label` and `matrix` styles for path parameters, and the
+  `spaceDelimited` and `pipeDelimited` styles for query parameters and for the
+  Encoding Objects of form bodies. A parameter with one of these styles
+  stopped generation for the whole document
+  ([#146](https://github.com/22mb/oasis/pull/146)).
+
 ## [0.10.1](https://github.com/22mb/oasis/compare/v0.10.0...v0.10.1) - 2026-11-14
 
 ### Changed

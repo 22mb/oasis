@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "oasis-gen"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "serde",
  "serde-saphyr",

@@ -1,6 +1,6 @@
 [package]
 name = "oasis-gen"
-version = "0.10.1"
+version = "0.10.2"
 edition = "2024"
 description = "Strictly typed API client generator for OpenAPI, with zero runtime dependencies"
 license = "MIT OR Apache-2.0"
