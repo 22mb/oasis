@@ -502,16 +502,16 @@ export type Client<P> = {
 type ParamStyle = {
   style?: "label" | "matrix" | "spaceDelimited" | "pipeDelimited" | "deepObject" | "cookie" | "json";
   explode?: boolean;
-  reserved?: true;
+  allowReserved?: true;
 };
 
 /**
  * How a form-body property is serialized when specified in the document: either
- * with a media type or like a query parameter. Other properties are serialized
- * by value: objects as JSON, arrays as one field per item, a `Blob` as binary,
- * and everything else as text.
+ * with a media type or, as a {@link ParamStyle}, like a query parameter. Other
+ * properties are serialized by value: objects as JSON, arrays as one field per
+ * item, a `Blob` as binary, and everything else as text.
  */
-type Encoding = { contentType: string } | { style: ParamStyle };
+type Encoding = { contentType: string } | ParamStyle;
 
 type SecuritySchemeSpec =
   | { type: "apiKey"; in: "query" | "header" | "cookie"; name: string }
@@ -712,7 +712,7 @@ function pathValue(name: string, value: unknown, s: ParamStyle): string {
  */
 function pairs(name: string, value: unknown, s: ParamStyle): string[] {
   // `cookie` style sends values as-is.
-  const enc = s.reserved ? encodeReserved : s.style === "cookie" ? String : encodeURIComponent;
+  const enc = s.allowReserved ? encodeReserved : s.style === "cookie" ? String : encodeURIComponent;
   if (s.style === "json") return [`${enc(name)}=${enc(JSON.stringify(value))}`];
   if (typeof value !== "object" || value === null) return [`${enc(name)}=${enc(String(value))}`];
   if (s.style === "deepObject") {
@@ -731,7 +731,7 @@ function pairs(name: string, value: unknown, s: ParamStyle): string[] {
 function formEncode(value: Record<string, unknown>, encoding: Record<string, Encoding> = {}): string {
   return present(value).flatMap(([name, v]) => {
     const e = encoding[name];
-    if (e && "style" in e) return pairs(name, v, e.style);
+    if (e && !("contentType" in e)) return pairs(name, v, e);
     const contentType = e?.contentType;
     return items(v).map((item) => {
       const json = contentType ? mediaKind(contentType) === "json" : typeof item === "object";
@@ -749,9 +749,9 @@ function formData(value: Record<string, unknown>, encoding: Record<string, Encod
   const data = new FormData();
   for (const [name, v] of present(value)) {
     const e = encoding[name];
-    if (e && "style" in e) {
+    if (e && !("contentType" in e)) {
       // Like a query parameter, but without percent-encoding.
-      for (const pair of pairs(name, v, e.style)) {
+      for (const pair of pairs(name, v, e)) {
         const i = pair.indexOf("=");
         data.append(decodeURIComponent(pair.slice(0, i)), decodeURIComponent(pair.slice(i + 1)));
       }

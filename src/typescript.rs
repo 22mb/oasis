@@ -728,19 +728,20 @@ impl<'a> Emitter<'a> {
                     Serialization::ContentType(ct) if ct.contains([',', '*']) => {
                         return None;
                     }
-                    Serialization::ContentType(ct) => ("contentType".into(), Expr::string(ct)),
+                    Serialization::ContentType(ct) => {
+                        Expr::inline(vec![("contentType".into(), Expr::string(ct))])
+                    }
                     Serialization::Style {
                         style,
                         explode,
                         allow_reserved,
-                    } => (
-                        "style".into(),
+                    } => {
                         // `multipart` parts are not percent-encoded at all.
                         style_literal(*style, *explode, *allow_reserved && !multipart)
-                            .unwrap_or(Expr::inline(Vec::new())),
-                    ),
+                            .unwrap_or(Expr::inline(Vec::new()))
+                    }
                 };
-                Some((name.clone(), Expr::inline(vec![e])))
+                Some((name.clone(), e))
             })
             .collect();
         if multipart && let Some(s) = &c.schema {
@@ -1521,7 +1522,7 @@ fn style_literal(style: Style, explode: bool, allow_reserved: bool) -> Option<Ex
         fields.push(("explode".into(), Expr::Literal(explode.into())));
     }
     if allow_reserved {
-        fields.push(("reserved".into(), Expr::Literal(true.into())));
+        fields.push(("allowReserved".into(), Expr::Literal(true.into())));
     }
     (!fields.is_empty()).then(|| Expr::inline(fields))
 }
