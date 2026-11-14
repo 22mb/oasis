@@ -5,6 +5,12 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.10.1](https://github.com/22mb/oasis/compare/v0.10.0...v0.10.1) - 2026-11-14
+
+### Fixed
+
+- Reject what FormData cannot send only in request bodies ([#139](https://github.com/22mb/oasis/pull/139))
+
 ## [0.10.0](https://github.com/22mb/oasis/compare/v0.9.0...v0.10.0) - 2026-11-12
 
 ### Removed
