@@ -181,11 +181,6 @@ impl Error {
         self
     }
 
-    /// Whether the error already names its file, as a syntax error does.
-    pub(crate) fn is_placed(&self) -> bool {
-        self.details.file.is_some()
-    }
-
     /// Address of the document value the error is about, if recorded.
     pub(crate) fn value_address(&self) -> Option<usize> {
         self.details.value
