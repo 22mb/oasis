@@ -200,6 +200,20 @@ test("serializes arrays and objects in every location", async () => {
   expect(sent[1]!.headers.get("x-ids")).toBe(null);
 });
 
+test("serializes label, matrix and delimited styles", async () => {
+  const { api, sent } = recording();
+  await api.GET("/styles/{label}/{labels}/{matrix}/{matrices}", {
+    path: { label: ["a b", "c"], labels: { x: 1, y: 2 }, matrix: ["a", "b"], matrices: { x: 1, y: "" } },
+    query: { spaced: ["a b", "c"], piped: { a: 1, b: 2 }, each: ["a", "b"] },
+  });
+  await api.POST("/uploads", { contentType: "application/x-www-form-urlencoded", body: { labels: ["a", "b|c"] } });
+  expect(sent.map((s) => [s.url, s.body])).toStrictEqual([
+    // An empty matrix value is sent as its name alone; an exploded delimited style is `form`.
+    ["https://api.example.com/styles/.a%20b,c/.x=1.y=2/;matrix=a,b/;x=1;y?spaced=a%20b%20c&piped=a%7C1%7Cb%7C2&each=a&each=b", ""],
+    ["https://api.example.com/uploads", "labels=a%7Cb%7Cc"],
+  ]);
+});
+
 test("adds cookie parameters to a cookie from async client headers", async () => {
   if (!cookieHeaders) return;
   const { api, sent } = recording(noContent, {

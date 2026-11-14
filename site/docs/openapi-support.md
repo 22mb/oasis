@@ -78,16 +78,17 @@ See [Schemas](./schemas) for how each keyword maps to a TypeScript type.
 
 | Location | Styles | Notes |
 | --- | --- | --- |
-| `query` | `form`, `deepObject` | `allowReserved` is supported. `spaceDelimited` and `pipeDelimited` are rejected |
-| `path` | `simple` | `label` and `matrix` are rejected |
+| `query` | `form`, `spaceDelimited`, `pipeDelimited`, `deepObject` | `allowReserved` is supported |
+| `path` | `simple`, `label`, `matrix` | |
 | `header` | `simple` | |
 | `cookie` | `form` (percent-encoded), `cookie` (sent as-is) | Exploded values are joined with `; ` for both styles, because the specification rules out `&` for cookies |
 | `querystring` | Supported | Typed and encoded by its media type; see [`querystring` parameters](./client#querystring-parameters) |
 
-Every style supports `explode`. Parameters with `content` instead of a schema
-are also supported. JSON query parameters are typed from their schema and
-serialized as JSON, while other parameters with `content` are passed as
-pre-serialized strings.
+Every style supports `explode`. An exploded `spaceDelimited` or `pipeDelimited`
+parameter is sent like `form`, with one pair per item. Parameters with
+`content` instead of a schema are also supported. JSON query parameters are
+typed from their schema and serialized as JSON, while other parameters with
+`content` are passed as pre-serialized strings.
 
 Cookie parameters and cookie API keys are sent as a `Cookie` header, which
 browsers ignore in `fetch`. They work in Node and Bun.
