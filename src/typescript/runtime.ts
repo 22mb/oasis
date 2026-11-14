@@ -152,7 +152,7 @@ type Spec = {
    */
   methods: string[];
   security: SecurityRequirement[];
-  securitySchemes: Record<string, SecuritySchemeSpec>;
+  securitySchemes: { [K in SecuritySchemeName]: SecuritySchemeSpec };
   operations: Record<string, {
     operationId?: string;
     /** The operation's first server, or its path's if none; overridden by `baseUrl`. */
@@ -611,7 +611,7 @@ export function auth(credentials: { [K in SecuritySchemeName]?: Credential | und
     // without credentials anyway if nothing else matches.
     for (const requirement of context.operation.security) {
       const resolved = await satisfy(requirement, credentials, context);
-      if (resolved?.length) {
+      if (resolved.length) {
         for (const [scheme, value] of resolved) request = await authenticate(request, scheme, value, saved);
         break;
       }
@@ -620,21 +620,20 @@ export function auth(credentials: { [K in SecuritySchemeName]?: Credential | und
   };
 }
 
-/** The credential for every scheme of a requirement, or `undefined` if one is missing. */
+/** The credential for every scheme of a requirement, or none if one is missing. */
 async function satisfy(
   requirement: SecurityRequirement,
   credentials: { [K in SecuritySchemeName]?: Credential | undefined },
   context: MiddlewareContext,
-): Promise<[SecuritySchemeSpec, string][] | undefined> {
+): Promise<[SecuritySchemeSpec, string][]> {
   const out: [SecuritySchemeSpec, string][] = [];
   for (const [name, scopes] of Object.entries(requirement) as [SecuritySchemeName, string[]][]) {
-    const scheme = spec.securitySchemes[name];
-    if (!scheme) return undefined;
+    // Assertions, not annotations: with no schemes, both are `never`.
+    const scheme = spec.securitySchemes[name] as SecuritySchemeSpec;
     if (scheme.type === "mutualTLS") continue;
-    // An assertion, not an annotation: with no schemes, `credentials[name]` is `never`.
     const credential = credentials[name] as Credential | undefined;
     const value = typeof credential === "function" ? await credential(scopes, context) : credential;
-    if (value === undefined || value === "") return undefined;
+    if (value === undefined || value === "") return [];
     out.push([scheme, value]);
   }
   return out;
