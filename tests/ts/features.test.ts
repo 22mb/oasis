@@ -240,9 +240,12 @@ test("serializes object form fields as JSON and follows Encoding Objects", async
     contentType: "application/x-www-form-urlencoded",
     body: { meta: { tags: ["a"], note: null }, filter: { kind: "cat", size: 2 }, path: "/a b?c=d", id: "i 1" },
   });
+  // A range of media types leaves the choice to the value, so an object is JSON.
+  await api.POST("/uploads", { contentType: "application/x-www-form-urlencoded", body: { extra: { a: 1 } } });
   await api.PUT("/forms/{id}", { path: { id: 1 }, contentType: "application/x-www-form-urlencoded", body: { tags: [{ a: 1 } as unknown as string] } });
   expect(sent.map((s) => s.body)).toStrictEqual([
     "meta=%7B%22tags%22%3A%5B%22a%22%5D%2C%22note%22%3Anull%7D&kind=cat&size=2&path=/a%20b?c=d&id=%22i+1%22",
+    "extra=%7B%22a%22%3A1%7D",
     "tags=%7B%22a%22%3A1%7D",
   ]);
 });

@@ -722,8 +722,8 @@ impl<'a> Emitter<'a> {
                 let name = &e.name;
                 let e = match e.serialization.as_ref()? {
                     // A list or range of media types leaves the choice of a
-                    // part's media type to its value.
-                    Serialization::ContentType(ct) if multipart && ct.contains([',', '*']) => {
+                    // field's media type to its value.
+                    Serialization::ContentType(ct) if ct.contains([',', '*']) => {
                         return None;
                     }
                     Serialization::ContentType(ct) => ("contentType".into(), Expr::string(ct)),

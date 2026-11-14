@@ -296,6 +296,9 @@ export interface paths {
           path?: string;
           id?: string;
           labels?: string[];
+          extra?: {
+            a?: number;
+          };
         };
       };
       responses: {
