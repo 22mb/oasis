@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import type { HighlighterCore } from "shiki/core";
 import { useData } from "vitepress";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
 import exampleSpec from "../../../tests/fixtures/petstore.yaml?raw";
-// Built by `npm run wasm` from playground/ at the repository root.
-import wasmUrl from "./oasis.wasm?url";
+import type { Reply, Request } from "./playground.worker.ts";
 
 const labels = {
   en: {
@@ -14,8 +12,10 @@ const labels = {
     api: "api.ts (generated)",
     copy: "Copy link",
     copied: "Copied",
+    copyFailed: "Could not copy",
     reset: "Reset",
     loading: "Loading…",
+    loadFailed: "The playground could not be loaded.",
   },
   ja: {
     title: "プレイグラウンド",
@@ -24,23 +24,33 @@ const labels = {
     api: "api.ts（生成結果）",
     copy: "リンクをコピー",
     copied: "コピーしました",
+    copyFailed: "コピーできませんでした",
     reset: "リセット",
     loading: "読み込み中…",
+    loadFailed: "プレイグラウンドを読み込めませんでした。",
   },
 };
 
 const { lang } = useData();
 const t = computed(() => (lang.value === "ja" ? labels.ja : labels.en));
 
+const specId = useId();
+const apiId = useId();
+
 const spec = ref("");
 const api = ref("");
 const loaded = ref(false);
+const failed = ref(false);
 const error = ref("");
-const copied = ref(false);
+const copyStatus = ref("");
 
 let unmounted = false;
+let worker: Worker | undefined;
+// The newest request; replies to older ones are dropped.
+let requested = 0;
 let generateTimer: ReturnType<typeof setTimeout> | undefined;
 let hashTimer: ReturnType<typeof setTimeout> | undefined;
+let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
 // The share link carries the document, if it differs from the example, as
 // `#spec=…`: its UTF-8, compressed with raw DEFLATE and encoded as unpadded
@@ -75,89 +85,55 @@ async function toHash(text: string): Promise<string> {
   return text === exampleSpec ? "" : `#${new URLSearchParams({ spec: await encode(text) })}`;
 }
 
-// Each run gets a fresh instance, so a trap in one cannot affect the next.
-function generate(module: WebAssembly.Module, text: string): { ok: boolean; text: string } {
-  const wasm = new WebAssembly.Instance(module).exports as {
-    memory: WebAssembly.Memory;
-    input(len: number): number;
-    generate(): number;
-    output(): number;
-    output_len(): number;
-  };
-  const bytes = new TextEncoder().encode(text);
-  // Read `memory.buffer` after each call: growing the memory replaces it.
-  const at = wasm.input(bytes.length);
-  new Uint8Array(wasm.memory.buffer, at, bytes.length).set(bytes);
-  const ok = wasm.generate() === 1;
-  const ptr = wasm.output();
-  const len = wasm.output_len();
-  return { ok, text: new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, ptr, len)) };
+async function updateHash() {
+  const text = spec.value;
+  const hash = await toHash(text);
+  // A later edit has scheduled its own update.
+  if (unmounted || text !== spec.value) return;
+  history.replaceState(history.state, "", location.pathname + location.search + hash);
 }
 
-// The site's code block themes, with the JavaScript regex engine instead of
-// Oniguruma's WebAssembly.
-async function createHighlighter(): Promise<HighlighterCore> {
-  const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([
-    import("shiki/core"),
-    import("shiki/engine/javascript"),
-  ]);
-  return createHighlighterCore({
-    engine: createJavaScriptRegexEngine(),
-    langs: [import("shiki/langs/typescript.mjs")],
-    themes: [
-      import("shiki/themes/github-light-high-contrast.mjs"),
-      import("shiki/themes/github-dark-high-contrast.mjs"),
-    ],
-  });
+function regenerate() {
+  worker?.postMessage({ id: ++requested, text: spec.value } satisfies Request);
 }
 
 onMounted(async () => {
-  const [text, module, highlighter] = await Promise.all([
-    fromHash(),
-    WebAssembly.compileStreaming(fetch(wasmUrl)),
-    createHighlighter(),
-  ]);
-  if (unmounted) return;
-
-  const regenerate = () => {
-    try {
-      const result = generate(module, spec.value);
-      error.value = result.ok ? "" : result.text;
-      if (result.ok) {
-        // VitePress colors `.vp-code` spans from these variables, by the color scheme.
-        api.value = highlighter.codeToHtml(result.text, {
-          lang: "typescript",
-          themes: { light: "github-light-high-contrast", dark: "github-dark-high-contrast" },
-          defaultColor: false,
-        });
-      }
-    } catch (e) {
-      error.value = String(e);
-    }
-  };
-  const updateHash = async () => {
-    const text = spec.value;
-    const hash = await toHash(text);
-    // A later edit has scheduled its own update.
-    if (unmounted || text !== spec.value) return;
-    history.replaceState(history.state, "", location.pathname + location.search + hash);
-  };
-
-  spec.value = text;
-  regenerate();
-  loaded.value = true;
-  watch(spec, () => {
-    clearTimeout(generateTimer);
-    generateTimer = setTimeout(regenerate, 300);
-    clearTimeout(hashTimer);
-    hashTimer = setTimeout(updateHash, 300);
-  });
+  try {
+    worker = new Worker(new URL("./playground.worker.ts", import.meta.url), { type: "module" });
+    const ready = new Promise<void>((resolve, reject) => {
+      worker!.addEventListener("error", (e) => reject(e.message));
+      worker!.addEventListener("message", ({ data }: MessageEvent<Reply>) => {
+        if (data.type === "ready") resolve();
+        else if (data.type === "failed") reject(data.message);
+        else if (data.id === requested) {
+          error.value = data.ok ? "" : data.text;
+          if (data.ok) api.value = data.text;
+          loaded.value = true;
+        }
+      });
+    });
+    const [text] = await Promise.all([fromHash(), ready]);
+    if (unmounted) return;
+    spec.value = text;
+    regenerate();
+    watch(spec, () => {
+      clearTimeout(generateTimer);
+      generateTimer = setTimeout(regenerate, 300);
+      clearTimeout(hashTimer);
+      hashTimer = setTimeout(updateHash, 300);
+    });
+  } catch (e) {
+    failed.value = true;
+    error.value = `${t.value.loadFailed}\n${e}`;
+  }
 });
 
 onBeforeUnmount(() => {
   unmounted = true;
+  worker?.terminate();
   clearTimeout(generateTimer);
   clearTimeout(hashTimer);
+  clearTimeout(copyTimer);
 });
 
 function reset() {
@@ -165,52 +141,73 @@ function reset() {
 }
 
 async function copyLink() {
-  await navigator.clipboard.writeText(location.href);
-  copied.value = true;
-  setTimeout(() => (copied.value = false), 2000);
+  try {
+    // The link must hold the document as it is now, not as of the last update.
+    clearTimeout(hashTimer);
+    await updateHash();
+    await navigator.clipboard.writeText(location.href);
+    copyStatus.value = t.value.copied;
+  } catch {
+    copyStatus.value = t.value.copyFailed;
+  }
+  clearTimeout(copyTimer);
+  copyTimer = setTimeout(() => (copyStatus.value = ""), 2000);
 }
 </script>
 
 <template>
-  <div class="playground">
+  <main class="playground">
     <h1>{{ t.title }}</h1>
     <p class="lead">{{ t.lead }}</p>
     <div class="actions">
-      <span v-if="!loaded" class="loading">{{ t.loading }}</span>
+      <span v-if="!loaded && !failed" class="loading">{{ t.loading }}</span>
+      <!-- Outside the button: a live region inside one is not announced reliably. -->
+      <span class="copy-status" role="status">{{ copyStatus }}</span>
       <button type="button" :disabled="!loaded" @click="reset">{{ t.reset }}</button>
-      <button type="button" :disabled="!loaded" @click="copyLink">
-        {{ copied ? t.copied : t.copy }}
-      </button>
+      <button type="button" :disabled="!loaded" @click="copyLink">{{ t.copy }}</button>
     </div>
     <div class="panes">
       <section class="pane">
-        <div class="bar">{{ t.spec }}</div>
+        <label class="bar" :for="specId">{{ t.spec }}</label>
         <textarea
+          :id="specId"
           v-model="spec"
           class="code"
-          :aria-label="t.spec"
           :disabled="!loaded"
           spellcheck="false"
           autocapitalize="off"
           autocomplete="off"
+          autocorrect="off"
           wrap="off"
         ></textarea>
       </section>
       <section class="pane">
-        <div class="bar">{{ t.api }}</div>
-        <pre v-if="error" class="error" role="alert">{{ error }}</pre>
+        <h2 :id="apiId" class="bar">{{ t.api }}</h2>
+        <!-- Always present, so that a message put into it is announced; polite,
+             since a document is invalid most of the time while it is edited. -->
+        <div class="problem" role="status">
+          <pre v-if="error" class="error">{{ error }}</pre>
+        </div>
         <!-- Shiki escapes the generated text. -->
-        <div v-show="!error" class="code vp-code" v-html="api"></div>
+        <div
+          v-show="!error"
+          class="code vp-code"
+          role="region"
+          :aria-labelledby="apiId"
+          tabindex="0"
+          v-html="api"
+        ></div>
       </section>
     </div>
-  </div>
+  </main>
 </template>
 
 <style scoped>
 .playground {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 32px 24px 48px;
+  max-inline-size: 1440px;
+  margin-inline: auto;
+  padding-block: 32px 48px;
+  padding-inline: 24px;
 }
 
 h1 {
@@ -220,8 +217,8 @@ h1 {
 }
 
 .lead {
-  max-width: 760px;
-  margin: 16px 0 0;
+  max-inline-size: 760px;
+  margin-block: 16px 0;
   color: var(--vp-c-text-2);
   line-height: 1.7;
 }
@@ -231,12 +228,17 @@ h1 {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  margin: 16px 0 12px;
+  margin-block: 16px 12px;
 }
 
 .loading {
-  margin-right: auto;
+  margin-inline-end: auto;
   font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+
+.copy-status {
+  font-size: 13px;
   color: var(--vp-c-text-2);
 }
 
@@ -246,6 +248,14 @@ button {
   border-radius: 6px;
   font-size: 13px;
   color: var(--vp-c-text-1);
+}
+
+/* On touch screens, large enough to hit. */
+@media (pointer: coarse) {
+  button {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
 }
 
 button:hover:not(:disabled) {
@@ -261,25 +271,26 @@ button:disabled {
 .panes {
   display: grid;
   grid-template-columns: 1fr;
-  grid-auto-rows: 60vh;
+  grid-auto-rows: 60dvh;
   gap: 16px;
 }
 
 @media (min-width: 960px) {
   .panes {
     grid-template-columns: 1fr 1fr;
-    grid-auto-rows: max(80vh, 640px);
+    grid-auto-rows: max(80dvh, 640px);
   }
 }
 
 .pane {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  min-height: 0;
+  min-inline-size: 0;
+  min-block-size: 0;
   border: 1px solid var(--vp-c-divider);
   border-radius: 8px;
-  overflow: hidden;
+  /* Clips to the rounded corners without becoming a scroll container. */
+  overflow: clip;
   background: var(--vp-code-block-bg);
 }
 
@@ -287,15 +298,17 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--vp-c-divider);
+  min-block-size: 40px;
+  padding-inline: 12px;
+  border-block-end: 1px solid var(--vp-c-divider);
   font-size: 14px;
   font-weight: 500;
 }
 
 .code,
 .error {
+  flex: 1;
+  min-block-size: 0;
   margin: 0;
   padding: 16px 20px;
   overflow: auto;
@@ -305,10 +318,11 @@ button:disabled {
   white-space: pre;
 }
 
-.code,
-.error {
-  flex: 1;
-  min-height: 0;
+/* VitePress removes the outline of a focused textarea. The ring sits inside,
+   since the pane clips what overflows it. */
+.code:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: -2px;
 }
 
 textarea.code {
@@ -322,6 +336,16 @@ textarea.code {
 .code :deep(pre) {
   margin: 0;
   background: transparent !important;
+}
+
+/* Takes the place of the generated file while there is a message. */
+.problem {
+  display: flex;
+  min-block-size: 0;
+}
+
+.problem:not(:empty) {
+  flex: 1;
 }
 
 .error {
