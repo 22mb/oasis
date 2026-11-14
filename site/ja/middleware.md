@@ -31,7 +31,7 @@ const api = createClient({ middleware: [timing, retry] });
 ## ミドルウェアチェーンの動作 {#how-the-chain-runs}
 
 <figure class="diagram">
-<svg viewBox="-2 0 756 272" role="img" aria-label="リクエストは、クライアントのミドルウェア（timing → retry の順）と呼び出しごとのミドルウェア（cache）を経由して fetch に渡されます。レスポンスは逆の順序で返されます。cache は fetch を呼び出さずにレスポンスを返せます。ミドルウェアは 1 回の呼び出しで行きと帰りの両方を扱い、next より前のコードが行きに、next の後のコードが帰りに実行されます。チェーンの完了後、レスポンス本体がデコードされて結果になります。" fill="currentColor" font-size="13" style="max-width: 100%; height: auto">
+<svg viewBox="-2 0 756 272" role="img" aria-label="リクエストは、クライアントのミドルウェア（timing → retry の順）と呼び出しごとのミドルウェア（cache）を経由して fetch に渡されます。レスポンスは逆の順序で返されます。cache は fetch を呼び出さずにレスポンスを返せます。ミドルウェアは 1 回の呼び出しでリクエストとレスポンスの両方を扱い、next より前のコードがリクエストの送信前に、next の後のコードがレスポンスの受信後に実行されます。チェーンの完了後、レスポンス本体がデコードされて結果になります。" fill="currentColor" font-size="13" style="max-width: 100%; height: auto">
 <defs>
 <marker id="mw-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill: var(--vp-c-text-1)"/></marker>
 <marker id="mw-arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill: var(--vp-c-brand-1)"/></marker>
@@ -73,7 +73,7 @@ const api = createClient({ middleware: [timing, retry] });
 <text x="380" y="227" text-anchor="middle" style="font-family: var(--vp-font-family-mono)" font-size="14">{ ok, status, data, response }</text>
 <text x="0" y="266" font-size="12" style="fill: var(--vp-c-text-2)">DecodeError はここで発生</text>
 </svg>
-<figcaption><code>api.GET()</code> のリクエストが、<code>createClient</code> の <code>[timing, retry]</code> と呼び出しごとの <code>[cache]</code> を経由する順序。ミドルウェアは 1 回の呼び出しで行きと帰りの両方を扱い、<code>await next(request)</code> より前のコードが行きに、後のコードが帰りに実行されます。強調されている経路は、<code>cache</code> が <code>next</code> を呼び出さずに <code>Response</code> を返す場合を示しています。</figcaption>
+<figcaption><code>api.GET()</code> のリクエストが、<code>createClient</code> の <code>[timing, retry]</code> と呼び出しごとの <code>[cache]</code> を経由する順序。ミドルウェアは 1 回の呼び出しでリクエストとレスポンスの両方を扱い、<code>await next(request)</code> より前のコードがリクエストの送信前に、後のコードがレスポンスの受信後に実行されます。強調されている経路は、<code>cache</code> が <code>next</code> を呼び出さずに <code>Response</code> を返す場合を示しています。</figcaption>
 </figure>
 
 - 最初のミドルウェアが最も外側になります。個別の呼び出しに渡したミドルウェア（`api.GET("/pets", { middleware: [...] })`）は、クライアントのミドルウェアの内側で実行されます。
