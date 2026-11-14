@@ -127,6 +127,11 @@ boundary, in place of any set in `headers`. A request body uses the
 [request variant](./strict-types#requests-and-responses-have-separate-types)
 of its schema.
 
+A `ReadableStream` body is sent as a stream. This works in Node.js, but few
+browsers can send a streamed request body (see the
+[compatibility table](https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex#browser_compatibility)),
+so pass a `Blob` or an `ArrayBuffer` in code that also runs in browsers.
+
 ### Form bodies
 
 A form body sends each property of the object as a field
