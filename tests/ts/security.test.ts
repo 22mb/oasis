@@ -1,19 +1,7 @@
 import { expect, test } from "vitest";
 import { auth, createClient, type Middleware, type MiddlewareContext } from "../golden/security.ts";
 import { cookieHeaders } from "./env.ts";
-
-/** A fetch that records requests and answers with `responses` in turn (the last one repeats). */
-function server(...responses: (() => Response)[]) {
-  const requests: Request[] = [];
-  const bodies: string[] = [];
-  const fetch = async (request: Request) => {
-    requests.push(request);
-    bodies.push(await request.text());
-    return (responses[requests.length - 1] ?? responses.at(-1)!)();
-  };
-  return { fetch, requests, bodies };
-}
-const noContent = () => new Response(null, { status: 204 });
+import { noContent, server } from "./fetch.ts";
 
 test("runs middleware outermost first, with the operation from the document", async () => {
   const s = server(noContent);
@@ -46,7 +34,7 @@ test("middleware can answer without sending", async () => {
   const api = createClient({ fetch: s.fetch, middleware: [cached] });
   const res = await api.GET("/pets");
   expect(res.data).toStrictEqual(["cached"]);
-  expect(s.requests.length).toBe(0);
+  expect(s.sent.length).toBe(0);
 });
 
 test("middleware can retry with a cloned request", async () => {
@@ -60,7 +48,7 @@ test("middleware can retry with a cloned request", async () => {
   const api = createClient({ fetch: s.fetch, middleware: [retry] });
   const res = await api.POST("/login", { body: { user: "tama" } });
   expect(res.status).toBe(204);
-  expect(s.bodies).toStrictEqual(['{"user":"tama"}', '{"user":"tama"}']);
+  expect(s.sent.map((r) => r.body)).toStrictEqual(['{"user":"tama"}', '{"user":"tama"}']);
 });
 
 test("with() derives a client without changing the original", async () => {
@@ -72,8 +60,8 @@ test("with() derives a client without changing the original", async () => {
   });
   await tenant.GET("/me");
   await api.GET("/me");
-  expect(s.requests[0]!.headers.get("x-tenant")).toBe("t1");
-  expect(s.requests[1]!.headers.get("x-tenant")).toBe(null);
+  expect(s.sent[0]!.headers.get("x-tenant")).toBe("t1");
+  expect(s.sent[1]!.headers.get("x-tenant")).toBe(null);
 });
 
 test("auth follows the document's security requirements", async () => {
@@ -99,10 +87,10 @@ test("auth follows the document's security requirements", async () => {
   });
   /** The headers of the one request that `call` sends. */
   const sent = async (call: () => Promise<unknown>) => {
-    const before = s.requests.length;
+    const before = s.sent.length;
     await call();
-    expect(s.requests.length).toBe(before + 1);
-    return s.requests.at(-1)!.headers;
+    expect(s.sent.length).toBe(before + 1);
+    return s.sent.at(-1)!.headers;
   };
   let headers: Headers;
 
@@ -161,29 +149,29 @@ test("auth treats an undefined credential as unavailable", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ queryKey: undefined, basic: "u:p" })] });
   await api.GET("/reports"); // the queryKey alternative is skipped for basic
-  expect(s.requests[0]!.url).toBe("https://api.example.com/reports");
-  expect(s.requests[0]!.headers.get("authorization")).toBe(`Basic ${btoa("u:p")}`);
+  expect(s.sent[0]!.url).toBe("https://api.example.com/reports");
+  expect(s.sent[0]!.headers.get("authorization")).toBe(`Basic ${btoa("u:p")}`);
 });
 
 test("auth awaits credential functions", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ bearer: async () => "t" })] });
   await api.GET("/me");
-  expect(s.requests[0]!.headers.get("authorization")).toBe("Bearer t");
+  expect(s.sent[0]!.headers.get("authorization")).toBe("Bearer t");
 });
 
 test("auth appends query API keys without rewriting the rest of the request", async () => {
   const s = server(noContent);
   const api = createClient({ fetch: s.fetch, middleware: [auth({ queryKey: "q k" })] });
   await api.GET("/reports", { query: { ids: [1, 2] } }); // `explode: false` keeps its comma
-  expect(s.requests[0]!.url).toBe("https://api.example.com/reports?ids=1,2&api_key=q%20k");
+  expect(s.sent[0]!.url).toBe("https://api.example.com/reports?ids=1,2&api_key=q%20k");
 
   const res = await api.POST("/reports", { body: { q: "x" } });
   expect(res.status).toBe(204);
-  expect(s.requests[1]!.url).toBe("https://api.example.com/reports?api_key=q%20k");
-  expect(s.requests[1]!.method).toBe("POST");
-  expect(s.requests[1]!.headers.get("content-type")).toBe("application/json");
-  expect(s.bodies[1]).toBe('{"q":"x"}');
+  expect(s.sent[1]!.url).toBe("https://api.example.com/reports?api_key=q%20k");
+  expect(s.sent[1]!.method).toBe("POST");
+  expect(s.sent[1]!.headers.get("content-type")).toBe("application/json");
+  expect(s.sent[1]!.body).toBe('{"q":"x"}');
 });
 
 test("auth sets cookie API keys once, encoded, replacing an existing cookie", async () => {
@@ -195,8 +183,8 @@ test("auth sets cookie API keys once, encoded, replacing an existing cookie", as
   };
   const api = createClient({ fetch: s.fetch, middleware: [twice, auth({ apiKey: "k", session: "s 1;x" })] });
   await api.GET("/both", { headers: { cookie: "sid=old; theme=dark" } });
-  expect(s.requests[0]!.headers.get("cookie")).toBe("theme=dark; sid=s%201%3Bx");
-  expect(s.requests[1]!.headers.get("cookie")).toBe("theme=dark; sid=s%201%3Bx");
+  expect(s.sent[0]!.headers.get("cookie")).toBe("theme=dark; sid=s%201%3Bx");
+  expect(s.sent[1]!.headers.get("cookie")).toBe("theme=dark; sid=s%201%3Bx");
 });
 
 test("auth sends a resent request with only the credentials chosen for it", async () => {
