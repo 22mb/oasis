@@ -67,6 +67,8 @@ export default defineConfig({
     }),
   ],
   themeConfig: {
+    // No "Copy Markdown" button on the pages: llms.txt is there for that.
+    llmsUI: false,
     nav: [
       {
         text: "Guide",
