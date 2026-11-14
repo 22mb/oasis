@@ -114,57 +114,64 @@ test("auth follows the document's security requirements", async () => {
       }),
     ],
   });
-  const header = (i: number, name: string) => s.requests[i]!.headers.get(name);
+  /** The headers of the one request that `call` sends. */
+  const sent = async (call: () => Promise<unknown>) => {
+    const before = s.requests.length;
+    await call();
+    expect(s.requests.length).toBe(before + 1);
+    return s.requests.at(-1)!.headers;
+  };
+  let headers: Headers;
 
-  await api.POST("/login", { body: { user: "tama" } }); // security: []
-  expect(header(0, "authorization")).toBe(null);
+  headers = await sent(() => api.POST("/login", { body: { user: "tama" } })); // security: []
+  expect(headers.get("authorization")).toBe(null);
 
-  await api.GET("/pets"); // optional: authenticated when a token is available
-  expect(header(1, "authorization")).toBe("Bearer t0k3n");
+  headers = await sent(() => api.GET("/pets")); // optional: authenticated when a token is available
+  expect(headers.get("authorization")).toBe("Bearer t0k3n");
   token = undefined;
-  await api.GET("/pets");
-  expect(header(2, "authorization")).toBe(null);
+  headers = await sent(() => api.GET("/pets"));
+  expect(headers.get("authorization")).toBe(null);
   token = "t0k3n";
 
-  await api.GET("/me"); // inherits the top-level requirement
-  expect(header(3, "authorization")).toBe("Bearer t0k3n");
+  headers = await sent(() => api.GET("/me")); // inherits the top-level requirement
+  expect(headers.get("authorization")).toBe("Bearer t0k3n");
 
-  await api.DELETE("/admin/users");
-  expect(header(4, "authorization")).toBe("Bearer oauth-token");
+  headers = await sent(() => api.DELETE("/admin/users"));
+  expect(headers.get("authorization")).toBe("Bearer oauth-token");
   expect(scopesSeen).toStrictEqual([["admin", "write"]]);
 
-  await api.POST("/webhooks");
-  expect(header(5, "x-api-key")).toBe("k3y");
-  expect(header(5, "authorization")).toBe(null);
+  headers = await sent(() => api.POST("/webhooks"));
+  expect(headers.get("x-api-key")).toBe("k3y");
+  expect(headers.get("authorization")).toBe(null);
 
-  await api.GET("/reports"); // no queryKey credential: falls back to basic
-  expect(header(6, "authorization")).toBe(`Basic ${btoa(String.fromCharCode(...new TextEncoder().encode("user:päss")))}`);
+  headers = await sent(() => api.GET("/reports")); // no queryKey credential: falls back to basic
+  expect(headers.get("authorization")).toBe(`Basic ${btoa(String.fromCharCode(...new TextEncoder().encode("user:päss")))}`);
 
-  await api.GET("/both"); // both schemes together
-  expect(header(7, "x-api-key")).toBe("k3y");
-  if (cookieHeaders) expect(header(7, "cookie")).toBe("sid=s1");
+  headers = await sent(() => api.GET("/both")); // both schemes together
+  expect(headers.get("x-api-key")).toBe("k3y");
+  if (cookieHeaders) expect(headers.get("cookie")).toBe("sid=s1");
 
-  await api.GET("/digest"); // other http schemes: `<scheme> <credential>`
-  expect(String(header(8, "authorization"))).toMatch(/^digest d1g3st$/i);
+  headers = await sent(() => api.GET("/digest")); // other http schemes: `<scheme> <credential>`
+  expect(String(headers.get("authorization"))).toMatch(/^digest d1g3st$/i);
 
-  await api.GET("/oidc");
-  expect(header(9, "authorization")).toBe("Bearer 0idc");
+  headers = await sent(() => api.GET("/oidc"));
+  expect(headers.get("authorization")).toBe("Bearer 0idc");
 
-  await api.GET("/mtls"); // satisfied by the TLS configuration: nothing to add
-  expect(header(10, "authorization")).toBe(null);
-  await api.GET("/mtls-or-bearer"); // `mutualTLS` alone adds nothing: the bearer alternative wins
-  expect(header(11, "authorization")).toBe("Bearer t0k3n");
+  headers = await sent(() => api.GET("/mtls")); // satisfied by the TLS configuration: nothing to add
+  expect(headers.get("authorization")).toBe(null);
+  headers = await sent(() => api.GET("/mtls-or-bearer")); // `mutualTLS` alone adds nothing: the bearer alternative wins
+  expect(headers.get("authorization")).toBe("Bearer t0k3n");
 
-  await api.GET("/by-uri"); // a requirement naming the scheme by its URI
-  expect(header(12, "authorization")).toBe("Bearer t0k3n");
+  headers = await sent(() => api.GET("/by-uri")); // a requirement naming the scheme by its URI
+  expect(headers.get("authorization")).toBe("Bearer t0k3n");
 
   // With no satisfiable alternative, the request goes out unauthenticated.
   token = undefined;
-  await api.GET("/me");
-  expect(header(13, "authorization")).toBe(null);
+  headers = await sent(() => api.GET("/me"));
+  expect(headers.get("authorization")).toBe(null);
   token = ""; // an empty credential counts as unavailable
-  await api.GET("/me");
-  expect(header(14, "authorization")).toBe(null);
+  headers = await sent(() => api.GET("/me"));
+  expect(headers.get("authorization")).toBe(null);
 });
 
 test("auth treats an undefined credential as unavailable", async () => {
