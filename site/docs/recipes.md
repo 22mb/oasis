@@ -30,10 +30,15 @@ type Result = {
 };
 
 /** The status codes that the operation declares, such as `200`. */
-type Declared<R extends Result, S = R["status"]> = S extends unknown
-  ? [Extract<R, { status: S }>] extends [never]
-    ? never
-    : S
+type Declared<R extends Result> = R extends { status: infer S }
+  ? Single<S>
+  : never;
+
+/** `S` if it is one status, and never for the statuses of a range or `default`. */
+type Single<S, T = S> = S extends unknown
+  ? [T] extends [S]
+    ? S
+    : never
   : never;
 
 /**
@@ -80,9 +85,8 @@ class HttpError extends Error {
   }
 }
 type Result = { status: number; data: unknown; response: Response };
-type Declared<R extends Result, S = R["status"]> = S extends unknown
-  ? [Extract<R, { status: S }>] extends [never] ? never : S
-  : never;
+type Declared<R extends Result> = R extends { status: infer S } ? Single<S> : never;
+type Single<S, T = S> = S extends unknown ? ([T] extends [S] ? S : never) : never;
 async function expectStatus<R extends Result, S extends Declared<R>>(
   call: Promise<R>,
   status: S,
