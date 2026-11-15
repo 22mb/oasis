@@ -69,6 +69,29 @@ fn writes_to_the_output_file() {
 }
 
 #[test]
+fn creates_the_directory_of_the_output_file() {
+    let dir = std::env::temp_dir().join(format!("oasis-gen-cli-new-{}", std::process::id()));
+    let file = dir.join("src").join("gen").join("api.ts");
+    let out = run(&["-o", file.to_str().unwrap(), PETSTORE], "");
+    assert!(out.status.success(), "{}", text(&out.stderr));
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        std::fs::read_to_string(GOLDEN).unwrap()
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+
+    // A file is where the directory would be.
+    let file = format!("{PETSTORE}/api.ts");
+    let out = run(&["-o", &file, PETSTORE], "");
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.starts_with(&format!("error: cannot write {file}: ")),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn prints_version_and_help() {
     let out = run(&["-V"], "");
     assert!(out.status.success());

@@ -70,7 +70,15 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
     match output {
         Some(path) => {
-            std::fs::write(&path, code).map_err(|e| format!("cannot write {path}: {e}"))?
+            // A new project, or a checkout that leaves generated files out,
+            // does not have the directory yet.
+            let write = || {
+                if let Some(dir) = std::path::Path::new(&path).parent() {
+                    std::fs::create_dir_all(dir)?;
+                }
+                std::fs::write(&path, &code)
+            };
+            write().map_err(|e| format!("cannot write {path}: {e}"))?
         }
         None => match std::io::stdout().write_all(code.as_bytes()) {
             // If a reader like `head` stops early, do not report an error.
