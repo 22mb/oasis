@@ -38,6 +38,20 @@ else of the top-level `servers`. Server variables are set to their defaults.
 To use a different server for each environment, see the
 [recipe](./recipes#setting-the-base-url-for-each-environment).
 
+### Fetch options for every request
+
+A call takes fetch options such as `signal` in its
+[second argument](#calling-an-operation). To set one for every request, such
+as `credentials` to send cookies to another origin, wrap `fetch`:
+
+```ts twoslash
+import { createClient } from "./api.ts";
+// ---cut---
+const api = createClient({
+  fetch: (request) => fetch(request, { credentials: "include" }),
+});
+```
+
 ## Calling an operation
 
 You select an operation by its HTTP method and path template, exactly as they
