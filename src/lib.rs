@@ -60,12 +60,14 @@ pub fn load(source: &str) -> Result<serde_json::Value, Error> {
 }
 
 /// Uses YAML 1.2 booleans only (`yes`/`no`/`on`/`off`/`y`/`n` stay strings),
-/// and scales node and event budgets with the input so large documents load.
-/// Alias expansion keeps its default limits.
+/// keeps scalars with underscores such as `16_9` as strings the way YAML 1.2
+/// does, and scales node and event budgets with the input so large documents
+/// load. Alias expansion keeps its default limits.
 pub(crate) fn yaml_options(source: &str) -> serde_saphyr::Options {
     let defaults = serde_saphyr::Budget::default();
     serde_saphyr::options! {
         strict_booleans: true,
+        underscored_numbers_as_strings: true,
         budget: serde_saphyr::budget! {
             max_nodes: defaults.max_nodes.max(source.len()),
             max_events: defaults.max_events.max(source.len()),
@@ -218,6 +220,12 @@ mod tests {
     fn yaml_uses_core_schema_booleans() {
         let v = load("a: [yes, off, N, true]\n").unwrap();
         assert_eq!(v["a"], serde_json::json!(["yes", "off", "N", true]));
+    }
+
+    #[test]
+    fn yaml_keeps_underscored_numbers_as_strings() {
+        let v = load("a: [16_9, 1_000, 0xFF_FF, 169]\n").unwrap();
+        assert_eq!(v["a"], serde_json::json!(["16_9", "1_000", "0xFF_FF", 169]));
     }
 
     #[test]
