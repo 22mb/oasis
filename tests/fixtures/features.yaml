@@ -487,7 +487,8 @@ paths:
               schema: { type: string }
   /exports:
     # Every media type in a binary range is read as a `Blob`, but only
-    # in the responses that declare the range.
+    # in the responses that declare the range, and not when a more specific
+    # media type of the same response is not binary.
     get:
       responses:
         "200":
@@ -495,6 +496,8 @@ paths:
           content:
             text/*:
               schema: {}
+            text/plain:
+              schema: { type: string }
         "4XX":
           description: Why there is no export.
           content:
@@ -506,6 +509,23 @@ paths:
           content:
             text/*:
               schema: { type: string }
+  /downloads:
+    # A range such as `*/*` is binary only when its schema declares raw binary.
+    # An empty schema also allows any JSON value.
+    get:
+      responses:
+        "200":
+          description: The file, or its metadata.
+          content:
+            "*/*":
+              schema: { contentMediaType: application/octet-stream }
+            application/json:
+              schema: { type: object, properties: { name: { type: string } } }
+        default:
+          description: Anything else.
+          content:
+            "*/*":
+              schema: {}
   # A schema outside `components.schemas` gets a type alias only for the shape
   # that a type names. A `text/plain` body is a string whatever its schema is.
   /hoisted-text:

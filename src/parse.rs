@@ -745,6 +745,18 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Whether schema `s` declares raw binary (see [`Content::binary`]).
+    fn declares_binary(&self, s: &Value) -> bool {
+        let has = |key| s.get(key).is_some();
+        match self.version {
+            Version::V30 => {
+                s.get("type") == Some(&Value::from("string"))
+                    && s.get("format") == Some(&Value::from("binary"))
+            }
+            Version::V31Plus => has("contentMediaType") && !has("type") && !has("contentEncoding"),
+        }
+    }
+
     fn single_content(&mut self, content: Node<'a>) -> Result<Content, Error> {
         let v = content.v;
         let mut list = self.content(Some(content))?;
@@ -761,12 +773,18 @@ impl<'a> Parser<'a> {
         let mut out = Vec::new();
         for (media_type, m) in map.entries() {
             let m = self.deref(m)?;
+            // A `$ref` cycle is reported where the schema is used.
+            let binary = m
+                .get("schema")
+                .and_then(|s| self.deref(s).ok())
+                .is_some_and(|s| self.declares_binary(s.v));
             let mut schema = |key| m.get(key).map(|s| self.schema(s, 0)).transpose();
             let (schema, item_schema) = (schema("schema")?, schema("itemSchema")?);
             out.push(Content {
                 media_type: media_type.clone(),
                 schema,
                 item_schema,
+                binary,
                 encoding: self
                     .encoding(media_type, &m)
                     .map_err(|e| e.about(m.v).context(media_type.clone()))?,

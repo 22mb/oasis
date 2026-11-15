@@ -350,6 +350,11 @@ pub struct Content {
     pub schema: Option<Schema>,
     /// Schema of each item of a sequential media type (new in 3.2).
     pub item_schema: Option<Schema>,
+    /// Whether the schema declares raw binary: `type: string, format: binary`
+    /// in 3.0, or a `contentMediaType` without `type` or `contentEncoding`
+    /// later. A schema without `type` alone does not, as it also allows any
+    /// JSON value.
+    pub binary: bool,
     /// `encoding`: how each named property is sent, in document order. Only
     /// read for `application/x-www-form-urlencoded` and `multipart/form-data`;
     /// properties without an entry use the defaults for their value.

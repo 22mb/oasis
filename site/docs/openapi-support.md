@@ -24,7 +24,7 @@ In an OpenAPI 3.0 document, these keywords are handled as follows:
 | `nullable: true` | Adds `null` to the type. On an `enum`, `null` is added even if the list omits it. Other generators treat it the same way, even though 3.0.3 itself still disallows `null` in that case |
 | `nullable: true` next to a `$ref`, or on an `allOf` with one `$ref` | Adds `null` to the referenced type |
 | Other keywords next to a `$ref` | Applied, as in 3.1 and later, although 3.0 says to ignore them: `{ $ref: Base, properties: {...} }` is `Base & {...}` |
-| `type: string, format: binary` | Raw binary, read as a schema without a `type`: `unknown`, or `Blob` in a multipart body or a `text/*` response |
+| `type: string, format: binary` | Raw binary, read as a schema without a `type`: `unknown`, or `Blob` in a multipart body, a `text/*` response, or a `*/*` or `application/*` response |
 | `type: string, format: byte` | Base64 text, read as `contentEncoding: base64`: a `string`, sent as an `application/octet-stream` multipart part |
 | `example`, a boolean `exclusiveMinimum` | Ignored |
 

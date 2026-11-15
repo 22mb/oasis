@@ -285,7 +285,9 @@ export type Operations = [
   // A `text/*` schema without a `type` is binary, for every response of that media type;
   // a `type: string` schema or none is text.
   Expect<Equal<Operation<"/report", "GET">["responses"], { "200": Blob | string; "4XX": string }>>,
-  Expect<Equal<Operation<"/exports", "GET">["responses"], { "200": Blob; "4XX": string; default: unknown }>>,
+  Expect<Equal<Operation<"/exports", "GET">["responses"], { "200": Blob | string; "4XX": string; default: unknown }>>,
+  // A range is binary when its schema declares raw binary, not when it is empty.
+  Expect<Equal<Operation<"/downloads", "GET">["responses"], { "200": Blob | { name?: string }; default: unknown }>>,
   // A schema outside `components.schemas` is typed in the shape its operation uses.
   Expect<Equal<Operation<"/hoisted-text", "GET">["responses"], { "200": string }>>,
   Expect<Equal<
