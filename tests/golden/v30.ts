@@ -247,7 +247,11 @@ export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & 
  * to distinguish a declared success from a `default` or undeclared one.
  */
 export type ApiResponse<O extends Operation> = {
-  [K in keyof O["statuses"]]: O["statuses"][K] extends [infer Ok, infer Failed, ...infer Empty]
+  [K in keyof O["statuses"]]: O["statuses"][K] extends [
+    infer Ok extends number,
+    infer Failed extends number,
+    ...infer Empty extends number[],
+  ]
     ? Member<Ok, true, Data<O, K>> | Member<Failed, false, Data<O, K>> | Bodiless<Empty[number]>
     : never;
 }[keyof O["statuses"]];

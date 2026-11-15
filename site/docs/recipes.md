@@ -68,9 +68,12 @@ successful call would throw.
 
 ## TanStack Query
 
-You do not need generated hooks. Make the call in `queryFn` with the
-`signal` that TanStack Query provides, so that canceled queries abort the
-request.
+You do not need generated hooks. One function that builds query options for
+every `GET` operation works with `useQuery`, `useSuspenseQuery`,
+`prefetchQuery`, and the other functions that take query options, in the
+React, Vue, Svelte, and Solid adapters alike. It makes the call with
+`expectStatus` from the previous recipe, and passes the `signal` that TanStack
+Query provides, so that canceled queries abort the request:
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -96,21 +99,33 @@ async function expectStatus<R extends Result, S extends Declared<R>>(
   return res.data as Extract<R, { status: S }>["data"];
 }
 // ---cut---
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 
-function usePet(petId: number) {
-  return useQuery({
-    queryKey: ["pets", petId],
+type GetPath = Parameters<typeof api.GET>[0];
+type GetResult<P extends GetPath> = Awaited<ReturnType<typeof api.GET<P>>>;
+
+function getQuery<P extends GetPath, S extends Declared<GetResult<P>>>(
+  status: S,
+  ...[path, init]: Parameters<typeof api.GET<P>>
+) {
+  return queryOptions({
+    queryKey: [path, init],
     queryFn: ({ signal }) => {
-      const call = api.GET("/pets/{petId}", {
-        path: { petId },
-        signal,
-      });
-      return expectStatus(call, 200);
+      const call = api.GET(path, { ...init, signal });
+      return expectStatus(call, status);
     },
   });
 }
+
+function usePet(petId: number) {
+  // `data` is typed from the 200 response.
+  return useQuery(getQuery(200, "/pets/{petId}", { path: { petId } }));
+}
 ```
+
+The query key holds the path and the inputs, so calls with different inputs
+are cached apart. For a mutation, make the call in `mutationFn` and pass it to
+`expectStatus` in the same way.
 
 ## Setting the base URL for each environment
 
