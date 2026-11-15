@@ -240,6 +240,17 @@ mod tests {
     }
 
     #[test]
+    fn decimals_round_to_the_nearest_value() {
+        // Without serde_json's `float_roundtrip`, the JSON document gives
+        // 40.24775 and 3.402823466385289e38.
+        let want = serde_json::json!([40.247749999999996, 3.4028234663852886e38]);
+        let json = load("{\"a\": [40.247749999999996, 3.4028234663852886e38]}").unwrap();
+        assert_eq!(json["a"], want);
+        let yaml = load("a: [40.247749999999996, 3.4028234663852886e38]\n").unwrap();
+        assert_eq!(yaml["a"], want);
+    }
+
+    #[test]
     fn loads_flow_style_yaml() {
         let v = load("{openapi: 3.1.0, tags: [a, yes]}\n").unwrap();
         assert_eq!(
