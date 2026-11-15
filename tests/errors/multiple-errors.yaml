@@ -1,0 +1,39 @@
+# Every error is reported once, even when several operations reach it.
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths:
+  /a:
+    get:
+      # No error of its own: the scheme's error is reported once.
+      security: [{broken: []}]
+      responses: {'204': {description: ok}}
+  /b:
+    parameters: [{name: q, in: query, schema: {type: int}}]
+    get:
+      responses: {'204': {description: ok}}
+    post:
+      responses: {'204': {description: ok}}
+  /c:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {$ref: '#/$defs/Shared'}
+        '2xx': {description: ok}
+  /d:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {$ref: '#/$defs/Shared'}
+components:
+  schemas:
+    A: {type: int}
+    B: {type: string}
+    C: {$ref: '#/nope'}
+  securitySchemes:
+    broken: {type: http}
+$defs:
+  Shared: {type: [string, int]}

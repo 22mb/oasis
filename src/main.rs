@@ -26,7 +26,10 @@ fn main() -> ExitCode {
     match worker.join() {
         Ok(Ok(())) => ExitCode::SUCCESS,
         Ok(Err(e)) => {
-            eprintln!("error: {e}");
+            match e.downcast_ref::<oasis_gen::Error>() {
+                Some(e) => e.iter().for_each(|e| eprintln!("error: {e}")),
+                None => eprintln!("error: {e}"),
+            }
             ExitCode::FAILURE
         }
         Err(panic) => std::panic::resume_unwind(panic),

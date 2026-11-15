@@ -1,1 +1,1 @@
-error: security-scheme-ref-unresolved.yaml:6:17: unresolved $ref `#/nope`
+error: security-scheme-ref-unresolved.yaml:6:17: components.securitySchemes.key: unresolved $ref `#/nope`

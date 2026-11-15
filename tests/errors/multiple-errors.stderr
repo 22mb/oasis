@@ -1,0 +1,6 @@
+error: multiple-errors.yaml:33:15: components.schemas.A: unknown type `int`
+error: multiple-errors.yaml:35:15: components.schemas.C: unresolved $ref `#/nope`
+error: multiple-errors.yaml:37:13: components.securitySchemes.broken: security scheme requires `scheme`
+error: multiple-errors.yaml:11:54: paths./b: GET: parameter `q`: unknown type `int`
+error: multiple-errors.yaml:23:16: paths./c: GET: invalid response key `2xx`: expected a status code, `1XX`..`5XX` or `default`
+error: multiple-errors.yaml:39:18: #/$defs/Shared: unknown type `int`

@@ -27,8 +27,10 @@ pub fn parse(docs: &Documents) -> Result<Api, Error> {
     let version = version(docs.root())?;
     let mut api = Parser::new(docs, version).api()?;
     inherit_access(&mut api);
-    check_discriminators(&api)?;
-    Ok(api)
+    match Error::join(check_discriminators(&api)) {
+        Some(e) => Err(e),
+        None => Ok(api),
+    }
 }
 
 /// Copies `readOnly` and `writeOnly` onto every property they apply to, so an
@@ -95,9 +97,9 @@ fn mark(s: &mut Schema, flagged: &(BTreeSet<String>, BTreeSet<String>)) {
 /// non-string property, since it could never match. A key equal to the schema's
 /// own name is skipped because it may be the implicit mapping, which only
 /// applies to strings.
-fn check_discriminators(api: &Api) -> Result<(), Error> {
+fn check_discriminators(api: &Api) -> Vec<Error> {
     let schemas = Schemas::new(&api.schemas);
-    let mut result = Ok(());
+    let mut errors = Vec::new();
     for s in &api.schemas {
         s.schema.walk(&mut |node| {
             let Schema::Union {
@@ -119,18 +121,20 @@ fn check_discriminators(api: &Api) -> Result<(), Error> {
                 let bad = d.mapping.iter().find(|(value, target)| {
                     target == k && value != target && schemas.mapped_value(p, value).is_none()
                 });
-                if let (Some((value, _)), Ok(())) = (bad, &result) {
-                    result = Err(Error::new(format!(
-                        "discriminator mapping key `{value}` is not a value of property `{}`",
-                        d.property_name
-                    ))
-                    .about_origin(s.origin)
-                    .context(s.location()));
+                if let Some((value, _)) = bad {
+                    errors.push(
+                        Error::new(format!(
+                            "discriminator mapping key `{value}` is not a value of property `{}`",
+                            d.property_name
+                        ))
+                        .about_origin(s.origin)
+                        .context(s.location()),
+                    );
                 }
             }
         });
     }
-    result
+    errors
 }
 
 /// The `openapi` version of the entry document, grouped by how the parser
@@ -237,6 +241,12 @@ struct Parser<'a> {
     pending: VecDeque<(String, Node<'a>)>,
     operation_ids: HashSet<String>,
     security_schemes: Vec<SecurityScheme>,
+    /// Names of the components' security schemes that failed to convert,
+    /// so that requirements naming them add no errors of their own.
+    invalid_schemes: HashSet<String>,
+    /// Errors found so far. Each schema, security scheme, path and operation
+    /// is converted even when an earlier one fails.
+    errors: Vec<Error>,
 }
 
 impl<'a> Parser<'a> {
@@ -252,7 +262,14 @@ impl<'a> Parser<'a> {
             pending: VecDeque::new(),
             operation_ids: HashSet::new(),
             security_schemes: Vec::new(),
+            invalid_schemes: HashSet::new(),
+            errors: Vec::new(),
         }
+    }
+
+    /// The value of `result`, recording its error.
+    fn check<T>(&mut self, result: Result<T, Error>) -> Option<T> {
+        result.map_err(|e| self.errors.push(e)).ok()
     }
 
     fn api(mut self) -> Result<Api, Error> {
@@ -267,8 +284,8 @@ impl<'a> Parser<'a> {
 
         // Names become exported identifiers, so the limit to ASCII matters.
         for (field, map) in root.fields_of("components") {
-            if let Some((name, v)) = map.entries().find(|(name, _)| !component_name(name)) {
-                return Err(Error::new(format!(
+            for (name, v) in map.entries().filter(|(name, _)| !component_name(name)) {
+                self.errors.push(Error::new(format!(
                     "`{name}` is not a valid component name: use only ASCII letters, digits, `.`, `-` and `_`"
                 ))
                 .about(v.v)
@@ -280,14 +297,19 @@ impl<'a> Parser<'a> {
         if let Some(map) = root.get("components").and_then(|c| c.get("schemas")) {
             // `$ref`s name components by key, which a list does not have.
             if !map.v.is_object() {
-                return Err(Error::new("must be a mapping of names to schemas")
-                    .about(map.v)
-                    .context("components.schemas"));
+                self.errors.push(
+                    Error::new("must be a mapping of names to schemas")
+                        .about(map.v)
+                        .context("components.schemas"),
+                );
             }
             for (name, s) in map.entries() {
                 let schema = self
                     .schema(s.clone(), 0)
-                    .map_err(|e| e.context(format!("components.schemas.{name}")))?;
+                    .map_err(|e| e.context(format!("components.schemas.{name}")));
+                let Some(schema) = self.check(schema) else {
+                    continue;
+                };
                 schemas.push(NamedSchema {
                     key: name.clone(),
                     hoisted: false,
@@ -303,11 +325,16 @@ impl<'a> Parser<'a> {
             .and_then(|c| c.get("securitySchemes"))
         {
             for (name, s) in map.entries() {
-                let s = self.deref(s)?;
-                let kind = security_scheme(&s).map_err(|e| {
-                    e.about(s.v)
-                        .context(format!("components.securitySchemes.{name}"))
-                })?;
+                let scheme = self.deref(s).and_then(|s| match security_scheme(&s) {
+                    Ok(kind) => Ok((s, kind)),
+                    Err(e) => Err(e.about(s.v)),
+                });
+                let scheme =
+                    scheme.map_err(|e| e.context(format!("components.securitySchemes.{name}")));
+                let Some((s, kind)) = self.check(scheme) else {
+                    self.invalid_schemes.insert(name.clone());
+                    continue;
+                };
                 self.security_schemes.push(SecurityScheme {
                     key: name.clone(),
                     meta: meta(s.v),
@@ -316,23 +343,29 @@ impl<'a> Parser<'a> {
             }
         }
         let security = match root.get("security") {
-            Some(list) => self.security(&list).map_err(|e| e.context("security"))?,
+            Some(list) => {
+                let security = self.security(&list).map_err(|e| e.context("security"));
+                self.check(security).unwrap_or_default()
+            }
             None => Vec::new(),
         };
 
         let mut paths = Vec::new();
         for (path, item) in root.fields_of("paths") {
-            let item = self
-                .path_item(path, item)
-                .map_err(|e| e.context(format!("paths.{path}")))?;
-            paths.push(item);
+            let item = self.path_item(path, item);
+            if let Some(item) = self.check(item) {
+                paths.push(item);
+            }
         }
 
         // Converting a target can hoist more, which this loop then reaches.
         while let Some((key, node)) = self.pending.pop_front() {
             let schema = self
                 .schema(node.clone(), 0)
-                .map_err(|e| e.context(key.clone()))?;
+                .map_err(|e| e.context(key.clone()));
+            let Some(schema) = self.check(schema) else {
+                continue;
+            };
             schemas.push(NamedSchema {
                 key,
                 hoisted: true,
@@ -341,10 +374,14 @@ impl<'a> Parser<'a> {
                 origin: Origin::of(node.v),
             });
         }
+        let servers = self.check(servers(&root)).unwrap_or_default();
+        if let Some(e) = Error::join(std::mem::take(&mut self.errors)) {
+            return Err(e);
+        }
         Ok(Api {
             title: text("title"),
             version: text("version"),
-            servers: servers(&root)?,
+            servers,
             schemas,
             paths,
             security_schemes: self.security_schemes,
@@ -397,7 +434,9 @@ impl<'a> Parser<'a> {
     /// Security requirements name schemes in the entry document's
     /// `components.securitySchemes`, or reference them by URI.
     fn security_scheme_key(&mut self, from: &Node<'a>, name: &str) -> Result<String, Error> {
-        if self.security_schemes.iter().any(|s| s.key == name) {
+        if self.security_schemes.iter().any(|s| s.key == name)
+            || self.invalid_schemes.contains(name)
+        {
             return Ok(name.to_string());
         }
         if !name.contains(['#', '/']) {
@@ -464,13 +503,38 @@ impl<'a> Parser<'a> {
         Ok((loc, Node { v, base }))
     }
 
+    /// Converts the operations of a path item, recording the errors of each
+    /// with the path.
     fn path_item(&mut self, path: &str, item: Node<'a>) -> Result<PathItem, Error> {
+        let at = || format!("paths.{path}");
+        let (item, ops) = self
+            .path_operations(path, item)
+            .map_err(|e| e.context(at()))?;
+        let mut operations = Vec::new();
+        for (method, op) in ops {
+            let v = op.v;
+            let op = self
+                .operation(path, &method, op, item.get("parameters"))
+                .map_err(|e| e.about(v).context(method.clone()).context(at()));
+            operations.extend(self.check(op));
+        }
+        Ok(PathItem {
+            path: path.to_string(),
+            servers: servers(&item).map_err(|e| e.context(at()))?,
+            operations,
+        })
+    }
+
+    /// The path item that `item` refers to, and its operations by method.
+    fn path_operations(
+        &mut self,
+        path: &str,
+        item: Node<'a>,
+    ) -> Result<(Node<'a>, Vec<(String, Node<'a>)>), Error> {
         if !path.starts_with('/') {
             return Err(Error::new("path must start with `/`").about(item.v));
         }
         let item = self.deref(item)?;
-        let shared = item.get("parameters");
-
         let mut ops: Vec<(String, Node<'a>)> = Vec::new();
         for m in FIXED_METHODS {
             if let Some(op) = item.get(m) {
@@ -490,20 +554,7 @@ impl<'a> Parser<'a> {
             }
             ops.push((method.clone(), op));
         }
-
-        let mut operations = Vec::new();
-        for (method, op) in ops {
-            let v = op.v;
-            let op = self
-                .operation(path, &method, op, shared.clone())
-                .map_err(|e| e.about(v).context(method.clone()))?;
-            operations.push(op);
-        }
-        Ok(PathItem {
-            path: path.to_string(),
-            servers: servers(&item)?,
-            operations,
-        })
+        Ok((item, ops))
     }
 
     fn operation(

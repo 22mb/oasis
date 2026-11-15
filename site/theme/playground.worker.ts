@@ -9,7 +9,7 @@ export type Request = { id: number; text: string };
 export type Reply =
   | { type: "ready" }
   | { type: "failed"; message: string }
-  // `text` is the highlighted file as HTML, or the generator's error message.
+  // `text` is the highlighted file as HTML, or the generator's errors, one per line.
   | { type: "result"; id: number; ok: boolean; text: string };
 
 const scope = self as unknown as {
