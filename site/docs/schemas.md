@@ -34,7 +34,7 @@ type PetKind = Pet["kind"];
 | `type: string`, any `format` (`date-time`, `uuid`, ...) | `string` |
 | `type: integer` or `number`, any `format` (`int64`, ...) | `number` |
 | `type: boolean` | `boolean` |
-| `type: "null"`, or `nullable: true` in OpenAPI 3.0 | Adds `null` |
+| `type: "null"`, or `nullable: true` | Adds `null` |
 | `enum`, `const` | A union of literals, or one literal |
 | `type: array` | `T[]`; with `minItems: n`, a tuple whose first n items are required (`[T, ...T[]]` for 1); with `prefixItems`, a tuple |
 | `type: object` with `properties` | An object type; properties not in `required` are optional |

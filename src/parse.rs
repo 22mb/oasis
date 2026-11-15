@@ -866,16 +866,16 @@ impl<'a> Parser<'a> {
             1 => parts.remove(0),
             _ => Schema::Intersection(parts),
         };
-        // OpenAPI 3.0 has no `"null"` type; `nullable: true` adds it.
+        // OpenAPI 3.0 has no `"null"` type; `nullable: true` adds it. Later
+        // versions have no `nullable`, but a document converted from 3.0 can
+        // keep it, and it still means `null`. There it is an unknown keyword,
+        // so any other value is ignored.
         match (self.version, node.v.get("nullable")) {
-            (_, None) => Ok(schema),
-            (Version::V30, Some(Value::Bool(true))) => Ok(nullable(schema)),
-            (Version::V30, Some(Value::Bool(false))) => Ok(schema),
-            (Version::V30, Some(v)) => Err(Error::new("`nullable` must be a boolean").about(v)),
-            (Version::V31Plus, Some(v)) => Err(Error::new(
-                "`nullable` is OpenAPI 3.0 syntax; use `type: [..., \"null\"]`",
-            )
-            .about(v)),
+            (_, Some(Value::Bool(true))) => Ok(nullable(schema)),
+            (Version::V30, Some(v)) if !v.is_boolean() => {
+                Err(Error::new("`nullable` must be a boolean").about(v))
+            }
+            _ => Ok(schema),
         }
     }
 
@@ -1078,7 +1078,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-/// Converts a 3.0 schema with `nullable: true` to its 3.1 form by adding
+/// Converts a schema with `nullable: true` to its 3.1 form by adding
 /// `"null"` to its type and `null` to any `enum`. Adding `null` to `enum`
 /// matches how generators interpret 3.0 documents, even though 3.0.3 strictly
 /// requires `null` to be listed in `enum`.
@@ -1506,12 +1506,35 @@ mod tests {
     }
 
     #[test]
-    fn rejects_nullable_after_3_0() {
+    fn nullable_true_adds_null_after_3_0() {
         for v in ["3.1.0", "3.2.0"] {
-            rejects(
-                json!({"openapi": v, "components": {"schemas": {"S": {"type": "string", "nullable": true}}}}),
-                "`nullable` is OpenAPI 3.0 syntax",
+            let schema = |s: Value| {
+                parse_value(json!({"openapi": v, "components": {"schemas": {"S": s}}}))
+                    .unwrap()
+                    .schemas
+                    .remove(0)
+                    .schema
+            };
+            let string_or_null = Schema::Union {
+                kind: UnionKind::Types,
+                variants: vec![string(), Schema::Null],
+                discriminator: None,
+            };
+            assert_eq!(
+                schema(json!({"type": "string", "nullable": true})),
+                string_or_null
             );
+            assert_eq!(
+                schema(json!({"type": ["string", "null"], "nullable": true})),
+                string_or_null
+            );
+            // An unknown keyword can have any value.
+            for other in [json!(false), json!("yes")] {
+                assert_eq!(
+                    schema(json!({"type": "string", "nullable": other})),
+                    string()
+                );
+            }
         }
     }
 
