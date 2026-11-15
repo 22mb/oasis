@@ -506,6 +506,33 @@ paths:
           content:
             text/*:
               schema: { type: string }
+  # A schema outside `components.schemas` gets a type alias only for the shape
+  # that a type names. A `text/plain` body is a string whatever its schema is.
+  /hoisted-text:
+    get:
+      responses:
+        "200":
+          description: The note as text.
+          content:
+            text/plain:
+              schema: { $ref: "#/components/schemas/HoistedNote/$defs/alias" }
+  /hoisted-draft:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HoistedNote/$defs/draft" }
+      responses:
+        "204":
+          description: Saved.
+  /hoisted-saved:
+    get:
+      responses:
+        "200":
+          description: The saved note.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HoistedNote/$defs/saved" }
 components:
   schemas:
     Account:
@@ -892,6 +919,29 @@ components:
           type: object
           properties:
             rev: { type: integer, readOnly: true }
+    # Schemas that only operations refer to: `alias` and `text` from a
+    # `text/plain` body, `draft` from a request and `saved` from a response.
+    HoistedNote:
+      type: object
+      properties:
+        id: { type: integer }
+      $defs:
+        text: { type: string }
+        alias: { $ref: "#/components/schemas/HoistedNote/$defs/text" }
+        draft:
+          type: object
+          properties:
+            id: { type: integer, readOnly: true }
+            body: { type: string }
+        saved:
+          type: object
+          properties:
+            id: { type: integer, readOnly: true }
+            author: { $ref: "#/components/schemas/HoistedNote/$defs/author" }
+        author:
+          type: object
+          properties:
+            name: { type: string }
     Words: { items: { type: string } }
     Tuple:
       prefixItems: [{ type: string }]

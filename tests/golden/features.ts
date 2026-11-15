@@ -506,6 +506,39 @@ export interface paths {
       statuses: Statuses_200_4XX_default;
     };
   };
+  "/hoisted-text": {
+    GET: {
+      request: {};
+      responses: {
+        /** The note as text. */
+        "200": string;
+      };
+      statuses: Statuses_200_default;
+    };
+  };
+  "/hoisted-draft": {
+    POST: {
+      request: {
+        contentType?: "application/json";
+        body?: $components_schemas_HoistedNote_defs_draft$Request;
+      };
+      responses: {
+        /** Saved. */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
+    };
+  };
+  "/hoisted-saved": {
+    GET: {
+      request: {};
+      responses: {
+        /** The saved note. */
+        "200": $components_schemas_HoistedNote_defs_saved;
+      };
+      statuses: Statuses_200_default;
+    };
+  };
 }
 
 // The statuses each response key covers, as `[successes, failures]`, then
@@ -649,6 +682,7 @@ export interface components {
     Nested: $Nested;
     Deep: $Deep;
     Doc: $Doc;
+    HoistedNote: $HoistedNote;
     Words: $Words;
     Tuple: $Tuple;
     OpenTuple: $OpenTuple;
@@ -1009,6 +1043,9 @@ type $Doc = {
 type $Doc$Request = {
   meta?: $components_schemas_Doc_defs_meta$Request;
 };
+type $HoistedNote = {
+  id?: number;
+};
 type $Words = string[];
 type $Tuple = [string, ...number[]];
 type $OpenTuple = [boolean, ...unknown[]];
@@ -1078,6 +1115,17 @@ type $components_schemas_Doc_defs_meta = {
 type $components_schemas_Doc_defs_meta$Request = {
   rev?: never;
 };
+type $components_schemas_HoistedNote_defs_draft$Request = {
+  id?: never;
+  body?: string;
+};
+type $components_schemas_HoistedNote_defs_saved = {
+  id?: number;
+  author?: $components_schemas_HoistedNote_defs_author;
+};
+type $components_schemas_HoistedNote_defs_author = {
+  name?: string;
+};
 
 // Each component schema under its own name; `<name>Request` is its request shape.
 export type {
@@ -1136,6 +1184,7 @@ export type {
   $Nested as Nested,
   $Deep as Deep,
   $Doc as Doc,
+  $HoistedNote as HoistedNote,
   $Words as Words,
   $Tuple as Tuple,
   $OpenTuple as OpenTuple,
@@ -1930,5 +1979,6 @@ const spec: Spec = {
     "PATCH /edge": { contentType: "multipart/form-data", encoding: { "multipart/form-data": { sum: { contentType: "application/octet-stream" } } } },
     "GET /report": { binary: { "200": ["text/csv"], "4XX": [] } },
     "GET /exports": { binary: { "200": ["text/*"], "4XX": [], default: [] } },
+    "POST /hoisted-draft": { contentType: "application/json" },
   },
 };

@@ -188,10 +188,14 @@ impl<'a> Emitter<'a> {
             }
             paths.push(Member::new(&item.path, false, Type::object(operations)));
         }
-        items.push(Item::Interface {
+        let paths = Item::Interface {
             name: "paths".into(),
             members: paths,
-        });
+        };
+        // The types that `paths` names decide which hoisted schemas get an alias.
+        let mut used = HashSet::new();
+        paths.names(&mut used);
+        items.push(paths);
         items.push(Item::Blank);
         if !statuses.is_empty() {
             items.push(Item::Comment(vec![
@@ -220,7 +224,7 @@ impl<'a> Emitter<'a> {
             ty: Type::Index(Box::new(Type::name("components")), "schemas".into()),
         });
         items.push(Item::Blank);
-        self.definitions(&mut items)?;
+        self.definitions(&mut items, used)?;
         self.exports(&mut items);
         items.push(Item::Alias {
             doc: vec!["Security schemes declared in the document.".into()],
@@ -307,19 +311,35 @@ impl<'a> Emitter<'a> {
         Member::new(name, false, Type::object(schemas))
     }
 
-    /// One type alias per schema, and one for its request view where that differs.
-    fn definitions(&self, items: &mut Printer) -> Result<(), Error> {
+    /// One type alias per schema, and one for its request view where that
+    /// differs. `used` holds the names of the types that `paths` refers to.
+    fn definitions(&self, items: &mut Printer, mut used: HashSet<String>) -> Result<(), Error> {
         if self.api.schemas.is_empty() {
             return Ok(());
         }
-        items.push(Item::Comment(vec![
+        // Written before the first alias, if there is one.
+        let mut comment = Some(Item::Comment(vec![
             "One type alias per schema, `$` plus its name; `$<name>$Request` is the request".into(),
             "shape where readOnly or writeOnly properties make it differ.".into(),
         ]));
         let mut edges = Vec::new();
+        // Component schemas are listed in `components`, so their aliases are
+        // always used. An alias of a hoisted schema is written only if a type
+        // refers to it, because an unused alias fails `noUnusedLocals`: the
+        // type of a `text/plain` body, for example, does not name its schema.
+        let mut hoisted = Vec::new();
         for s in &self.api.schemas {
             let key = s.key.as_str();
-            items.push(Item::Alias {
+            let mut push = |alias: Item| {
+                if s.hoisted {
+                    hoisted.push(alias);
+                } else {
+                    alias.names(&mut used);
+                    items.extend(comment.take());
+                    items.push(alias);
+                }
+            };
+            push(Item::Alias {
                 doc: doc(&s.meta, &[]),
                 export: false,
                 name: self.reference(key, View::Response),
@@ -335,7 +355,7 @@ impl<'a> Emitter<'a> {
                 },
             });
             if self.request_variants.contains(key) {
-                items.push(Item::Alias {
+                push(Item::Alias {
                     doc: doc(&s.meta, &[]),
                     export: false,
                     name: self.reference(key, View::Request),
@@ -343,7 +363,29 @@ impl<'a> Emitter<'a> {
                 });
             }
         }
-        items.push(Item::Blank);
+        // An alias can be used only by another hoisted schema's alias, so this
+        // repeats until no more of them turn out to be used.
+        let mut kept = vec![false; hoisted.len()];
+        let mut grew = true;
+        while grew {
+            grew = false;
+            for (alias, keep) in hoisted.iter().zip(&mut kept) {
+                if !*keep && matches!(alias, Item::Alias { name, .. } if used.contains(name)) {
+                    alias.names(&mut used);
+                    *keep = true;
+                    grew = true;
+                }
+            }
+        }
+        for (alias, keep) in hoisted.into_iter().zip(kept) {
+            if keep {
+                items.extend(comment.take());
+                items.push(alias);
+            }
+        }
+        if comment.is_none() {
+            items.push(Item::Blank);
+        }
         check_cycles(self.api, &edges)
     }
 
@@ -1777,6 +1819,28 @@ mod tests {
         );
         let ok = generate(json!({"responses": {"200": {"description": "", "content": content}}}));
         assert!(ok.is_ok(), "response");
+    }
+
+    #[test]
+    fn hoisted_schemas_that_nothing_refers_to_get_no_alias() {
+        // A `text/plain` body is a string whatever its schema is, so no type
+        // names the schema that the second response refers to.
+        let text = |schema: Value| {
+            let content = json!({"text/plain": {"schema": schema}});
+            json!({"get": {"responses": {"200": {"description": "", "content": content}}}})
+        };
+        let target = "#/paths/~1a/get/responses/200/content/text~1plain/schema";
+        let paths = json!({
+            "/a": text(json!({"type": "string"})),
+            "/b": text(json!({"$ref": target})),
+        });
+        let doc = json!({"openapi": "3.2.0", "paths": paths});
+        let api = crate::parse(&crate::Documents::from_value(doc).unwrap()).unwrap();
+        assert!(api.schemas.iter().any(|s| s.hoisted));
+        let out = emit(&api).unwrap();
+        assert!(!out.contains("type $paths"), "{out}");
+        assert!(!out.contains("One type alias per schema"), "{out}");
+        assert!(!out.contains("\n\n\n"), "{out}");
     }
 
     fn r(name: &str) -> Value {
