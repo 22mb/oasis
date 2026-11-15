@@ -9,23 +9,65 @@ change the generated code or the CLI in incompatible ways.
 
 ### Added
 
-- Report every error in a document instead of only the first ([#177](https://github.com/22mb/oasis/pull/177))
+- Every error in a document is reported, not only the first. Each component
+  schema, security scheme, path, operation, and hoisted schema is converted
+  even when an earlier one fails, and the CLI prints one `error:` line per
+  error. Within one schema or operation, conversion still stops at its first
+  error. An error reached from several places is printed once
+  ([#177](https://github.com/22mb/oasis/pull/177)).
 
 ### Changed
 
-- Write each top-level declaration as it is built ([#164](https://github.com/22mb/oasis/pull/164))
+- **Breaking:** A `*/*` or `application/*` response whose schema declares raw
+  binary, as `type: string, format: binary` in OpenAPI 3.0 or as
+  `contentMediaType` without `type` in 3.1 and later, is typed and read as a
+  `Blob`, whatever its `Content-Type`. It was `unknown`, and a downloaded file
+  came back as an object, a string, or a `Blob` depending on its type. A
+  schema such as `{}` stays `unknown`. When several media types of a response
+  match the `Content-Type`, the most specific one now applies, as the
+  specification says: a `text/csv` declared with `type: string` next to a
+  binary `text/*` is now a `string` instead of a `Blob`
+  ([#178](https://github.com/22mb/oasis/pull/178)).
+- **Breaking:** An array or a tuple in a parameter's type is read-only, also
+  inside another array or an object, so that an `as const` array, a frozen
+  one, or the values that the generated file exports for an enum can be
+  passed. A value typed from a parameter in `paths` can no longer be changed
+  in place, for example with `push`
+  ([#174](https://github.com/22mb/oasis/pull/174)).
+- **Breaking:** An unquoted YAML value of digits and underscores, such as
+  `16_9`, is the string `"16_9"`, as in YAML 1.2. It was read as the integer
+  169. A document that writes a number with digit separators, such as
+  `default: 1_000`, has to write it without them
+  ([#166](https://github.com/22mb/oasis/pull/166)).
+- `nullable` in an OpenAPI 3.1 or 3.2 document is no longer rejected.
+  `nullable: true` adds `null` as it does in 3.0, and any other value is
+  ignored ([#176](https://github.com/22mb/oasis/pull/176)).
+- The emitter writes each top-level declaration as soon as it is built. The
+  output is unchanged. For the GitHub REST API description, peak heap use goes
+  from 130 MB to 121 MB ([#164](https://github.com/22mb/oasis/pull/164)).
 
 ### Fixed
 
-- **Breaking:** Read an unquoted YAML value of digits and underscores, such as 16_9, as a string ([#166](https://github.com/22mb/oasis/pull/166))
-- Leave out unused type aliases for schemas outside components.schemas ([#167](https://github.com/22mb/oasis/pull/167))
-- Round a decimal in a JSON document to the nearest floating-point number ([#170](https://github.com/22mb/oasis/pull/170))
-- Accept undefined for the inputs of a call and the client options that may be left out ([#171](https://github.com/22mb/oasis/pull/171))
-- Say in its comment why a readOnly or writeOnly property is typed never ([#173](https://github.com/22mb/oasis/pull/173))
-- **Breaking:** Type an array in a parameter as read-only, so that a read-only array can be passed ([#174](https://github.com/22mb/oasis/pull/174))
-- Read nullable: true in a 3.1 or 3.2 document as adding null ([#176](https://github.com/22mb/oasis/pull/176))
-- **Breaking:** Read a */* response declared as raw binary as a Blob, and let the most specific media type apply ([#178](https://github.com/22mb/oasis/pull/178))
-- Let a function generic over the path use the result of a call ([#179](https://github.com/22mb/oasis/pull/179))
+- Under `exactOptionalPropertyTypes`, an input of a call that may be left out,
+  such as an optional parameter or `body`, and a member of `ClientOptions`
+  rejected a value that may be `undefined`. They now accept it, and the client
+  treats it as left out, as before
+  ([#171](https://github.com/22mb/oasis/pull/171)).
+- A decimal in a JSON document with 16 or more significant digits, or with a
+  large exponent, was not always read as the nearest floating-point number:
+  `40.247749999999996` was read as `40.24775`. The same document in YAML was
+  read correctly ([#170](https://github.com/22mb/oasis/pull/170)).
+- A type alias of a schema outside `components.schemas` was declared even
+  where no type used it, which failed `noUnusedLocals` (TS6196). It is now
+  written only when used ([#167](https://github.com/22mb/oasis/pull/167)).
+- Inside a function generic over the path, the `status` of a call's result was
+  `unknown`, so passing the result to a function that expects a numeric
+  status was a type error. It is now a number
+  ([#179](https://github.com/22mb/oasis/pull/179)).
+- A `readOnly` property set in a request, or a `writeOnly` one read from a
+  response, failed with only "not assignable to type 'never'". The property's
+  doc comment now says why, and editors show it on hover
+  ([#173](https://github.com/22mb/oasis/pull/173)).
 
 ## [0.11.0](https://github.com/22mb/oasis/compare/v0.10.2...v0.11.0) - 2026-11-14
 
