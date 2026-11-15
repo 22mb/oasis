@@ -73,6 +73,24 @@ impl Type {
         }
     }
 
+    /// Adds the names of the types this type refers to.
+    fn names(&self, out: &mut HashSet<String>) {
+        match self {
+            Type::Name(n) => {
+                if !out.contains(n) {
+                    out.insert(n.clone());
+                }
+            }
+            Type::Literal(_) | Type::Template(_) => {}
+            Type::Generic(_, ts) | Type::Union(ts) | Type::Intersection(ts) => {
+                ts.iter().for_each(|t| t.names(out));
+            }
+            Type::Index(t, _) | Type::Array(t) => t.names(out),
+            Type::Tuple(ts, rest) => ts.iter().chain(rest.as_deref()).for_each(|t| t.names(out)),
+            Type::Object { members, .. } => members.iter().for_each(|m| m.ty.names(out)),
+        }
+    }
+
     /// Writes the type at nesting level `indent`, and returns whether it is a
     /// top-level union or intersection (which needs parentheses as an operand).
     fn write(&self, out: &mut String, indent: usize) -> bool {
@@ -347,6 +365,15 @@ pub enum Item {
 }
 
 impl Item {
+    /// Adds the names of the types that an alias or an interface refers to.
+    pub fn names(&self, out: &mut HashSet<String>) {
+        match self {
+            Item::Alias { ty, .. } => ty.names(out),
+            Item::Interface { members, .. } => members.iter().for_each(|m| m.ty.names(out)),
+            _ => {}
+        }
+    }
+
     pub fn alias(name: impl Into<String>, ty: Type) -> Item {
         Item::Alias {
             doc: Vec::new(),

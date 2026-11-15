@@ -286,6 +286,13 @@ export type Operations = [
   // a `type: string` schema or none is text.
   Expect<Equal<Operation<"/report", "GET">["responses"], { "200": Blob | string; "4XX": string }>>,
   Expect<Equal<Operation<"/exports", "GET">["responses"], { "200": Blob; "4XX": string; default: unknown }>>,
+  // A schema outside `components.schemas` is typed in the shape its operation uses.
+  Expect<Equal<Operation<"/hoisted-text", "GET">["responses"], { "200": string }>>,
+  Expect<Equal<
+    Operation<"/hoisted-draft", "POST">["request"],
+    { contentType?: "application/json"; body?: { id?: never; body?: string } }
+  >>,
+  Expect<Equal<Operation<"/hoisted-saved", "GET">["responses"], { "200": { id?: number; author?: { name?: string } } }>>,
   // Form bodies are typed by their schema. Multipart parts without `type` are binary
   // (one part per array item), and `type: string` parts are text, even when encoded.
   Expect<Equal<
