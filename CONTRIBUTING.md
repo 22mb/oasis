@@ -91,8 +91,8 @@ error: openapi.yaml:6:34: paths./a: GET: parameter `x`: invalid `in` `body`: exp
   `$ref` uses its path from the current directory, and standard input is
   `<input>`. Syntax errors get their position from the YAML or JSON parser.
   Other errors identify the value with `Error::about`, and emitters identify
-  the IR node with `Error::about_origin` or the schema with
-  `Error::about_schema`. `Documents::locate` then finds the position.
+  the IR node with `Error::about_origin`. `Documents::locate` then finds the
+  position.
 - The location in the document comes next, as reached from the entry
   document: keys joined with `.`, then the method, `` parameter `name` ``,
   `response 200` and so on. A schema reached through a `$ref` outside
