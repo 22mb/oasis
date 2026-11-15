@@ -41,14 +41,16 @@ To use a different server for each environment, see the
 ### Fetch options for every request
 
 A call takes fetch options such as `signal` in its
-[second argument](#calling-an-operation). To set one for every request, such
-as `credentials` to send cookies to another origin, wrap `fetch`:
+[second argument](#calling-an-operation). To set one for every request, wrap
+`fetch`. For example, `redirect: "error"` makes a call fail instead of
+following a redirect. A redirect to another origin would otherwise receive
+headers of the request, such as an API key:
 
 ```ts twoslash
 import { createClient } from "./api.ts";
 // ---cut---
 const api = createClient({
-  fetch: (request) => fetch(request, { credentials: "include" }),
+  fetch: (request) => fetch(request, { redirect: "error" }),
 });
 ```
 

@@ -277,5 +277,5 @@ export default [
 | `TS2554: Expected 0-1 arguments, but got 2.` in `DecodeError` | `lib` is older than ES2022 | Set `lib` to ES2022 or later |
 | `TS2304: Cannot find name 'RequestInit'`, `'Blob'`, or `'FormData'` | Neither the `dom` lib nor `@types/node` is available | Add one of them |
 | `DecodeError` for an error response | The server returned a body that does not match its `Content-Type`, such as an HTML error page | Catch `DecodeError` and check `error.response.status`; see [Errors](./client#decodeerror) |
-| Cookie parameters or cookie API keys are not sent in a browser | Browsers ignore a `Cookie` header set in `fetch` | Let the browser send its own cookies, for example with the [`credentials` fetch option](./client#fetch-options-for-every-request) |
+| Cookie parameters or cookie API keys are not sent in a browser | Browsers ignore a `Cookie` header set in `fetch` | Let the browser send its own cookies, for example with the `credentials` fetch option |
 | `nullable` is rejected | The document is OpenAPI 3.1 or 3.2, where `nullable` does not exist | Use `type: [..., "null"]` |
