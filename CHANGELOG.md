@@ -5,6 +5,28 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.12.0](https://github.com/22mb/oasis/compare/v0.11.0...v0.12.0) - 2026-11-15
+
+### Added
+
+- Report every error in a document instead of only the first ([#177](https://github.com/22mb/oasis/pull/177))
+
+### Changed
+
+- Write each top-level declaration as it is built ([#164](https://github.com/22mb/oasis/pull/164))
+
+### Fixed
+
+- **Breaking:** Read an unquoted YAML value of digits and underscores, such as 16_9, as a string ([#166](https://github.com/22mb/oasis/pull/166))
+- Leave out unused type aliases for schemas outside components.schemas ([#167](https://github.com/22mb/oasis/pull/167))
+- Round a decimal in a JSON document to the nearest floating-point number ([#170](https://github.com/22mb/oasis/pull/170))
+- Accept undefined for the inputs of a call and the client options that may be left out ([#171](https://github.com/22mb/oasis/pull/171))
+- Say in its comment why a readOnly or writeOnly property is typed never ([#173](https://github.com/22mb/oasis/pull/173))
+- **Breaking:** Type an array in a parameter as read-only, so that a read-only array can be passed ([#174](https://github.com/22mb/oasis/pull/174))
+- Read nullable: true in a 3.1 or 3.2 document as adding null ([#176](https://github.com/22mb/oasis/pull/176))
+- **Breaking:** Read a */* response declared as raw binary as a Blob, and let the most specific media type apply ([#178](https://github.com/22mb/oasis/pull/178))
+- Let a function generic over the path use the result of a call ([#179](https://github.com/22mb/oasis/pull/179))
+
 ## [0.11.0](https://github.com/22mb/oasis/compare/v0.10.2...v0.11.0) - 2026-11-14
 
 ### Added
