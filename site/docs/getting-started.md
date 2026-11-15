@@ -112,4 +112,4 @@ status not declared in the document, so `data` is `unknown` there.
   errors
 - [Authentication](./authentication): sending the credentials that the
   document's `security` requires
-- [Recipes](./recipes): throwing on errors, TanStack Query, mocks, and more
+- [Recipes](./recipes): throwing on errors, wrapping calls, mocks, and more

@@ -153,3 +153,18 @@ export async function checks() {
   const sse = await api.GET("/stream/sse");
   if (sse.status === 200) for await (const e of sse.data) e.data satisfies string;
 }
+
+// A wrapper generic over the path takes the call's inputs and keeps its result.
+// The status of every member of the result is a number, also inside the wrapper.
+type GetPath = Parameters<typeof api.GET>[0];
+async function dataOf<P extends GetPath>(...args: Parameters<typeof api.GET<P>>) {
+  const res = await api.GET(...args);
+  res.status satisfies number;
+  return res;
+}
+export async function wrappers() {
+  const res = await dataOf("/pets/{petId}", { path: { petId: 1 } });
+  if (res.status === 200) res.data satisfies schemas["Pet"];
+  // @ts-expect-error `path` is required
+  await dataOf("/pets/{petId}");
+}

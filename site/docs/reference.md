@@ -108,10 +108,24 @@ accepts `undefined` in place of a `Credential`.
 
 ### Typing results
 
-`ApiResponse` takes an operation from `paths`:
+`paths` holds the types of every operation: its inputs are in `request`, and
+`ApiResponse` gives the result of calling it. `Extract` narrows the result to
+one status:
 
 ```ts twoslash
 import type { ApiResponse, paths } from "./api.ts";
 
-type GetPet = ApiResponse<paths["/pets/{petId}"]["GET"]>;
+type GetPet = paths["/pets/{petId}"]["GET"];
+
+// The result of a call, and the data of its 200 response.
+type GetPetResult = ApiResponse<GetPet>;
+type Pet = Extract<GetPetResult, { status: 200 }>["data"];
+
+// The inputs of a call.
+type GetPetPath = GetPet["request"]["path"];
+type ListPetsQuery = NonNullable<paths["/pets"]["GET"]["request"]["query"]>;
 ```
+
+These name the data of a response whose schema is written inline in the
+document, which has no type of its own, for example to type a component's
+props.

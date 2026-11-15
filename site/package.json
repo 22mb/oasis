@@ -14,7 +14,6 @@
   "devDependencies": {
     "@rspress/core": "2.1.1",
     "@rspress/plugin-twoslash": "2.1.1",
-    "@tanstack/react-query": "5.107.1",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "react": "19.3.1",
