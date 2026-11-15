@@ -1413,7 +1413,6 @@ fn check_cycles(api: &Api, edges: &[(&str, &str)]) -> Result<(), Error> {
     Ok(())
 }
 
-/// Whether `s` is `type: object` without other keywords.
 /// The property names of a schema that only requires properties, such as
 /// `required: [a, b]`: it matches exactly the objects that have them all.
 fn required_only(s: &Schema) -> Option<Vec<&str>> {
@@ -1467,6 +1466,7 @@ fn exclusive(t: Type, variant: &Schema, union: &Schema) -> Type {
     }
 }
 
+/// Whether `s` is `type: object` without other keywords.
 fn is_bare_object(s: &Schema) -> bool {
     matches!(s, Schema::Object { properties, pattern_properties, additional: None }
         if properties.is_empty() && pattern_properties.is_empty())
