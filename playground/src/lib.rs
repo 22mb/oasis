@@ -21,7 +21,13 @@ pub extern "C" fn generate() -> bool {
     let mut buffer = BUFFER.lock().unwrap();
     let result = match std::str::from_utf8(&buffer) {
         Ok(source) => {
-            oasis_gen::generate(source, oasis_gen::Lang::TypeScript).map_err(|e| e.to_string())
+            oasis_gen::generate(source, oasis_gen::Lang::TypeScript).map_err(|e| {
+                // One line per error found in the document.
+                e.iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
         }
         Err(e) => Err(e.to_string()),
     };

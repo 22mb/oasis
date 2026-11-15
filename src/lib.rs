@@ -35,8 +35,9 @@ pub fn generate(source: &str, lang: Lang) -> Result<String, Error> {
 
 /// Parses and emits, locating any error in its document.
 fn convert(docs: &Documents, lang: Lang) -> Result<String, Error> {
-    let api = parse(docs).map_err(|e| docs.locate(e))?;
-    emit(&api, lang).map_err(|e| docs.locate(e))
+    let locate = |e: Error| e.map_each(|e| docs.locate(e));
+    let api = parse(docs).map_err(locate)?;
+    emit(&api, lang).map_err(locate)
 }
 
 fn emit(api: &ir::Api, lang: Lang) -> Result<String, Error> {
@@ -126,6 +127,9 @@ fn yaml_error(e: serde_saphyr::Error) -> Error {
 
 /// An error in a document or in reading it. Boxed, so that the `Result`s
 /// returned through every level of a document's nesting stay small.
+///
+/// It displays as one error. Other errors found in the same document come
+/// with it; [`Error::iter`] lists them all.
 #[derive(Debug)]
 pub struct Error {
     details: Box<Details>,
@@ -143,6 +147,8 @@ struct Details {
     value: Option<usize>,
     /// Location in the document, outermost first.
     context: Vec<String>,
+    /// Errors found after this one.
+    more: Vec<Error>,
 }
 
 impl Error {
@@ -154,8 +160,41 @@ impl Error {
                 position: None,
                 value: None,
                 context: Vec::new(),
+                more: Vec::new(),
             }),
         }
+    }
+
+    /// Combines errors, in the order found, into the first one. An error
+    /// about the same value as an earlier one, with the same message, is left
+    /// out: a schema used in several places fails in each of them.
+    pub(crate) fn join(errors: Vec<Error>) -> Option<Error> {
+        let mut errors = errors.into_iter();
+        let mut first = errors.next()?;
+        for e in errors {
+            let same = |o: &Error| {
+                o.details.value.is_some()
+                    && o.details.value == e.details.value
+                    && o.details.message == e.details.message
+            };
+            if !same(&first) && !first.details.more.iter().any(same) {
+                first.details.more.push(e);
+            }
+        }
+        Some(first)
+    }
+
+    /// This error, followed by the others found in the same document.
+    pub fn iter(&self) -> impl Iterator<Item = &Error> {
+        std::iter::once(self).chain(&self.details.more)
+    }
+
+    /// Applies `f` to this error and to each of the others.
+    pub(crate) fn map_each(mut self, f: impl Fn(Error) -> Error) -> Error {
+        let more = std::mem::take(&mut self.details.more);
+        let mut first = f(self);
+        first.details.more = more.into_iter().map(&f).collect();
+        first
     }
 
     /// Records that the error is about document value `v`, unless a more
