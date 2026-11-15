@@ -66,14 +66,12 @@ that only a range or `default` covers is a type error. Without this limit,
 passing `200` for an operation that declares `201` would compile, and every
 successful call would throw.
 
-## TanStack Query
+## Wrapping calls
 
-You do not need generated hooks. One function that builds query options for
-every `GET` operation works with `useQuery`, `useSuspenseQuery`,
-`prefetchQuery`, and the other functions that take query options, in the
-React, Vue, Svelte, and Solid adapters alike. It makes the call with
-`expectStatus` from the previous recipe, and passes the `signal` that TanStack
-Query provides, so that canceled queries abort the request:
+A function of your own can take the same inputs as a call and keep its types.
+Make it generic over the path, and take the rest of the inputs from the
+client's method. This one resolves to the data of the status that you expect,
+using `expectStatus` from the previous recipe:
 
 ```ts twoslash
 import { createClient } from "./api.ts";
@@ -99,33 +97,24 @@ async function expectStatus<R extends Result, S extends Declared<R>>(
   return res.data as Extract<R, { status: S }>["data"];
 }
 // ---cut---
-import { queryOptions, useQuery } from "@tanstack/react-query";
-
 type GetPath = Parameters<typeof api.GET>[0];
 type GetResult<P extends GetPath> = Awaited<ReturnType<typeof api.GET<P>>>;
 
-function getQuery<P extends GetPath, S extends Declared<GetResult<P>>>(
+function getData<P extends GetPath, S extends Declared<GetResult<P>>>(
   status: S,
-  ...[path, init]: Parameters<typeof api.GET<P>>
+  ...args: Parameters<typeof api.GET<P>>
 ) {
-  return queryOptions({
-    queryKey: [path, init],
-    queryFn: ({ signal }) => {
-      const call = api.GET(path, { ...init, signal });
-      return expectStatus(call, status);
-    },
-  });
+  return expectStatus(api.GET(...args), status);
 }
 
-function usePet(petId: number) {
-  // `data` is typed from the 200 response.
-  return useQuery(getQuery(200, "/pets/{petId}", { path: { petId } }));
-}
+// `pet` is typed from the 200 response.
+const pet = await getData(200, "/pets/{petId}", { path: { petId: 1 } });
 ```
 
-The query key holds the path and the inputs, so calls with different inputs
-are cached apart. For a mutation, make the call in `mutationFn` and pass it to
-`expectStatus` in the same way.
+A status that the operation does not declare, or a missing required input, is
+a type error where the function is called. Such a function also fits a
+data-fetching library, such as the `queryFn` of TanStack Query, with the
+`signal` that the library provides so that canceled requests are aborted.
 
 ## Setting the base URL for each environment
 
