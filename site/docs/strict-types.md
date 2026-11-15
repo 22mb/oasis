@@ -127,6 +127,20 @@ type InRequests = AccountRequest;
 - Request bodies use the request variant automatically. A schema that refers
   to a schema with a request variant also gets a request variant.
 
+Setting such a property is a type error that only says its type is `never`.
+The property's doc comment, which editors show when you hover over it, names
+the keyword. To send back an object that a response returned, take those
+properties out first:
+
+```ts twoslash
+import type { Account, AccountRequest } from "./features.ts";
+declare const account: Account;
+// ---cut---
+// `id` is readOnly, and so is every property of `owner`.
+const { id, owner, ...rest } = account;
+const update: AccountRequest = { ...rest, name: "Mike", password: "secret" };
+```
+
 ## Formats are not converted
 
 A `format` does not change the type. A `date-time` stays a `string`, and an
