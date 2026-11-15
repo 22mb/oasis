@@ -19,11 +19,17 @@ const timing: Middleware = async (request, next, { operation }) => {
   }
 };
 
+// Sending these methods again has the same effect as sending them once.
+const idempotent = ["GET", "HEAD", "OPTIONS", "PUT", "DELETE"];
+
 const retry: Middleware = async (request, next) => {
+  if (!idempotent.includes(request.method)) return next(request);
   for (let attempt = 0; ; attempt++) {
     // A body can only be sent once, so send a copy.
     const response = await next(request.clone());
     if (response.status < 500 || attempt === 2) return response;
+    // Wait 200 ms, then 400 ms, before sending the request again.
+    await new Promise((resolve) => setTimeout(resolve, 200 * 2 ** attempt));
   }
 };
 

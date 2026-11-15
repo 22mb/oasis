@@ -29,11 +29,18 @@ type Result = {
   response: Response;
 };
 
+/** The status codes that the operation declares, such as `200`. */
+type Declared<R extends Result, S = R["status"]> = S extends unknown
+  ? [Extract<R, { status: S }>] extends [never]
+    ? never
+    : S
+  : never;
+
 /**
  * Resolves to the data of a response with `status`,
  * and throws an HttpError for any other status.
  */
-async function expectStatus<R extends Result, S extends R["status"]>(
+async function expectStatus<R extends Result, S extends Declared<R>>(
   call: Promise<R>,
   status: S,
 ): Promise<Extract<R, { status: S }>["data"]> {
@@ -48,6 +55,11 @@ const call = api.GET("/pets/{petId}", { path: { petId: 1 } });
 // `pet` is typed from the 200 response.
 const pet = await expectStatus(call, 200);
 ```
+
+`Declared` limits `status` to the codes that the operation declares. A status
+that only a range or `default` covers is a type error. Without this limit,
+passing `200` for an operation that declares `201` would compile, and every
+successful call would throw.
 
 ## TanStack Query
 
@@ -67,7 +79,11 @@ class HttpError extends Error {
     this.data = data;
   }
 }
-async function expectStatus<R extends { status: number; data: unknown; response: Response }, S extends R["status"]>(
+type Result = { status: number; data: unknown; response: Response };
+type Declared<R extends Result, S = R["status"]> = S extends unknown
+  ? [Extract<R, { status: S }>] extends [never] ? never : S
+  : never;
+async function expectStatus<R extends Result, S extends Declared<R>>(
   call: Promise<R>,
   status: S,
 ): Promise<Extract<R, { status: S }>["data"]> {
@@ -114,29 +130,51 @@ with the `server.proxy` option of Vite's dev server.
 
 ## Refreshing a token on 401
 
-A middleware can call `next` more than once. To retry a request with a new
-token after a `401` response, keep an unsent copy of the request:
+[`auth`](./authentication) sends the token with the operations whose
+`security` asks for it. To sign in again after a `401` response, add a
+middleware before `auth`. A middleware can call `next` more than once, and the
+request that it sends again passes through `auth`, which adds the new token:
 
 ```ts twoslash
-import { createClient, type Middleware } from "./api.ts";
+// @filename: api.ts
+export * from "./security.ts";
+// @filename: index.ts
 // ---cut---
+import { auth, createClient, type Middleware } from "./api.ts";
+
 declare function signIn(): Promise<string>;
 
 let token = await signIn();
+let renewal: Promise<void> | undefined;
 
-const bearer: Middleware = async (request, next) => {
+const renew: Middleware = async (request, next, { operation }) => {
   // A body can only be sent once, so keep a copy for the retry.
   const retry = request.clone();
-  request.headers.set("authorization", `Bearer ${token}`);
+  const sent = token;
   const response = await next(request);
-  if (response.status !== 401) return response;
-  token = await signIn();
-  retry.headers.set("authorization", `Bearer ${token}`);
+  // An operation without security, such as signing in, is not retried.
+  if (response.status !== 401 || operation.security.length === 0) return response;
+  // Requests that fail together wait for the same sign-in.
+  if (token === sent) {
+    renewal ??= signIn()
+      .then((renewed) => {
+        token = renewed;
+      })
+      .finally(() => {
+        renewal = undefined;
+      });
+    await renewal;
+  }
   return next(retry);
 };
 
-const api = createClient({ middleware: [bearer] });
+const api = createClient({
+  middleware: [renew, auth({ bearer: () => token })],
+});
 ```
+
+This relies on the `security` in the document: for an operation without it,
+`auth` [sends nothing](./authentication#when-nothing-is-sent).
 
 ## Mocking responses in tests
 
