@@ -171,11 +171,12 @@ type Spec = {
     /** Form body encodings, keyed by media type and then by property. */
     encoding?: Record<string, Record<string, Encoding>>;
     /**
-     * Maps each response key to the `text/*` media types that the document
-     * declares as binary (read as a `Blob`). Set only when at least one
-     * response has such a type, in which case every response key is included.
+     * Maps each response key to media types and ranges such as `text/*`, and
+     * whether the document declares each as binary (read as a `Blob`). Set
+     * only when at least one response has such a type, in which case every
+     * response key is included.
      */
-    binary?: Record<string, string[]>;
+    binary?: Record<string, Record<string, boolean>>;
   }>;
 };
 
@@ -481,20 +482,23 @@ function parseJson(response: Response, text: string): unknown {
 }
 
 /**
- * `binary` maps each response key to media types or ranges (such as `text/*`)
- * to read as a `Blob`. The matching key is chosen the same way as in the
- * response type: exact status code, then range, then `default`.
+ * `binary` maps each response key to media types or ranges, and whether to
+ * read each as a `Blob`. The matching key is chosen the same way as in the
+ * response type: exact status code, then range, then `default`. Within it, the
+ * most specific media type that matches applies.
  */
-async function decodeBody(response: Response, method: string, binary: Record<string, string[]> = {}): Promise<unknown> {
+async function decodeBody(
+  response: Response,
+  method: string,
+  binary: Record<string, Record<string, boolean>> = {},
+): Promise<unknown> {
   const { status } = response;
   if (method === "HEAD" || [204, 205, 304].includes(status)) return undefined;
   const contentType = response.headers.get("content-type");
   if (!contentType) return (await response.text()) || undefined;
   const mt = essence(contentType);
-  const types = binary[status] ?? binary[`${Math.trunc(status / 100)}XX`] ?? binary["default"] ?? [];
-  if (types.some((t) => t === mt || (t.endsWith("/*") && mt.startsWith(t.slice(0, -1))))) {
-    return response.blob();
-  }
+  const types = binary[status] ?? binary[`${Math.trunc(status / 100)}XX`] ?? binary["default"] ?? {};
+  if (types[mt] ?? types[`${mt.split("/")[0]}/*`] ?? types["*/*"]) return response.blob();
   switch (mediaKind(contentType)) {
     case "json": {
       const text = await response.text();

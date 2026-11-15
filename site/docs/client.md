@@ -229,7 +229,7 @@ declares.
 | `text/*`, `application/x-www-form-urlencoded` | `string`; `Blob` for a `text/*` type whose schema has no `type` |
 | `application/jsonl`, `application/x-ndjson`, `application/json-seq`, `*+json-seq` | `AsyncIterable` of parsed items |
 | `text/event-stream` | `AsyncIterable<{ data, event?, id?, retry? }>` |
-| `*/*`, `application/*`, and `text/*` itself | Typed as `unknown`, since the range includes event streams and JSON as well as text; decoded according to the actual `Content-Type` |
+| `*/*`, `application/*`, and `text/*` itself | Typed as `unknown`, since the range includes event streams and JSON as well as text; decoded according to the actual `Content-Type`. `Blob` when the schema declares raw binary (see below) |
 | Anything else | `Blob` |
 
 `data` is `undefined` for `HEAD` requests and for `204`, `205`, and `304`
@@ -238,8 +238,14 @@ responses. A response without a `Content-Type` is read as text, or as
 `type` (`type: string, format: binary` in OpenAPI 3.0) is binary, such as a CSV
 file to download: `data` is a `Blob`. This applies to the response that
 declares it: another response with the same media type and a `type` is text.
-A `text/*` response without a schema is text. Items of sequential media types are typed
-from `itemSchema` when the document has one.
+A `text/*` response without a schema is text. A `*/*` or `application/*`
+response is binary only when its schema says so: `type: string, format: binary`
+in OpenAPI 3.0, or `contentMediaType` without `type` in 3.1 and later. A
+schema such as `{}` allows any JSON value, so `data` stays `unknown`. When
+several media types of a response match the `Content-Type`, the most specific
+one applies, so a JSON response next to a binary `*/*` is parsed as JSON.
+Items of sequential media types are typed from `itemSchema` when the document
+has one.
 
 ## Errors
 

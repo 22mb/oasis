@@ -33,4 +33,6 @@ export type Binary = [
     { file: Blob; extras?: Blob[]; checksum?: string }
   >>,
   Expect<Equal<paths["/pets/export"]["GET"]["responses"], { "200": Blob }>>,
+  // A range is binary only with `format: binary`; `{}` allows any value.
+  Expect<Equal<paths["/pets/files"]["GET"]["responses"], { "200": Blob; default: unknown }>>,
 ];

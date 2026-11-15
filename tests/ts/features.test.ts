@@ -151,8 +151,24 @@ test("reads a text/* response declared as binary in the document as a Blob", asy
   };
   expect(await exported("text/markdown; charset=utf-8")).toBeInstanceOf(Blob);
   expect(await exported("application/json")).toBe(1);
+  // ...except a more specific media type of the response that is not binary...
+  expect(await exported("text/plain")).toBe("1");
   // ...only in the responses it is declared for.
   expect(await exported("text/plain", 404)).toBe("1");
+});
+
+test("reads a */* response as a Blob only when the document declares raw binary", async () => {
+  const download = async (contentType: string, status = 200) => {
+    const response = () => new Response("{}", { status, headers: { "content-type": contentType } });
+    return (await recording(response).api.GET("/downloads")).data as unknown;
+  };
+  // A file is a Blob whatever its type, even JSON or text...
+  expect(await download("text/plain")).toBeInstanceOf(Blob);
+  expect(await download("application/ld+json")).toBeInstanceOf(Blob);
+  // ...except the more specific media type that the response declares as JSON.
+  expect(await download("application/json; charset=utf-8")).toStrictEqual({});
+  // An empty schema is not binary, so the Content-Type decides.
+  expect(await download("application/json", 500)).toStrictEqual({});
 });
 
 test("decodes bodies by status and Content-Type", async () => {

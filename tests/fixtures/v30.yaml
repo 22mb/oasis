@@ -70,6 +70,20 @@ paths:
           content:
             text/csv:
               schema: { type: string, format: binary }
+  # A range is binary only when its schema says so.
+  /pets/files:
+    get:
+      responses:
+        "200":
+          description: The file, whatever its type.
+          content:
+            "*/*":
+              schema: { type: string, format: binary }
+        default:
+          description: Anything else.
+          content:
+            "*/*":
+              schema: {}
 components:
   schemas:
     Kind:

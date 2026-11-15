@@ -446,7 +446,7 @@ impl<'a> Emitter<'a> {
     }
 
     /// The runtime data of `op`, keyed by `"METHOD /path"`, if it needs any.
-    /// `binary` is [`Emitter::binary_text`] of each response of `op`, and
+    /// `binary` is [`Emitter::binary_media`] of each response of `op`, and
     /// `content_type` its default request media type.
     fn operation_data(
         &self,
@@ -491,12 +491,26 @@ impl<'a> Emitter<'a> {
         if !encodings.is_empty() {
             info.push(("encoding".into(), Expr::inline(encodings)));
         }
-        // If any response has binary text, include every response key so the
-        // runtime finds the key covering a status the same way the types do.
+        // If any response is read as binary by its media type, include every
+        // response key so the runtime finds the key covering a status the same
+        // way the types do. Within a key, the most specific media type that
+        // matches applies, so list the others that a binary range covers.
         if binary.iter().any(|b| !b.is_empty()) {
-            let keys = op.responses.iter().zip(binary).map(|(r, types)| {
-                let types = types.iter().map(|mt| Expr::string(mt)).collect();
-                (r.status.key(), Expr::Array(types))
+            let keys = op.responses.iter().zip(binary).map(|(r, binary)| {
+                let mut types: Vec<(String, Expr)> = binary
+                    .iter()
+                    .map(|mt| (mt.clone(), Expr::Literal(true.into())))
+                    .collect();
+                for c in &r.content {
+                    let mt = essence(&c.media_type);
+                    if covers(binary, &mt)
+                        && !binary.contains(&mt)
+                        && !types.iter().any(|(t, _)| *t == mt)
+                    {
+                        types.push((mt, Expr::Literal(false.into())));
+                    }
+                }
+                (r.status.key(), Expr::inline(types))
             });
             info.push(("binary".into(), Expr::inline(keys.collect())));
         }
@@ -520,7 +534,7 @@ impl<'a> Emitter<'a> {
         if op.responses.is_empty() {
             responses.push(Member::new("default", false, Type::name("unknown")));
         }
-        let binary: Vec<Vec<String>> = op.responses.iter().map(|r| self.binary_text(r)).collect();
+        let binary: Vec<Vec<String>> = op.responses.iter().map(|r| self.binary_media(r)).collect();
         let content_type = op.body.as_ref().and_then(Body::default_media_type);
         for (r, binary) in op.responses.iter().zip(&binary) {
             // Never carries a body on the wire, whatever the document declares.
@@ -847,17 +861,24 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// The `text/*` media types of response `r` whose schema marks the body as
-    /// binary (no `type`, or `format: binary` in 3.0), as essences. The runtime
-    /// uses the response key covering the status and the actual `Content-Type`
-    /// to read matching text responses as a `Blob`.
-    fn binary_text(&self, r: &Response) -> Vec<String> {
+    /// The media types of response `r`, as essences, that the runtime would
+    /// otherwise read as text or by the actual `Content-Type`, but whose
+    /// schema marks the body as binary: a `text/*` type with a schema without
+    /// `type` (or `format: binary` in 3.0), or a range such as `*/*` whose
+    /// schema declares raw binary ([`Content::binary`]). The runtime reads a
+    /// response as a `Blob` when the most specific of the response key's
+    /// media types that matches its `Content-Type` is one of these.
+    fn binary_media(&self, r: &Response) -> Vec<String> {
         let mut found = Vec::new();
         for c in &r.content {
-            let binary = c.kind() == MediaKind::Text
-                && c.schema
+            let binary = match c.kind() {
+                MediaKind::Text => c
+                    .schema
                     .as_ref()
-                    .is_some_and(|s| *self.schemas.resolve(s) == Schema::Any);
+                    .is_some_and(|s| *self.schemas.resolve(s) == Schema::Any),
+                MediaKind::Unknown => c.binary,
+                _ => false,
+            };
             let mt = essence(&c.media_type);
             if binary && !found.contains(&mt) {
                 found.push(mt);
@@ -866,8 +887,11 @@ impl<'a> Emitter<'a> {
         found
     }
 
-    /// `binary` is [`Emitter::binary_text`] of the response.
+    /// `binary` is [`Emitter::binary_media`] of the response.
     fn response_data(&self, c: &Content, binary: &[String]) -> Type {
+        if binary.contains(&essence(&c.media_type)) {
+            return Type::name("Blob");
+        }
         let kind = c.kind();
         if kind.is_sequential() {
             let item = match (kind, c.sequence_item()) {
@@ -879,7 +903,6 @@ impl<'a> Emitter<'a> {
         }
         match kind {
             MediaKind::Json => self.schema_or_unknown(c.schema.as_ref(), View::Response),
-            MediaKind::Text if covers(binary, &essence(&c.media_type)) => Type::name("Blob"),
             // `text/*` also covers event streams and `+json` types, which the
             // runtime decodes differently. The actual Content-Type decides.
             MediaKind::Text if c.media_type.contains('*') => Type::name("unknown"),
@@ -1504,6 +1527,7 @@ fn array(item: Type, min: u64) -> Type {
 fn covers(types: &[String], mt: &str) -> bool {
     types.iter().any(|t| {
         t == mt
+            || t == "*/*"
             || t.strip_suffix('*')
                 .is_some_and(|prefix| prefix.ends_with('/') && mt.starts_with(prefix))
     })
@@ -1804,6 +1828,7 @@ mod tests {
         assert!(covers(&types[1..], "text/plain"));
         assert!(!covers(&types[1..], "textual/plain"));
         assert!(!covers(&types[1..], "application/json"));
+        assert!(covers(&["*/*".to_string()], "application/json"));
     }
 
     fn generate(schemas: Value) -> Result<String, Error> {
