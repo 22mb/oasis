@@ -1169,7 +1169,19 @@ impl<'a> Emitter<'a> {
                     }
                     t => t,
                 };
-                property(&p.name, !p.required || absent, t).doc(doc(&p.meta, &[]))
+                // The error for setting such a property only says that its
+                // type is `never`, so the comment gives the reason.
+                let reason = match view {
+                    _ if !absent => None,
+                    View::Request => {
+                        Some("`readOnly` in the document, so it cannot be sent in a request.")
+                    }
+                    View::Response => {
+                        Some("`writeOnly` in the document, so it is not part of a response.")
+                    }
+                };
+                let reason: Vec<String> = reason.into_iter().map(String::from).collect();
+                property(&p.name, !p.required || absent, t).doc(doc(&p.meta, &reason))
             })
             .collect();
         members.extend(index.map(Member::index));
@@ -2001,6 +2013,8 @@ mod tests {
             "    \"Pet.Owner\": $Pet_Owner;\n    Pet_Owner: $Pet_Owner_2;\n    \"Pet-Request\": $Pet_Request;\n    Pet: $Pet;\n",
         );
         has("  requestSchemas: {\n    Pet: $Pet$Request;\n");
-        has("type $Pet$Request = {\n  id?: never;\n};\n");
+        has(
+            "type $Pet$Request = {\n  /** `readOnly` in the document, so it cannot be sent in a request. */\n  id?: never;\n};\n",
+        );
     }
 }

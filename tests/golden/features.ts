@@ -245,6 +245,7 @@ export interface paths {
         }, "id"> & {
           thumbnail?: Blob;
           checksum?: string;
+          /** `readOnly` in the document, so it cannot be sent in a request. */
           id?: never;
         };
       };
@@ -282,6 +283,7 @@ export interface paths {
           attachments?: Blob[];
           photo?: Blob;
           meta: $Form;
+          /** `readOnly` in the document, so it cannot be sent in a request. */
           id?: never;
           caption?: string;
           checksum?: string;
@@ -749,6 +751,7 @@ type $Account = {
   id: number;
   /** @default "anonymous" */
   name: string;
+  /** `writeOnly` in the document, so it is not part of a response. */
   password?: never;
   owner?: $Owner;
 };
@@ -758,6 +761,7 @@ type $Account = {
  * A user account.
  */
 type $Account$Request = {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   id?: never;
   /** @default "anonymous" */
   name: string;
@@ -768,6 +772,7 @@ type $Owner = {
   ownerId: number;
 };
 type $Owner$Request = {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   ownerId?: never;
 };
 type $Base = {
@@ -823,6 +828,7 @@ type $Inherited = {
 };
 type $Inherited$Request = {
   constructor?: 1.5 | Object["constructor"];
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   toString?: Object["toString"];
   valueOf: number;
   hasOwnProperty?: unknown;
@@ -860,29 +866,35 @@ type $Vehicle = $Car & { kind: "car" | "Car" } | $Bike & { kind: "Bike" } | $Oth
 type $Serial = number;
 type $Entity = {
   serial?: $Serial;
+  /** `writeOnly` in the document, so it is not part of a response. */
   secret?: never;
   label?: string;
 };
 type $Entity$Request = {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   serial?: never;
   secret?: string;
   label?: string;
 };
 type $Entry = $Entity & {
   serial: {} | null;
+  /** `writeOnly` in the document, so it is not part of a response. */
   secret?: never;
   label: {} | null;
 };
 type $Entry$Request = $Entity$Request & {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   serial?: never;
   secret: {} | null;
   label: {} | null;
 };
 type $Signup = Omit<$Credentials, "password"> & {
   id?: number;
+  /** `writeOnly` in the document, so it is not part of a response. */
   password?: never;
 };
 type $Signup$Request = Omit<$Credentials, "id"> & {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   id?: never;
   password?: string;
 };
@@ -895,15 +907,18 @@ type $NestedAllOf = $Credentials & $Base & {
   id?: number;
 };
 type $NestedAllOf$Request = Omit<$Credentials & $Base, "id"> & {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   id?: never;
 };
 type $Login = $Guarded & Omit<$Credentials, "password">;
 type $Login$Request = $Guarded$Request & Omit<$Credentials, "id">;
 type $Guarded = {
   id?: number;
+  /** `writeOnly` in the document, so it is not part of a response. */
   password?: never;
 };
 type $Guarded$Request = {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   id?: never;
   password?: string;
 };
@@ -926,7 +941,9 @@ type $Member$Request = Omit<{
   kind: string;
   id: string;
 }, "id"> & {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   id?: never;
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   since?: never;
 };
 type $Upload = {
@@ -937,10 +954,12 @@ type $Holder = {
   serial: $Serial;
 };
 type $Holder$Request = {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   serial?: never;
 };
 type $Secret = string;
 type $Vault = {
+  /** `writeOnly` in the document, so it is not part of a response. */
   secret?: never;
 };
 type $Vault$Request = {
@@ -961,6 +980,7 @@ type $OpenEntry = $Open & {
   id?: number;
 };
 type $OpenEntry$Request = $Open & {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   id?: never;
 };
 type $Mixed = {
@@ -974,6 +994,7 @@ type $MixedEntry = $Mixed & {
   id?: number;
 };
 type $MixedEntry$Request = $Mixed & {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   id?: never;
 };
 type $Either = $Vault | $Digest;
@@ -1002,6 +1023,7 @@ type $Stamped = {
   pairs?: ($Base & $Owner)[];
 };
 type $Stamped$Request = {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   stamp?: never;
   pairs?: ($Base & $Owner$Request)[];
 };
@@ -1011,6 +1033,7 @@ type $Nested = $Entity & {
   extra?: string;
 };
 type $Nested$Request = $Entity$Request & {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   serial?: never;
 } & {
   extra?: string;
@@ -1028,12 +1051,15 @@ type $Deep = {
 };
 type $Deep$Request = {
   inner?: {
+    /** `readOnly` in the document, so it cannot be sent in a request. */
     serial?: never;
   };
   list?: {
+    /** `readOnly` in the document, so it cannot be sent in a request. */
     serial?: never;
   }[];
   choice?: {
+    /** `readOnly` in the document, so it cannot be sent in a request. */
     serial?: never;
   } | string;
 };
@@ -1113,9 +1139,11 @@ type $components_schemas_Doc_defs_meta = {
   rev?: number;
 };
 type $components_schemas_Doc_defs_meta$Request = {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   rev?: never;
 };
 type $components_schemas_HoistedNote_defs_draft$Request = {
+  /** `readOnly` in the document, so it cannot be sent in a request. */
   id?: never;
   body?: string;
 };
