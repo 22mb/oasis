@@ -533,6 +533,33 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/HoistedNote/$defs/saved" }
+  # The client only reads a parameter, so an array in one is read-only, also
+  # inside another array: an `as const` array, such as the values of an enum,
+  # can be passed as it is. A named schema keeps its type.
+  /readonly-arrays:
+    get:
+      parameters:
+        - name: flags
+          in: query
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/Flag" }
+        - name: grid
+          in: query
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: array, items: { type: integer } }
+        - name: named
+          in: query
+          schema: { $ref: "#/components/schemas/Pair" }
+        - name: pair
+          in: header
+          schema: { type: array, items: { type: string }, minItems: 2 }
+      responses:
+        "204":
+          description: No Content
 components:
   schemas:
     Account:

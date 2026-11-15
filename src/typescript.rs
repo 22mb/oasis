@@ -576,7 +576,10 @@ impl<'a> Emitter<'a> {
                         // Other content-based parameters are passed pre-serialized.
                         ParamValue::Content(_) => Type::name("string"),
                     };
-                    property(&p.name, !p.required, omittable(!p.required, t)).doc(doc(&p.meta, &[]))
+                    // The client only reads a parameter, so an array in it
+                    // can be read-only: `as const` and frozen arrays are.
+                    property(&p.name, !p.required, omittable(!p.required, t.readonly()))
+                        .doc(doc(&p.meta, &[]))
                 })
                 .collect();
             fields.push(input(loc.as_str(), !required, Type::object(members)));
@@ -592,7 +595,7 @@ impl<'a> Emitter<'a> {
                 (MediaKind::Json, s) => self.schema_or_unknown(s.as_ref(), View::Request),
                 _ => Type::name("string"),
             };
-            fields.push(input("querystring", !qs.required, t));
+            fields.push(input("querystring", !qs.required, t.readonly()));
         }
 
         // One set of fields per request media type; several become a union.

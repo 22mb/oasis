@@ -19,6 +19,8 @@ pub enum Type {
     /// `T["key"]`.
     Index(Box<Type>, String),
     Array(Box<Type>),
+    /// `readonly T[]` or `readonly [A, B]`: an array or a tuple, read-only.
+    Readonly(Box<Type>),
     /// `[A, B]` or `[A, B, ...R[]]`.
     Tuple(Vec<Type>, Option<Box<Type>>),
     /// An object type, on one line (`{ k: V }`) or one member per line.
@@ -67,9 +69,41 @@ impl Type {
             Type::Generic(_, ts) | Type::Union(ts) | Type::Intersection(ts) => {
                 ts.iter().any(|t| t.refers_to(name))
             }
-            Type::Index(t, _) | Type::Array(t) => t.refers_to(name),
+            Type::Index(t, _) | Type::Array(t) | Type::Readonly(t) => t.refers_to(name),
             Type::Tuple(ts, rest) => ts.iter().chain(rest.as_deref()).any(|t| t.refers_to(name)),
             Type::Object { members, .. } => members.iter().any(|m| m.ty.refers_to(name)),
+        }
+    }
+
+    /// This type with its arrays and tuples read-only, for a value that is
+    /// only read: it then takes a read-only array as well as a mutable one.
+    /// The types it names stay as they are.
+    pub fn readonly(self) -> Type {
+        let all = |ts: Vec<Type>| ts.into_iter().map(Type::readonly).collect();
+        match self {
+            Type::Array(t) => Type::Readonly(Box::new(Type::Array(Box::new(t.readonly())))),
+            Type::Tuple(ts, rest) => {
+                let rest = rest.map(|r| Box::new(r.readonly()));
+                Type::Readonly(Box::new(Type::Tuple(all(ts), rest)))
+            }
+            Type::Generic(name, ts) => Type::Generic(name, all(ts)),
+            Type::Union(ts) => Type::Union(all(ts)),
+            Type::Intersection(ts) => Type::Intersection(all(ts)),
+            Type::Object { members, multiline } => {
+                let readonly = |m: Member| Member {
+                    ty: m.ty.readonly(),
+                    ..m
+                };
+                Type::Object {
+                    members: members.into_iter().map(readonly).collect(),
+                    multiline,
+                }
+            }
+            Type::Name(_)
+            | Type::Literal(_)
+            | Type::Template(_)
+            | Type::Index(..)
+            | Type::Readonly(_) => self,
         }
     }
 
@@ -85,7 +119,7 @@ impl Type {
             Type::Generic(_, ts) | Type::Union(ts) | Type::Intersection(ts) => {
                 ts.iter().for_each(|t| t.names(out));
             }
-            Type::Index(t, _) | Type::Array(t) => t.names(out),
+            Type::Index(t, _) | Type::Array(t) | Type::Readonly(t) => t.names(out),
             Type::Tuple(ts, rest) => ts.iter().chain(rest.as_deref()).for_each(|t| t.names(out)),
             Type::Object { members, .. } => members.iter().for_each(|m| m.ty.names(out)),
         }
@@ -122,6 +156,12 @@ impl Type {
             Type::Array(t) => {
                 t.operand(out, indent);
                 out.push_str("[]");
+            }
+            // In parentheses as an operand: `(readonly string[])[]`.
+            Type::Readonly(t) => {
+                out.push_str("readonly ");
+                t.write(out, indent);
+                return true;
             }
             Type::Tuple(ts, rest) => {
                 out.push('[');

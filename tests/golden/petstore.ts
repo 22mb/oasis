@@ -12,8 +12,8 @@ export interface paths {
         query?: {
           /** Maximum number of items. */
           limit?: number | undefined;
-          tags?: string[] | undefined;
-          ids?: number[] | undefined;
+          tags?: readonly string[] | undefined;
+          ids?: readonly number[] | undefined;
           filter?: {
             kind?: $Kind;
             minAge?: number;

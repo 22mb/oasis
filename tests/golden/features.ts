@@ -22,7 +22,7 @@ export interface paths {
         } | undefined;
         cookie?: {
           session?: string | undefined;
-          list?: string[] | undefined;
+          list?: readonly string[] | undefined;
           raw?: string | undefined;
         } | undefined;
       };
@@ -127,7 +127,7 @@ export interface paths {
     GET: {
       request: {
         querystring: {
-          tags?: string[];
+          tags?: readonly string[];
         };
       };
       responses: {
@@ -151,7 +151,7 @@ export interface paths {
     GET: {
       request: {
         path: {
-          list: string[];
+          list: readonly string[];
           pair: {
             x?: number;
             y?: number;
@@ -160,7 +160,7 @@ export interface paths {
         query?: {
           obj?: { [key: string]: number } | undefined;
           flat?: { [key: string]: number } | undefined;
-          deep?: { [key: string]: number[] } | undefined;
+          deep?: { [key: string]: readonly number[] } | undefined;
           /**
            * @default "a"
            * @example "a"
@@ -169,11 +169,11 @@ export interface paths {
           opt?: string | null | undefined;
         } | undefined;
         header?: {
-          "X-Ids"?: number[] | undefined;
+          "X-Ids"?: readonly number[] | undefined;
           "X-Pair"?: { [key: string]: string } | undefined;
         } | undefined;
         cookie?: {
-          multi?: string[] | undefined;
+          multi?: readonly string[] | undefined;
         } | undefined;
       };
       responses: {
@@ -191,21 +191,21 @@ export interface paths {
     GET: {
       request: {
         path: {
-          label: string[];
+          label: readonly string[];
           labels: {
             x?: number;
             y?: number;
           };
-          matrix: string[];
+          matrix: readonly string[];
           matrices: {
             x?: number;
             y?: string;
           };
         };
         query?: {
-          spaced?: string[] | undefined;
+          spaced?: readonly string[] | undefined;
           piped?: { [key: string]: number } | undefined;
-          each?: string[] | undefined;
+          each?: readonly string[] | undefined;
         } | undefined;
       };
       responses: {
@@ -424,7 +424,7 @@ export interface paths {
       request: {
         query?: {
           count?: string | undefined;
-          words?: string[] | undefined;
+          words?: readonly string[] | undefined;
         } | undefined;
         header?: {
           "X-Json"?: string | undefined;
@@ -539,6 +539,25 @@ export interface paths {
         "200": $components_schemas_HoistedNote_defs_saved;
       };
       statuses: Statuses_200_default;
+    };
+  };
+  "/readonly-arrays": {
+    GET: {
+      request: {
+        query?: {
+          flags?: readonly $Flag[] | undefined;
+          grid?: readonly (readonly number[])[] | undefined;
+          named?: $Pair | undefined;
+        } | undefined;
+        header?: {
+          pair?: readonly [string, string, ...string[]] | undefined;
+        } | undefined;
+      };
+      responses: {
+        /** No Content */
+        "204": undefined;
+      };
+      statuses: Statuses_204_default;
     };
   };
 }
@@ -2013,5 +2032,6 @@ const spec: Spec = {
     "GET /report": { binary: { "200": ["text/csv"], "4XX": [] } },
     "GET /exports": { binary: { "200": ["text/*"], "4XX": [], default: [] } },
     "POST /hoisted-draft": { contentType: "application/json" },
+    "GET /readonly-arrays": { styles: { "query:grid": { style: "json" } } },
   },
 };

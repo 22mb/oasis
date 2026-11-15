@@ -65,7 +65,7 @@ export interface paths {
     GET: {
       request: {
         query?: {
-          ids?: number[] | undefined;
+          ids?: readonly number[] | undefined;
         } | undefined;
       };
       responses: {
