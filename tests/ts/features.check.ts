@@ -260,7 +260,7 @@ export type Operations = [
   Expect<Equal<
     Operation<"/forms/{id}", "PUT">["request"],
     { path: { id: number } } & (
-      | { contentType?: "application/json"; body: schemas["Form"] }
+      | { contentType?: "application/json" | undefined; body: schemas["Form"] }
       | { contentType: "application/x-www-form-urlencoded"; body: schemas["Form"] }
     )
   >>,
@@ -272,16 +272,16 @@ export type Operations = [
   Expect<Equal<
     Operation<"/photos/{id}", "PUT">["request"],
     { path: { id: number } } & (
-      | { contentType: "image/png"; body?: Exclude<NonNullable<RequestInit["body"]>, FormData | URLSearchParams> }
-      | { contentType: "image/jpeg"; body?: Exclude<NonNullable<RequestInit["body"]>, FormData | URLSearchParams> }
+      | { contentType: "image/png"; body?: Exclude<NonNullable<RequestInit["body"]>, FormData | URLSearchParams> | undefined }
+      | { contentType: "image/jpeg"; body?: Exclude<NonNullable<RequestInit["body"]>, FormData | URLSearchParams> | undefined }
       | { contentType?: never; body?: never }
     )
   >>,
   // No `responses` at all, a form querystring without a schema, and a `*/*` body.
-  Expect<Equal<Operation<"/blobs", "GET">, { request: { querystring?: Record<string, unknown> }; responses: { default: unknown } }>>,
-  Expect<Equal<Operation<"/blobs", "POST">["request"], { contentType?: string; body?: unknown }>>,
+  Expect<Equal<Operation<"/blobs", "GET">, { request: { querystring?: Record<string, unknown> | undefined }; responses: { default: unknown } }>>,
+  Expect<Equal<Operation<"/blobs", "POST">["request"], { contentType?: string | undefined; body?: unknown }>>,
   // A form querystring with a string schema is the encoded string.
-  Expect<Equal<Operation<"/blobs", "PUT">["request"], { querystring?: string }>>,
+  Expect<Equal<Operation<"/blobs", "PUT">["request"], { querystring?: string | undefined }>>,
   // A `text/*` schema without a `type` is binary, for every response of that media type;
   // a `type: string` schema or none is text.
   Expect<Equal<Operation<"/report", "GET">["responses"], { "200": Blob | string; "4XX": string }>>,
@@ -290,7 +290,7 @@ export type Operations = [
   Expect<Equal<Operation<"/hoisted-text", "GET">["responses"], { "200": string }>>,
   Expect<Equal<
     Operation<"/hoisted-draft", "POST">["request"],
-    { contentType?: "application/json"; body?: { id?: never; body?: string } }
+    { contentType?: "application/json" | undefined; body?: { id?: never; body?: string } | undefined }
   >>,
   Expect<Equal<Operation<"/hoisted-saved", "GET">["responses"], { "200": { id?: number; author?: { name?: string } } }>>,
   // Form bodies are typed by their schema. Multipart parts without `type` are binary

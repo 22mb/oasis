@@ -78,6 +78,11 @@ test("baseUrl replaces every server", async () => {
   await api.POST("/upload", { body: { name: "a", password: "p" } });
   await api.GET("/shapes");
   expect(sent.map((s) => s.url)).toStrictEqual(["http://localhost:4010/upload", "http://localhost:4010/shapes"]);
+
+  // An option set to `undefined`, such as an unset environment variable, counts as left out.
+  const unset = recording(json({}), { baseUrl: undefined, headers: undefined, middleware: undefined });
+  await unset.api.GET("/shapes");
+  expect(unset.sent[0]!.url).toBe("https://shapes.example.com/v2/shapes");
 });
 
 test("throws a DecodeError when a body does not match its Content-Type", async () => {
@@ -207,9 +212,15 @@ test("serializes arrays and objects in every location", async () => {
   if (cookieHeaders) expect(headers.get("cookie")).toBe("multi=x; multi=y");
   expect(res.data).toStrictEqual({ n: 1 });
 
-  // `undefined` also omits a parameter, which can be passed without `exactOptionalPropertyTypes`.
-  const absent = undefined as never;
-  await api.GET("/params/{list}/{pair}", { path: { list: ["a"], pair: { x: 1 } }, query: { obj: absent }, header: { "X-Ids": absent } });
+  // `undefined` also omits a parameter, and so does a group of them that is `undefined`.
+  await api.GET("/params/{list}/{pair}", {
+    path: { list: ["a"], pair: { x: 1 } },
+    query: { obj: undefined },
+    header: { "X-Ids": undefined },
+    cookie: undefined,
+    headers: undefined,
+    middleware: undefined,
+  });
   expect(sent[1]!.url).toBe("https://operation.example.com/params/a/x,1");
   expect(sent[1]!.headers.get("x-ids")).toBe(null);
 });
@@ -385,9 +396,12 @@ test("an optional body can be omitted without specifying a media type", async ()
   const { api, sent } = recording();
   await api.PUT("/photos/{id}", { path: { id: 1 } });
   await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: new Uint8Array([1]) });
+  // A body set to `undefined` is left out too.
+  await api.PUT("/photos/{id}", { path: { id: 1 }, contentType: "image/png", body: undefined });
   expect(sent.map((s) => [s.headers.get("content-type"), s.body.length])).toStrictEqual([
     [null, 0],
     ["image/png", 1],
+    [null, 0],
   ]);
 });
 

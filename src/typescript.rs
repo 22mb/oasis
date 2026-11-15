@@ -576,10 +576,10 @@ impl<'a> Emitter<'a> {
                         // Other content-based parameters are passed pre-serialized.
                         ParamValue::Content(_) => Type::name("string"),
                     };
-                    property(&p.name, !p.required, t).doc(doc(&p.meta, &[]))
+                    property(&p.name, !p.required, omittable(!p.required, t)).doc(doc(&p.meta, &[]))
                 })
                 .collect();
-            fields.push(Member::new(loc.as_str(), !required, Type::object(members)));
+            fields.push(input(loc.as_str(), !required, Type::object(members)));
         }
         if let Some(qs) = &op.querystring {
             let t = match (qs.content.kind(), &qs.content.schema) {
@@ -592,7 +592,7 @@ impl<'a> Emitter<'a> {
                 (MediaKind::Json, s) => self.schema_or_unknown(s.as_ref(), View::Request),
                 _ => Type::name("string"),
             };
-            fields.push(Member::new("querystring", !qs.required, t));
+            fields.push(input("querystring", !qs.required, t));
         }
 
         // One set of fields per request media type; several become a union.
@@ -603,17 +603,17 @@ impl<'a> Emitter<'a> {
                 let ct = if range == "*/*" {
                     // Without a default media type, leaving it out sends the body by
                     // its kind (JSON, or bytes as they are), which `*/*` covers.
-                    Member::new("contentType", default.is_none(), Type::name("string"))
+                    input("contentType", default.is_none(), Type::name("string"))
                 } else if range.contains('*') {
                     // A media type in the range, such as `image/png` for `image/*`.
                     let parts = range.split('*').map(String::from).collect();
                     Member::new("contentType", false, Type::Template(parts))
                 } else {
                     let implied = default == Some(c.media_type.as_str());
-                    Member::new("contentType", implied, Type::string(&c.media_type))
+                    input("contentType", implied, Type::string(&c.media_type))
                 };
-                let body_field = Member::new("body", !body.required, self.request_body(c))
-                    .doc(doc(&body.meta, &[]));
+                let body_field =
+                    input("body", !body.required, self.request_body(c)).doc(doc(&body.meta, &[]));
                 variants.push(vec![ct, body_field]);
             }
             // An optional body can be left out without naming a media type,
@@ -1673,6 +1673,23 @@ fn property(name: &str, optional: bool, ty: Type) -> Member {
         ty
     };
     Member::new(name, optional, ty)
+}
+
+/// The type of a member of a request that may be left out: it also takes
+/// `undefined`, which the client treats like a member that is missing. Under
+/// `exactOptionalPropertyTypes`, an optional member otherwise rejects a value
+/// that may be `undefined`, such as an optional argument passed on.
+fn omittable(optional: bool, ty: Type) -> Type {
+    if optional && !ty.is("unknown") {
+        Type::Union(vec![ty, Type::name("undefined")])
+    } else {
+        ty
+    }
+}
+
+/// A member of a request other than a parameter.
+fn input(name: &str, optional: bool, ty: Type) -> Member {
+    Member::new(name, optional, omittable(optional, ty))
 }
 
 /// The lines of the doc comment for `meta`, with `extra` after its text.

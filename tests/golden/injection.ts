@@ -16,11 +16,11 @@ export interface paths {
            * *\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // " + ((globalThis.__oasis_pwned ??= []).push(3)) + " ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \  (globalThis.__oasis_pwned ??= []).push(6); //
            * @default "*\/ (globalThis.__oasis_pwned ??= []).push(1); /*  (globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\  (globalThis.__oasis_pwned ??= []).push(6); //"
            */
-          "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"?: string;
-        };
+          "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"?: string | undefined;
+        } | undefined;
       } & ({
         contentType: `text/x${string}/\u2028\"'\`\\\${globalthis.__oasis_pwned = 1}`;
-        body?: string;
+        body?: string | undefined;
       } | {
         contentType?: never;
         body?: never;
@@ -46,7 +46,7 @@ export interface paths {
         body?: {
           "*/ (globalThis.__oasis_pwned ??= []).push(1); /* \u2028(globalThis.__oasis_pwned ??= []).push(2); // \" + ((globalThis.__oasis_pwned ??= []).push(3)) + \" ' + ((globalThis.__oasis_pwned ??= []).push(4)) + ' ` + `${(globalThis.__oasis_pwned ??= []).push(5)}` + ` \\ \u2029(globalThis.__oasis_pwned ??= []).push(6); //"?: Blob;
           "\" + ((globalThis.__oasis_pwned ??= []).push(11)) + \"\u2028`${0}`"?: string;
-        };
+        } | undefined;
       } | {
         contentType: "application/x-www-form-urlencoded";
         body?: unknown;
@@ -160,26 +160,31 @@ export type SecuritySchemeName = "key";
 type HeadersInit = NonNullable<RequestInit["headers"]> & { "Content-Type"?: never; "content-type"?: never };
 type BodyInit = NonNullable<RequestInit["body"]>;
 
+/**
+ * An option set to `undefined`, such as an unset environment variable, counts
+ * as left out. So does a parameter or another input of a call that may be left
+ * out.
+ */
 export interface ClientOptions {
   /**
    * Prepended to every path, replacing every server in the document. Defaults
    * to the operation's first server, falling back to its path's and then the
    * document's.
    */
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   /** Sent with every request; a function is called per request. */
-  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>) | undefined;
   /** Wraps every request, outermost first. See {@link Middleware}. */
-  middleware?: Middleware[];
+  middleware?: Middleware[] | undefined;
   /** Custom fetch implementation, called with the final `Request`. */
-  fetch?: (request: Request) => Promise<Response>;
+  fetch?: ((request: Request) => Promise<Response>) | undefined;
 }
 
 /** Standard fetch options accepted by every operation, besides its parameters and body. */
 export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
-  headers?: HeadersInit;
+  headers?: HeadersInit | undefined;
   /** Runs inside the client's middleware, for this call only. */
-  middleware?: Middleware[];
+  middleware?: Middleware[] | undefined;
 };
 
 /**

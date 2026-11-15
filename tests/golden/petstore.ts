@@ -11,20 +11,20 @@ export interface paths {
       request: {
         query?: {
           /** Maximum number of items. */
-          limit?: number;
-          tags?: string[];
-          ids?: number[];
+          limit?: number | undefined;
+          tags?: string[] | undefined;
+          ids?: number[] | undefined;
           filter?: {
             kind?: $Kind;
             minAge?: number;
-          };
-        };
+          } | undefined;
+        } | undefined;
         header?: {
-          "X-Request-Id"?: string;
-        };
+          "X-Request-Id"?: string | undefined;
+        } | undefined;
         cookie?: {
-          session?: string;
-        };
+          session?: string | undefined;
+        } | undefined;
       };
       responses: {
         /** A page of pets. */
@@ -37,7 +37,7 @@ export interface paths {
     /** operationId: createPet */
     POST: {
       request: {
-        contentType?: "application/json";
+        contentType?: "application/json" | undefined;
         body: $NewPet;
       } | {
         contentType: "application/x-www-form-urlencoded";
@@ -71,10 +71,10 @@ export interface paths {
      */
     QUERY: {
       request: {
-        contentType?: "application/json";
+        contentType?: "application/json" | undefined;
         body?: {
           name?: string;
-        };
+        } | undefined;
       };
       responses: {
         /** Matching pets. */
@@ -153,7 +153,7 @@ export interface paths {
         path: {
           petId: number;
         };
-        contentType?: "image/png";
+        contentType?: "image/png" | undefined;
         body: Exclude<BodyInit, FormData | URLSearchParams>;
       };
       responses: {
@@ -168,7 +168,7 @@ export interface paths {
         path: {
           petId: number;
         };
-        contentType?: "multipart/form-data";
+        contentType?: "multipart/form-data" | undefined;
         body: {
           file: Blob;
           caption?: string;
@@ -385,26 +385,31 @@ export type SecuritySchemeName = never;
 type HeadersInit = NonNullable<RequestInit["headers"]> & { "Content-Type"?: never; "content-type"?: never };
 type BodyInit = NonNullable<RequestInit["body"]>;
 
+/**
+ * An option set to `undefined`, such as an unset environment variable, counts
+ * as left out. So does a parameter or another input of a call that may be left
+ * out.
+ */
 export interface ClientOptions {
   /**
    * Prepended to every path, replacing every server in the document. Defaults
    * to the operation's first server, falling back to its path's and then the
    * document's.
    */
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   /** Sent with every request; a function is called per request. */
-  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>) | undefined;
   /** Wraps every request, outermost first. See {@link Middleware}. */
-  middleware?: Middleware[];
+  middleware?: Middleware[] | undefined;
   /** Custom fetch implementation, called with the final `Request`. */
-  fetch?: (request: Request) => Promise<Response>;
+  fetch?: ((request: Request) => Promise<Response>) | undefined;
 }
 
 /** Standard fetch options accepted by every operation, besides its parameters and body. */
 export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
-  headers?: HeadersInit;
+  headers?: HeadersInit | undefined;
   /** Runs inside the client's middleware, for this call only. */
-  middleware?: Middleware[];
+  middleware?: Middleware[] | undefined;
 };
 
 /**
