@@ -28,9 +28,9 @@ In an OpenAPI 3.0 document, these keywords are handled as follows:
 | `type: string, format: byte` | Base64 text, read as `contentEncoding: base64`: a `string`, sent as an `application/octet-stream` multipart part |
 | `example`, a boolean `exclusiveMinimum` | Ignored |
 
-`nullable` in a 3.1 or 3.2 document is rejected, because those versions of the
-specification would silently ignore it. Use `type: [..., "null"]`
-instead.
+3.1 and 3.2 have no `nullable`, but a document converted from 3.0 can keep it.
+`nullable: true` there adds `null` as it does in 3.0, and any other value is
+ignored.
 
 ## Documents
 
