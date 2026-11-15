@@ -37,7 +37,7 @@ export type Exact = [
   Expect<Equal<
     Parameters<typeof api.POST<"/pets">>,
     [path: "/pets", init: (
-      | { contentType?: "application/json"; body: schemas["NewPet"] }
+      | { contentType?: "application/json" | undefined; body: schemas["NewPet"] }
       | { contentType: "application/x-www-form-urlencoded"; body: schemas["NewPet"] }
     ) & RequestOptions]
   >>,
@@ -70,7 +70,7 @@ export type Exact = [
   // With no required inputs, init is optional.
   Expect<Equal<Parameters<typeof api.QUERY<"/pets">>, [
     path: "/pets",
-    init?: { contentType?: "application/json"; body?: { name?: string } } & RequestOptions,
+    init?: { contentType?: "application/json" | undefined; body?: { name?: string } | undefined } & RequestOptions,
   ]>>,
 ];
 
@@ -108,6 +108,18 @@ export async function checks() {
   await api.GET("/pets", { query: { limit: 10, ids: [1, 2], filter: { kind: "cat" } }, signal: AbortSignal.timeout(1000) });
   // @ts-expect-error unknown enum value
   await api.GET("/pets", { query: { filter: { kind: "bird" } } });
+
+  // An input that may be left out also takes `undefined`, so a value that may
+  // be `undefined` can be passed on under `exactOptionalPropertyTypes`.
+  const maybe: { limit?: number; requestId?: string; body?: { name?: string }; url?: string } = {};
+  await api.GET("/pets", { query: { limit: maybe.limit }, header: { "X-Request-Id": maybe.requestId } });
+  await api.GET("/pets", { query: undefined, header: undefined, cookie: undefined, headers: undefined, middleware: undefined });
+  await api.QUERY("/pets", { contentType: undefined, body: maybe.body });
+  createClient({ baseUrl: maybe.url, headers: undefined, middleware: undefined, fetch: undefined });
+  // @ts-expect-error a required parameter does not
+  await api.GET("/pets/{petId}", { path: { petId: undefined } });
+  // @ts-expect-error nor does a required body
+  await api.POST("/pets", { body: undefined });
 
   // Request bodies default to JSON; other media types need an explicit contentType.
   await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });

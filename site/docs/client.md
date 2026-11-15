@@ -21,7 +21,8 @@ const api = createClient({
 | `middleware` | Middleware that wraps every request, outermost first; see [Middleware](./middleware) |
 | `fetch` | Called with the final `Request` instead of the global `fetch` |
 
-All options are optional. To send credentials, see
+All options are optional, and an option set to `undefined`, such as an unset
+environment variable, counts as left out. To send credentials, see
 [Authentication](./authentication).
 
 ### Servers and `baseUrl`
@@ -69,7 +70,10 @@ await api.POST("/pets", { body: { name: "Tama", kind: "cat" } });
 | Anything else | Passed to `new Request`, except `method`. Options that `Request` does not keep, such as `next` in Next.js, do not reach `fetch` |
 
 The second argument is optional only when the operation has no required
-inputs.
+inputs. A field or a parameter that you can leave out also accepts `undefined`,
+with the same result, so you can pass on a value that may be `undefined`, also
+under `exactOptionalPropertyTypes`. A parameter set to `null` is not sent
+either.
 
 Headers are applied in the following order. Later headers replace earlier
 ones.

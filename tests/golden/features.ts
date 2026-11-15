@@ -12,19 +12,19 @@ export interface paths {
           };
         };
         query?: {
-          path?: string;
+          path?: string | undefined;
           filter?: {
             a?: number;
-          };
-        };
+          } | undefined;
+        } | undefined;
         header?: {
-          "X-Meta"?: { [key: string]: string };
-        };
+          "X-Meta"?: { [key: string]: string } | undefined;
+        } | undefined;
         cookie?: {
-          session?: string;
-          list?: string[];
-          raw?: string;
-        };
+          session?: string | undefined;
+          list?: string[] | undefined;
+          raw?: string | undefined;
+        } | undefined;
       };
       responses: {
         /** Anything. */
@@ -68,7 +68,7 @@ export interface paths {
   "/upload": {
     POST: {
       request: {
-        contentType?: "application/json; charset=utf-8";
+        contentType?: "application/json; charset=utf-8" | undefined;
         body: $Account$Request;
       };
       responses: {
@@ -99,7 +99,7 @@ export interface paths {
   "/notes": {
     POST: {
       request: {
-        contentType?: "application/json";
+        contentType?: "application/json" | undefined;
         /** The text of the note. */
         body: string;
       };
@@ -111,7 +111,7 @@ export interface paths {
     };
     PATCH: {
       request: {
-        contentType?: "application/merge-patch+json";
+        contentType?: "application/merge-patch+json" | undefined;
         body: {
           text?: string;
         };
@@ -138,7 +138,7 @@ export interface paths {
     };
     POST: {
       request: {
-        querystring?: string;
+        querystring?: string | undefined;
       };
       responses: {
         /** Found. */
@@ -158,23 +158,23 @@ export interface paths {
           };
         };
         query?: {
-          obj?: { [key: string]: number };
-          flat?: { [key: string]: number };
-          deep?: { [key: string]: number[] };
+          obj?: { [key: string]: number } | undefined;
+          flat?: { [key: string]: number } | undefined;
+          deep?: { [key: string]: number[] } | undefined;
           /**
            * @default "a"
            * @example "a"
            * @example "b"
            */
-          opt?: string | null;
-        };
+          opt?: string | null | undefined;
+        } | undefined;
         header?: {
-          "X-Ids"?: number[];
-          "X-Pair"?: { [key: string]: string };
-        };
+          "X-Ids"?: number[] | undefined;
+          "X-Pair"?: { [key: string]: string } | undefined;
+        } | undefined;
         cookie?: {
-          multi?: string[];
-        };
+          multi?: string[] | undefined;
+        } | undefined;
       };
       responses: {
         /** JSON or text. */
@@ -203,10 +203,10 @@ export interface paths {
           };
         };
         query?: {
-          spaced?: string[];
-          piped?: { [key: string]: number };
-          each?: string[];
-        };
+          spaced?: string[] | undefined;
+          piped?: { [key: string]: number } | undefined;
+          each?: string[] | undefined;
+        } | undefined;
       };
       responses: {
         /** Done. */
@@ -222,7 +222,7 @@ export interface paths {
           id: number;
         };
       } & ({
-        contentType?: "application/json";
+        contentType?: "application/json" | undefined;
         body: $Form;
       } | {
         contentType: "application/x-www-form-urlencoded";
@@ -238,7 +238,7 @@ export interface paths {
   "/avatars": {
     POST: {
       request: {
-        contentType?: "multipart/form-data";
+        contentType?: "multipart/form-data" | undefined;
         body: Omit<{
           id: number;
           file: Blob;
@@ -258,7 +258,7 @@ export interface paths {
   "/imports": {
     POST: {
       request: {
-        contentType?: "multipart/form-data";
+        contentType?: "multipart/form-data" | undefined;
         body: {
           id: number;
           file: Blob;
@@ -324,10 +324,10 @@ export interface paths {
         };
       } & ({
         contentType: "image/png";
-        body?: Exclude<BodyInit, FormData | URLSearchParams>;
+        body?: Exclude<BodyInit, FormData | URLSearchParams> | undefined;
       } | {
         contentType: "image/jpeg";
-        body?: Exclude<BodyInit, FormData | URLSearchParams>;
+        body?: Exclude<BodyInit, FormData | URLSearchParams> | undefined;
       } | {
         contentType?: never;
         body?: never;
@@ -342,7 +342,7 @@ export interface paths {
   "/avatar": {
     PUT: {
       request: {
-        contentType?: "application/json";
+        contentType?: "application/json" | undefined;
         body: {
           url?: string;
         };
@@ -376,7 +376,7 @@ export interface paths {
   "/attachments": {
     POST: {
       request: {
-        contentType?: "multipart/form-data";
+        contentType?: "multipart/form-data" | undefined;
         body: FormData;
       };
       responses: {
@@ -389,7 +389,7 @@ export interface paths {
   "/blobs": {
     GET: {
       request: {
-        querystring?: Record<string, unknown>;
+        querystring?: Record<string, unknown> | undefined;
       };
       responses: {
         default: unknown;
@@ -398,7 +398,7 @@ export interface paths {
     };
     PUT: {
       request: {
-        querystring?: string;
+        querystring?: string | undefined;
       };
       responses: {
         default: unknown;
@@ -407,7 +407,7 @@ export interface paths {
     };
     POST: {
       request: {
-        contentType?: string;
+        contentType?: string | undefined;
         body?: unknown;
       };
       responses: {
@@ -421,15 +421,15 @@ export interface paths {
     GET: {
       request: {
         query?: {
-          count?: string;
-          words?: string[];
-        };
+          count?: string | undefined;
+          words?: string[] | undefined;
+        } | undefined;
         header?: {
-          "X-Json"?: string;
-        };
+          "X-Json"?: string | undefined;
+        } | undefined;
         cookie?: {
-          packed?: string;
-        };
+          packed?: string | undefined;
+        } | undefined;
       };
       responses: {
         /** A JSON text sequence, by the suffix of its media type. */
@@ -441,7 +441,7 @@ export interface paths {
     };
     PUT: {
       request: {
-        querystring?: Record<string, unknown>;
+        querystring?: Record<string, unknown> | undefined;
       };
       responses: {
         /** Done. */
@@ -452,10 +452,10 @@ export interface paths {
     POST: {
       request: {
         contentType: "text/csv";
-        body?: string;
+        body?: string | undefined;
       } | {
         contentType: `text/${string}`;
-        body?: string;
+        body?: string | undefined;
       } | {
         contentType?: never;
         body?: never;
@@ -468,10 +468,10 @@ export interface paths {
     };
     PATCH: {
       request: {
-        contentType?: "multipart/form-data";
+        contentType?: "multipart/form-data" | undefined;
         body?: {
           sum?: string;
-        };
+        } | undefined;
       };
       responses: {
         /** Done. */
@@ -519,8 +519,8 @@ export interface paths {
   "/hoisted-draft": {
     POST: {
       request: {
-        contentType?: "application/json";
-        body?: $components_schemas_HoistedNote_defs_draft$Request;
+        contentType?: "application/json" | undefined;
+        body?: $components_schemas_HoistedNote_defs_draft$Request | undefined;
       };
       responses: {
         /** Saved. */
@@ -1257,26 +1257,31 @@ export type SecuritySchemeName = never;
 type HeadersInit = NonNullable<RequestInit["headers"]> & { "Content-Type"?: never; "content-type"?: never };
 type BodyInit = NonNullable<RequestInit["body"]>;
 
+/**
+ * An option set to `undefined`, such as an unset environment variable, counts
+ * as left out. So does a parameter or another input of a call that may be left
+ * out.
+ */
 export interface ClientOptions {
   /**
    * Prepended to every path, replacing every server in the document. Defaults
    * to the operation's first server, falling back to its path's and then the
    * document's.
    */
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   /** Sent with every request; a function is called per request. */
-  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>) | undefined;
   /** Wraps every request, outermost first. See {@link Middleware}. */
-  middleware?: Middleware[];
+  middleware?: Middleware[] | undefined;
   /** Custom fetch implementation, called with the final `Request`. */
-  fetch?: (request: Request) => Promise<Response>;
+  fetch?: ((request: Request) => Promise<Response>) | undefined;
 }
 
 /** Standard fetch options accepted by every operation, besides its parameters and body. */
 export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
-  headers?: HeadersInit;
+  headers?: HeadersInit | undefined;
   /** Runs inside the client's middleware, for this call only. */
-  middleware?: Middleware[];
+  middleware?: Middleware[] | undefined;
 };
 
 /**

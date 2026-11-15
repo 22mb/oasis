@@ -6,8 +6,8 @@ export interface paths {
     GET: {
       request: {
         query?: {
-          limit?: $schemas_common_yaml_Limit;
-        };
+          limit?: $schemas_common_yaml_Limit | undefined;
+        } | undefined;
       };
       responses: {
         /** Pets. */
@@ -135,26 +135,31 @@ export type SecuritySchemeName = never;
 type HeadersInit = NonNullable<RequestInit["headers"]> & { "Content-Type"?: never; "content-type"?: never };
 type BodyInit = NonNullable<RequestInit["body"]>;
 
+/**
+ * An option set to `undefined`, such as an unset environment variable, counts
+ * as left out. So does a parameter or another input of a call that may be left
+ * out.
+ */
 export interface ClientOptions {
   /**
    * Prepended to every path, replacing every server in the document. Defaults
    * to the operation's first server, falling back to its path's and then the
    * document's.
    */
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   /** Sent with every request; a function is called per request. */
-  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+  headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>) | undefined;
   /** Wraps every request, outermost first. See {@link Middleware}. */
-  middleware?: Middleware[];
+  middleware?: Middleware[] | undefined;
   /** Custom fetch implementation, called with the final `Request`. */
-  fetch?: (request: Request) => Promise<Response>;
+  fetch?: ((request: Request) => Promise<Response>) | undefined;
 }
 
 /** Standard fetch options accepted by every operation, besides its parameters and body. */
 export type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
-  headers?: HeadersInit;
+  headers?: HeadersInit | undefined;
   /** Runs inside the client's middleware, for this call only. */
-  middleware?: Middleware[];
+  middleware?: Middleware[] | undefined;
 };
 
 /**

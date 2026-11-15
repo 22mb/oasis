@@ -15,7 +15,7 @@ export type Exact = [
   Expect<Equal<Owner, { id: number; pets?: Pet[]; partner?: Owner }>>,
   // A schema found by its `$id`, and a parameter by an `$anchor` in another file.
   Expect<Equal<schemas["Error"], { title: string }>>,
-  Expect<Equal<Parameters<typeof api.GET<"/pets">>, [path: "/pets", init?: { query?: { limit?: number } } & RequestOptions]>>,
+  Expect<Equal<Parameters<typeof api.GET<"/pets">>, [path: "/pets", init?: { query?: { limit?: number | undefined } | undefined } & RequestOptions]>>,
   Expect<Equal<
     Awaited<ReturnType<typeof api.GET<"/owners/{ownerId}">>>,
     | Result<200, true, Owner>

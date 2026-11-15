@@ -74,6 +74,8 @@ The generated file exports the following:
 | `middleware` | `Middleware[]` | Wraps every request, outermost first |
 | `fetch` | `(request: Request) => Promise<Response>` | Called instead of the global `fetch` |
 
+Every option also accepts `undefined`, which counts as leaving it out.
+
 ### `Middleware`
 
 ```ts
