@@ -422,3 +422,13 @@ test("merges a per-call Cookie header with cookie parameters", async () => {
     ["theme=dark; lang=ja; token=a=b", null],
   ]);
 });
+
+test("reads parameters without changing them, so frozen arrays can be passed", async () => {
+  const { api, sent } = recording();
+  await api.GET("/readonly-arrays", {
+    query: { flags: Object.freeze(["N", "Y"] as const), grid: Object.freeze([Object.freeze([1, 2])]) },
+    header: { pair: Object.freeze(["a", "b"] as const) },
+  });
+  expect(sent[0]!.url).toBe("https://api.example.com/readonly-arrays?flags=N&flags=Y&grid=%5B%5B1%2C2%5D%5D");
+  expect(sent[0]!.headers.get("pair")).toBe("a,b");
+});

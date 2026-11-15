@@ -293,6 +293,18 @@ export type Operations = [
     { contentType?: "application/json" | undefined; body?: { id?: never; body?: string } | undefined }
   >>,
   Expect<Equal<Operation<"/hoisted-saved", "GET">["responses"], { "200": { id?: number; author?: { name?: string } } }>>,
+  // The arrays of a parameter are read-only, also inside another array. A named schema keeps its type.
+  Expect<Equal<
+    Operation<"/readonly-arrays", "GET">["request"],
+    {
+      query?: {
+        flags?: readonly schemas["Flag"][] | undefined;
+        grid?: readonly (readonly number[])[] | undefined;
+        named?: schemas["Pair"] | undefined;
+      } | undefined;
+      header?: { pair?: readonly [string, string, ...string[]] | undefined } | undefined;
+    }
+  >>,
   // Form bodies are typed by their schema. Multipart parts without `type` are binary
   // (one part per array item), and `type: string` parts are text, even when encoded.
   Expect<Equal<
@@ -370,6 +382,15 @@ export async function mediaTypeRanges() {
   await api.PUT("/avatar", { contentType: "text/plain", body: new Blob() });
   // `*/*` without a default media type: the body's kind picks one.
   await api.POST("/blobs", { body: new Blob() });
+}
+
+export async function readonlyArrays() {
+  // An `as const` array is read-only, and so are the values that an enum exports.
+  await api.GET("/readonly-arrays", { query: { flags: Flag, grid: [[1, 2], [3]] as const }, header: { pair: ["a", "b"] as const } });
+  // A mutable array is still accepted.
+  await api.GET("/readonly-arrays", { query: { flags: ["N"], grid: [[1]] }, header: { pair: ["a", "b"] } });
+  // @ts-expect-error the items are still checked
+  await api.GET("/readonly-arrays", { query: { flags: ["no"] as const } });
 }
 
 // An object that leaves out an optional property named like a member of

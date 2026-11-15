@@ -89,7 +89,9 @@ The second argument is optional only when the operation has no required
 inputs. A field or a parameter that you can leave out also accepts `undefined`,
 with the same result, so you can pass on a value that may be `undefined`, also
 under `exactOptionalPropertyTypes`. A parameter set to `null` is not sent
-either.
+either. An array in a parameter is typed as read-only, so you can pass an
+`as const` array as it is, such as the
+[values of an enum](./schemas#exported-names).
 
 Headers are applied in the following order. Later headers replace earlier
 ones.
