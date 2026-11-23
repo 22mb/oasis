@@ -5,6 +5,17 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.14.0](https://github.com/22mb/oasis/compare/v0.13.0...v0.14.0) - 2026-11-23
+
+### Changed
+
+- Drop the status aliases for whole tens to speed up narrowing ([#187](https://github.com/22mb/oasis/pull/187))
+
+### Fixed
+
+- **Breaking:** Reject a null path parameter and leave out null array items ([#186](https://github.com/22mb/oasis/pull/186))
+- Reject paths that a browser resolves to another host ([#185](https://github.com/22mb/oasis/pull/185))
+
 ## [0.13.0](https://github.com/22mb/oasis/compare/v0.12.0...v0.13.0) - 2026-11-23
 
 ### Changed
