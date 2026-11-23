@@ -7,9 +7,15 @@ change the generated code or the CLI in incompatible ways.
 
 ## [0.13.0](https://github.com/22mb/oasis/compare/v0.12.0...v0.13.0) - 2026-11-23
 
-### Fixed
+### Changed
 
-- **Breaking:** Make prefixItems past minItems optional instead of required ([#183](https://github.com/22mb/oasis/pull/183))
+- **Breaking:** In a tuple from `prefixItems`, only the first `minItems` items
+  are required, and the rest are optional: `prefixItems: [string, number]` is
+  `[string?, number?, ...unknown[]]`. Every item was required, so the type
+  rejected shorter arrays that the document allows. Add `minItems` for a fixed
+  length: with `minItems: 2` and `items: false`, the type is `[string, number]`.
+  When `minItems` reaches past `prefixItems`, items of the `items` schema are
+  required too ([#183](https://github.com/22mb/oasis/pull/183)).
 
 ## [0.12.0](https://github.com/22mb/oasis/compare/v0.11.0...v0.12.0) - 2026-11-15
 
