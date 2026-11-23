@@ -349,8 +349,9 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
   const send = async (method: string, path: string, init: Init = {}) => {
     const { path: pathParams, query, header, cookie, querystring, contentType, body, middleware, ...rest } = init;
     const op = `${method} ${path}`;
-    // A leading "//" would make a relative URL point at another host in browsers.
-    if (!path.startsWith("/") || path.startsWith("//")) {
+    // A leading "//" would make a relative URL point at another host in browsers. URL
+    // parsing reads `\` as `/` and drops tabs and newlines, so `/\host` and `/<tab>/host` do too.
+    if (!/^\/(?![\t\n\r]*[/\\])/.test(path)) {
       throw new TypeError(`${op}: the path must be a template from the document, starting with a single "/"`);
     }
     const info = spec.operations[op] ?? {};
