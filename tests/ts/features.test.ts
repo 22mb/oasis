@@ -117,6 +117,10 @@ test("only the document's methods are client properties", async () => {
   const GET = api.GET as unknown as (path: string) => Promise<unknown>;
   await expect(GET("shapes")).rejects.toThrow(TypeError);
   await expect(GET("//evil.example/x")).rejects.toThrow(TypeError); // a host in a relative URL
+  // URL parsing reads `\` as `/` and drops tabs and newlines, so these are hosts too.
+  for (const path of ["/\\evil.example/x", "/\t/evil.example/x", "/\n/evil.example/x", "/\r\\evil.example/x"]) {
+    await expect(GET(path)).rejects.toThrow(TypeError);
+  }
   expect(sent.length).toBe(0);
 });
 
