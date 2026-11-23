@@ -226,10 +226,13 @@ export type Nested = [
   >>,
   // A schema hoisted from `$defs` has a request shape too.
   Expect<Equal<components["requestSchemas"]["Doc"], { meta?: { rev?: never } }>>,
-  // `items` without `type` is an array; tuples with and without `items`.
+  // `items` without `type` is an array; tuples with and without `items`, whose
+  // items are optional past `minItems`.
   Expect<Equal<schemas["Words"], string[]>>,
-  Expect<Equal<schemas["Tuple"], [string, ...number[]]>>,
-  Expect<Equal<schemas["OpenTuple"], [boolean, ...unknown[]]>>,
+  Expect<Equal<schemas["Tuple"], [string?, ...number[]]>>,
+  Expect<Equal<schemas["OpenTuple"], [boolean?, ...unknown[]]>>,
+  Expect<Equal<schemas["Coords"], [number, number, (number | null)?]>>,
+  Expect<Equal<schemas["Padded"], [string, number, number, ...number[]]>>,
   Expect<Equal<schemas["Pair"], [string, string, ...string[]]>>,
   Expect<Equal<schemas["Batch"], [schemas["Holder"], ...schemas["Holder"][]]>>,
   Expect<Equal<components["requestSchemas"]["Batch"], [components["requestSchemas"]["Holder"], ...components["requestSchemas"]["Holder"][]]>>,
@@ -421,3 +424,12 @@ export const partOfGroup: schemas["ExactlyOne"] = { owner: "o" };
 export const twoGroups: schemas["ExactlyOne"] = { id: 1, url: "u" };
 // @ts-expect-error two groups, one of them of two properties
 export const twoGroupsOfTwo: schemas["ExactlyOne"] = { id: 1, owner: "o", repo: "r" };
+
+// A tuple takes any length from `minItems` on, checking the items it has.
+export const shortTuples: [schemas["Tuple"], schemas["OpenTuple"], ...schemas["Coords"][]] = [[], [], [1, 2], [1, 2, null]];
+// @ts-expect-error shorter than `minItems`
+export const shortCoords: schemas["Coords"] = [1];
+// @ts-expect-error an item past `minItems` is still checked
+export const wrongCoords: schemas["Coords"] = [1, 2, "3"];
+// @ts-expect-error longer than `prefixItems` with `items: false`
+export const longCoords: schemas["Coords"] = [1, 2, 3, 4];

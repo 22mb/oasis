@@ -21,8 +21,9 @@ pub enum Type {
     Array(Box<Type>),
     /// `readonly T[]` or `readonly [A, B]`: an array or a tuple, read-only.
     Readonly(Box<Type>),
-    /// `[A, B]` or `[A, B, ...R[]]`.
-    Tuple(Vec<Type>, Option<Box<Type>>),
+    /// `[A, B]` or `[A, B, ...R[]]`; the items after the first `n` are
+    /// optional: `[A, B?]` for 1.
+    Tuple(Vec<Type>, usize, Option<Box<Type>>),
     /// An object type, on one line (`{ k: V }`) or one member per line.
     Object {
         members: Vec<Member>,
@@ -70,7 +71,7 @@ impl Type {
                 ts.iter().any(|t| t.refers_to(name))
             }
             Type::Index(t, _) | Type::Array(t) | Type::Readonly(t) => t.refers_to(name),
-            Type::Tuple(ts, rest) => ts.iter().chain(rest.as_deref()).any(|t| t.refers_to(name)),
+            Type::Tuple(ts, _, rest) => ts.iter().chain(rest.as_deref()).any(|t| t.refers_to(name)),
             Type::Object { members, .. } => members.iter().any(|m| m.ty.refers_to(name)),
         }
     }
@@ -82,9 +83,9 @@ impl Type {
         let all = |ts: Vec<Type>| ts.into_iter().map(Type::readonly).collect();
         match self {
             Type::Array(t) => Type::Readonly(Box::new(Type::Array(Box::new(t.readonly())))),
-            Type::Tuple(ts, rest) => {
+            Type::Tuple(ts, n, rest) => {
                 let rest = rest.map(|r| Box::new(r.readonly()));
-                Type::Readonly(Box::new(Type::Tuple(all(ts), rest)))
+                Type::Readonly(Box::new(Type::Tuple(all(ts), n, rest)))
             }
             Type::Generic(name, ts) => Type::Generic(name, all(ts)),
             Type::Union(ts) => Type::Union(all(ts)),
@@ -120,7 +121,7 @@ impl Type {
                 ts.iter().for_each(|t| t.names(out));
             }
             Type::Index(t, _) | Type::Array(t) | Type::Readonly(t) => t.names(out),
-            Type::Tuple(ts, rest) => ts.iter().chain(rest.as_deref()).for_each(|t| t.names(out)),
+            Type::Tuple(ts, _, rest) => ts.iter().chain(rest.as_deref()).for_each(|t| t.names(out)),
             Type::Object { members, .. } => members.iter().for_each(|m| m.ty.names(out)),
         }
     }
@@ -163,9 +164,16 @@ impl Type {
                 t.write(out, indent);
                 return true;
             }
-            Type::Tuple(ts, rest) => {
+            Type::Tuple(ts, n, rest) => {
                 out.push('[');
-                join(out, ts, ", ", |out, t| _ = t.write(out, indent));
+                join(out, ts.iter().enumerate(), ", ", |out, (i, t)| {
+                    if i < *n {
+                        t.write(out, indent);
+                    } else {
+                        t.operand(out, indent);
+                        out.push('?');
+                    }
+                });
                 if let Some(r) = rest {
                     if !ts.is_empty() {
                         out.push_str(", ");

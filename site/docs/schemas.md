@@ -36,7 +36,7 @@ type PetKind = Pet["kind"];
 | `type: boolean` | `boolean` |
 | `type: "null"`, or `nullable: true` | Adds `null` |
 | `enum`, `const` | A union of literals, or one literal |
-| `type: array` | `T[]`; with `minItems: n`, a tuple whose first n items are required (`[T, ...T[]]` for 1); with `prefixItems`, a tuple |
+| `type: array` | `T[]`; with `minItems: n`, a tuple whose first n items are required (`[T, ...T[]]` for 1); with `prefixItems`, a tuple whose items are optional past `minItems` (`[A?, B?]`; add `minItems: 2` for `[A, B]`) |
 | `type: object` with `properties` | An object type; properties not in `required` are optional |
 | `additionalProperties` | An index signature (`unknown` when the object also has `properties`) |
 | `propertyNames` with `enum` or `const` | An optional property for each listed name, with the type of `additionalProperties` and no index signature. Ignored when `patternProperties` is present |
