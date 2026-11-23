@@ -407,7 +407,11 @@ export function createClient(options: ClientOptions = {}): Client<paths> {
     const base = options.baseUrl ?? info.server ?? spec.baseUrl;
     let url = base.replace(/\/+$/, "") + path.split("/").map((segment) => {
       if (!segment.includes("{")) return segment;
-      const value = segment.replace(/\{([^}]+)\}/g, (_, name: string) => pathValue(name, pathParams?.[name], style("path", name)));
+      const value = segment.replace(/\{([^}]+)\}/g, (_, name: string) => {
+        const param = pathParams?.[name];
+        if (param === undefined || param === null) throw new TypeError(`${op}: path parameter "${name}" is missing`);
+        return pathValue(name, param, style("path", name));
+      });
       // URL parsing would drop or climb out of these, sending the request elsewhere.
       if (/^(?:\.|%2e){0,2}$/i.test(value)) {
         throw new TypeError(`${op}: path segment "${segment}" must not be empty, "." or ".."`);
@@ -515,13 +519,13 @@ function encodeReserved(s: string): string {
  * Other styles separate items with their own `separator`.
  */
 function simple(value: unknown, explode: boolean, enc: Encode, separator = ","): string {
-  if (Array.isArray(value)) return value.map((v) => enc(String(v))).join(separator);
+  if (Array.isArray(value)) return items(value).map((v) => enc(String(v))).join(separator);
   if (value !== null && typeof value === "object") {
     return present(value)
       .map(([k, v]) => `${enc(k)}${explode ? "=" : separator}${enc(String(v))}`)
       .join(separator);
   }
-  return value === undefined ? "" : enc(String(value));
+  return enc(String(value));
 }
 
 /** A path parameter in `simple`, `label` (`.a.b`) or `matrix` (`;name=a,b`) style. */
@@ -532,7 +536,7 @@ function pathValue(name: string, value: unknown, s: ParamStyle): string {
   if (s.style !== "matrix") return simple(value, explode, enc);
   // An empty value is sent as the name alone.
   const pair = (k: string, v: string) => `;${enc(k)}${v && "="}${v}`;
-  if (explode && Array.isArray(value)) return value.map((v) => pair(name, enc(String(v)))).join("");
+  if (explode && Array.isArray(value)) return items(value).map((v) => pair(name, enc(String(v)))).join("");
   if (explode && value !== null && typeof value === "object") {
     return present(value).map(([k, v]) => pair(k, enc(String(v)))).join("");
   }
@@ -550,13 +554,13 @@ function pairs(name: string, value: unknown, s: ParamStyle): string[] {
   if (typeof value !== "object" || value === null) return [`${enc(name)}=${enc(String(value))}`];
   if (s.style === "deepObject") {
     return present(value).flatMap(([k, v]) =>
-      (Array.isArray(v) ? v : [v]).map((item) => `${encodeURIComponent(`${name}[${k}]`)}=${enc(String(item))}`)
+      items(v).map((item) => `${encodeURIComponent(`${name}[${k}]`)}=${enc(String(item))}`)
     );
   }
   const separator = s.style === "spaceDelimited" ? "%20" : s.style === "pipeDelimited" ? "%7C" : ",";
   if (separator !== "," || !(s.explode ?? true)) return [`${enc(name)}=${simple(value, false, enc, separator)}`];
   return Array.isArray(value)
-    ? value.map((v) => `${enc(name)}=${enc(String(v))}`)
+    ? items(value).map((v) => `${enc(name)}=${enc(String(v))}`)
     : present(value).map(([k, v]) => `${enc(k)}=${enc(String(v))}`);
 }
 

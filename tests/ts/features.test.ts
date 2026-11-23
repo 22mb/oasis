@@ -26,8 +26,8 @@ test("serializes exploded, reserved, JSON and cookie parameters", async () => {
 
 test("rejects path parameters that would change the path", async () => {
   const { api, sent } = recording();
-  // A missing value is an empty segment, not the text "undefined".
-  for (const dir of ["..", ".", "", undefined as never]) {
+  // A missing value is not sent as the text "undefined" or "null".
+  for (const dir of ["..", ".", "", undefined as never, null as never]) {
     await expect(api.GET("/files/{dir}/{name}", { path: { dir, name: "a" } })).rejects.toThrow(TypeError);
   }
   expect(sent.length).toBe(0);
@@ -253,6 +253,25 @@ test("serializes label, matrix and delimited styles", async () => {
     ["https://api.example.com/styles/.a%20b,c/.x=1.y=2/;matrix=a,b/;x=1;y?spaced=a%20b%20c&piped=a%7C1%7Cb%7C2&each=a&each=b", ""],
     ["https://api.example.com/uploads", "labels=a%7Cb%7Cc"],
   ]);
+});
+
+test("leaves out undefined and null array items", async () => {
+  const { api, sent } = recording();
+  const items = <T>(...values: T[]) => [...values, undefined, null] as unknown as T[];
+  await api.GET("/styles/{label}/{labels}/{matrix}/{matrices}", {
+    path: { label: items("a", "b"), labels: { x: 1 }, matrix: items("a", "b"), matrices: { x: 1 } },
+    query: { spaced: items("a", "b"), each: items("a", "b") },
+  });
+  await api.GET("/params/{list}/{pair}", {
+    path: { list: items("a"), pair: { x: 1 } },
+    query: { deep: { a: items(1, 2) } },
+    header: { "X-Ids": items(1, 2) },
+  });
+  expect(sent.map((s) => s.url)).toStrictEqual([
+    "https://api.example.com/styles/.a,b/.x=1/;matrix=a,b/;x=1?spaced=a%20b&each=a&each=b",
+    "https://operation.example.com/params/a/x,1?deep%5Ba%5D=1&deep%5Ba%5D=2",
+  ]);
+  expect(sent[1]!.headers.get("x-ids")).toBe("1,2");
 });
 
 test("adds cookie parameters to a cookie from async client headers", async () => {
