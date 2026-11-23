@@ -5,6 +5,12 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.13.0](https://github.com/22mb/oasis/compare/v0.12.0...v0.13.0) - 2026-11-23
+
+### Fixed
+
+- **Breaking:** Make prefixItems past minItems optional instead of required ([#183](https://github.com/22mb/oasis/pull/183))
+
 ## [0.12.0](https://github.com/22mb/oasis/compare/v0.11.0...v0.12.0) - 2026-11-15
 
 ### Added
