@@ -5,6 +5,29 @@ All notable changes to oasis-gen are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Until 1.0.0, a minor version may
 change the generated code or the CLI in incompatible ways.
 
+## [0.14.0](https://github.com/22mb/oasis/compare/v0.13.0...v0.14.0) - 2026-11-23
+
+### Changed
+
+- Narrowing a result on `status` type-checks faster: 39% less check time
+  under TypeScript 7.0 and 17–21% under TypeScript 6.0 and 5.0, for 400 calls
+  to the GitHub REST client. The status types are the same, without the
+  aliases for whole tens such as `Status21x`
+  ([#187](https://github.com/22mb/oasis/pull/187)).
+
+### Fixed
+
+- **Breaking:** A path parameter that is `undefined` or `null` throws a
+  `TypeError` before the request is sent. A `null` path parameter was sent as
+  the text `null` (`/pets/null`), and an `undefined` one could leave part of a
+  path out (`/files/.json`). Pass a value, or call another operation when there
+  is none. `undefined` and `null` items of array parameters are now left out,
+  as in form bodies, instead of being sent as text
+  ([#186](https://github.com/22mb/oasis/pull/186)).
+- A path such as `"/\\host/x"` or `"/\t/host/x"`, which a browser resolves to
+  another host, throws a `TypeError` like a path starting with `//`
+  ([#185](https://github.com/22mb/oasis/pull/185)).
+
 ## [0.13.0](https://github.com/22mb/oasis/compare/v0.12.0...v0.13.0) - 2026-11-23
 
 ### Changed
