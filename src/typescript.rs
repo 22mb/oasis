@@ -1648,21 +1648,18 @@ fn status_alias(op: &Operation) -> (String, Type) {
     (name, Type::object(members))
 }
 
-/// Ascending statuses as a type: `Status2xx` for a whole hundred, `Status20x`
-/// for a whole ten (see [`status_runs`]), and literals for the rest.
+/// Ascending statuses as a type: `Status2xx` for a whole hundred (see
+/// [`status_runs`]) and literals for the rest. Aliases for whole tens would
+/// shorten the output but make narrowing on `status` slower to check, because
+/// TypeScript then rebuilds each operation's union from nested named unions.
 fn statuses(codes: &[u16]) -> Type {
     let mut parts = Vec::new();
     let mut i = 0;
     while i < codes.len() {
         let s = codes[i];
-        let run =
-            |n: u16| s.is_multiple_of(n) && codes.get(i + usize::from(n) - 1) == Some(&(s + n - 1));
-        if run(100) {
+        if s.is_multiple_of(100) && codes.get(i + 99) == Some(&(s + 99)) {
             parts.push(Type::name(format!("Status{}xx", s / 100)));
             i += 100;
-        } else if run(10) {
-            parts.push(Type::name(format!("Status{}x", s / 10)));
-            i += 10;
         } else {
             parts.push(Type::Literal(s.into()));
             i += 1;
@@ -1671,23 +1668,17 @@ fn statuses(codes: &[u16]) -> Type {
     Type::Union(parts)
 }
 
-/// Emits the 100-status and 10-status range aliases used by `statuses`, and
-/// only those, because unused aliases fail `noUnusedLocals`.
+/// Emits the 100-status range aliases used by `statuses`, and only those,
+/// because unused aliases fail `noUnusedLocals`.
 fn status_runs(statuses: &BTreeMap<String, Type>) -> Vec<Item> {
-    let used = |name: &str| statuses.values().any(|t| t.refers_to(name));
-    let hundreds: Vec<u16> = (1..6).filter(|h| used(&format!("Status{h}xx"))).collect();
-    let tens = (10..60u16).filter(|t| hundreds.contains(&(t / 10)) || used(&format!("Status{t}x")));
-    let mut items: Vec<Item> = tens
-        .map(|t| {
-            let codes = (t * 10..t * 10 + 10).map(|c| Type::Literal(c.into()));
-            Item::alias(format!("Status{t}x"), Type::Union(codes.collect()))
+    (1..6u16)
+        .filter_map(|h| {
+            let name = format!("Status{h}xx");
+            let used = statuses.values().any(|t| t.refers_to(&name));
+            let codes = (h * 100..h * 100 + 100).map(|c| Type::Literal(c.into()));
+            used.then(|| Item::alias(name, Type::Union(codes.collect())))
         })
-        .collect();
-    items.extend(hundreds.iter().map(|h| {
-        let tens = (h * 10..h * 10 + 10).map(|t| Type::name(format!("Status{t}x")));
-        Item::alias(format!("Status{h}xx"), Type::Union(tens.collect()))
-    }));
-    items
+        .collect()
 }
 
 /// The members that every object inherits from `Object.prototype`.
