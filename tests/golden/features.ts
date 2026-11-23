@@ -721,6 +721,8 @@ export interface components {
     Words: $Words;
     Tuple: $Tuple;
     OpenTuple: $OpenTuple;
+    Coords: $Coords;
+    Padded: $Padded;
     Pair: $Pair;
     Batch: $Batch;
     Closed: $Closed;
@@ -1106,8 +1108,10 @@ type $HoistedNote = {
   id?: number;
 };
 type $Words = string[];
-type $Tuple = [string, ...number[]];
-type $OpenTuple = [boolean, ...unknown[]];
+type $Tuple = [string?, ...number[]];
+type $OpenTuple = [boolean?, ...unknown[]];
+type $Coords = [number, number, (number | null)?];
+type $Padded = [string, number, number, ...number[]];
 type $Pair = [string, string, ...string[]];
 type $Batch = [$Holder, ...$Holder[]];
 type $Batch$Request = [$Holder$Request, ...$Holder$Request[]];
@@ -1249,6 +1253,8 @@ export type {
   $Words as Words,
   $Tuple as Tuple,
   $OpenTuple as OpenTuple,
+  $Coords as Coords,
+  $Padded as Padded,
   $Pair as Pair,
   $Batch as Batch,
   $Closed as Closed,

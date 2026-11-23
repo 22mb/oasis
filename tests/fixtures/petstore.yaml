@@ -295,6 +295,7 @@ components:
       type: array
       prefixItems: [{ type: number }, { type: number }]
       items: false
+      minItems: 2
     Category:
       type: object
       required: [name]

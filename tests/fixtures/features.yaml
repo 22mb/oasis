@@ -996,6 +996,17 @@ components:
     OpenTuple:
       type: array
       prefixItems: [{ type: boolean }]
+    # Only the first `minItems` items are required, also past `prefixItems`.
+    Coords:
+      type: array
+      prefixItems: [{ type: number }, { type: number }, { type: [number, "null"] }]
+      items: false
+      minItems: 2
+    Padded:
+      type: array
+      prefixItems: [{ type: string }]
+      items: { type: number }
+      minItems: 3
     # `minItems` makes the first items required.
     Pair: { type: array, items: { type: string }, minItems: 2 }
     Batch:

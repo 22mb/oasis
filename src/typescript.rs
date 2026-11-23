@@ -957,10 +957,15 @@ impl<'a> Emitter<'a> {
                     Some(rest) => Some(self.ty(rest, view)),
                     None => Some(unknown()),
                 };
-                Type::Tuple(
-                    prefix_items.iter().map(|s| self.ty(s, view)).collect(),
-                    rest.map(Box::new),
-                )
+                // Only the first `minItems` items are required, which may
+                // reach past `prefixItems` into the rest.
+                let mut ts: Vec<Type> = prefix_items.iter().map(|s| self.ty(s, view)).collect();
+                let min = usize::try_from(*min_items).unwrap_or(usize::MAX);
+                if let Some(rest) = &rest {
+                    ts.extend((ts.len()..min).map(|_| rest.clone()));
+                }
+                let required = min.min(ts.len());
+                Type::Tuple(ts, required, rest.map(Box::new))
             }
             Schema::Object {
                 properties,
@@ -1516,10 +1521,8 @@ fn array(item: Type, min: u64) -> Type {
     if min == 0 {
         return Type::Array(Box::new(item));
     }
-    Type::Tuple(
-        (0..min).map(|_| item.clone()).collect(),
-        Some(Box::new(item)),
-    )
+    let min = usize::try_from(min).unwrap_or(usize::MAX);
+    Type::Tuple(vec![item.clone(); min], min, Some(Box::new(item)))
 }
 
 /// Whether `types` covers media-type essence `mt`, either directly or via a
@@ -1639,7 +1642,8 @@ fn status_alias(op: &Operation) -> (String, Type) {
         if !empty.is_empty() {
             tuple.push(statuses(&empty));
         }
-        members.push(Member::new(key, false, Type::Tuple(tuple, None)));
+        let n = tuple.len();
+        members.push(Member::new(key, false, Type::Tuple(tuple, n, None)));
     }
     (name, Type::object(members))
 }
