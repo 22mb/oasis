@@ -284,8 +284,8 @@ try {
 
 ### `TypeError`
 
-A `TypeError` is thrown before the request is sent when a path parameter would
-make a path segment empty, `.`, or `..`.
+A `TypeError` is thrown before the request is sent when a path parameter is
+`undefined` or `null`, or would make a path segment empty, `.`, or `..`.
 
 ## The client object
 
