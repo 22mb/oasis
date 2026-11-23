@@ -16,7 +16,7 @@
   "devDependencies": {
     "@types/node": "26.6.6",
     "@vitest/browser-playwright": "5.1.0",
-    "playwright": "1.65.0",
+    "playwright": "1.65.1",
     "typescript": "7.0.2",
     "typescript-5.0": "npm:typescript@5.0.4",
     "typescript-7.1": "npm:typescript@7.1.0-beta",
